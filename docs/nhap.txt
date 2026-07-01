@@ -1,0 +1,13 @@
+User có gì?
+1. các Serect Key riêng của user để có thể dùng lại thay vì phải nhớ và mỗi lần đi copy lại
+2. có sẵn các LLM Provider riêng để config rồi gọi như Gemini, ChatGPT link tới Serect Key của cá nhân và có thể chọn được model, nghĩa là với mỗi provider nó sẽ có nhiều model, khi gọi được 1 model thì đa phần các model khác đều gọi được -> cho user chọn model nếu thích hoặc mặc định để nguyên
+3. Mỗi user có nhiều project riêng hoặc workspace chung làm việc theo nhóm -> phân vân giữa việc là cho user tạo không gian -> tạo project để sau có thể add thêm người hoặc là -> tạo project xog sau add thêm người
+
+Trong mỗi project có gì?
+1. Schema dataset là các cột sẽ có trong dataset, mặc định sẽ có question + expected (có thể cho user đổi tên) và có thể thêm/ sửa/ xoá các cột khác
+2. Chatbot cần test, vì platform này phục vụ cho đội QC test các con AI nội bộ nên cần user config như dán cURL -> frontend or backend tách ra như method, header, body, ... rồi hỏi user xem trường nào sẽ là trường truyền dataset vào ví dụ "context", ... và truyền thì sẽ truyền schema dataset nào vào như $dataset.question thì open source promptfoo nó sẽ lấy các giá trị trong cột question để inject vào trong
+3. một con LLM dùng để chấm đầu ra của chatbot, nếu chỉ nhận mỗi câu trả lời của con chatbot rồi QC nhìn từng câu trả lời một rồi đánh giá thì khá mất thời gian và không có gì để so sánh
+4. Cách chấm, tất nhiên rồi thì sẽ có cách chấm dạng rule-base nghĩa là định nghĩa các cách chấm cho đầu ra của con chatbot hoặc các trường trong response đó với toán tử như lớn, bé, bằng nhau, chứa, không chứa, ... và cái thứ 2 là dùng LLM Judge thì sẽ kiểu chấm câu trả lời, mà chatbot nó k trả lời cố định nên chỉ có thể chấm theo các tiêu chí đã define sẵn thôi. và tất cả việc này promptfoo nó có support rồi nên -> backend chỉ cần lưu và bắn sang cho 1 con runner để nó biến data đó thành thứ con promptfoo nó có thể hiểu là được
+5. các bộ dataset, bộ dataset này sẽ follow theo schema dataset đã có lúc này thì QC có thể import sẵn testcase từ file excel hoặc dùng AI của platform có sẵn để sinh test cũng được, đối với import từ file excepl thì có các option như bỏ qua cột, mapping từ cột trong excel với cột trong schema dataset hoặc thêm cột đó vào thì cấu trúc schema dataset cũng thay đổi (đương nhiên rồi).
+6. có nhiều lần chạy, mỗi lần chạy phải có biểu đồ các thứ để QC thấy rõ hơn và test cũng dễ hơn và xem lại kết quả của con chatbot dùng để chấm cũng tương quan hơn
+7. So sánh con chatbot nội bộ này so với những con khác, nghĩa là cùng bộ dataset, cùng cách chấm, cùng một con LLM Judge thì thay vì chỉ chạy 1 con chatbot nội bộ thi sẽ cho chạy cùng với 1 con chatbot LLM khác nữa và đã config sẵn ở LLM Provider rồi và có thể chọn model thấp hơn
