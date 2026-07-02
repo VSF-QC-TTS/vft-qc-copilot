@@ -2655,84 +2655,1171 @@ Hiển thị:
 
 ---
 
-# 27. Main User Flows
+# 27. Core User Flow v0.5
 
-## 27.1. Admin Setup Workspace
+Core User Flow mô tả luồng chính từ lúc QC tạo project test chatbot đến lúc hệ thống chạy Promptfoo, nhận kết quả realtime, lưu result và hiển thị dashboard.
+
+Mục tiêu của flow này là đảm bảo 4 nguyên tắc:
+
+```text
+1. QC thao tác đơn giản theo wizard.
+2. Backend Java luôn là source of truth.
+3. Redis Streams chỉ làm transport/recovery buffer, không chứa secret hoặc artifact lớn.
+4. Runner Node.js chỉ nhận command reference, fetch locked config từ Backend, build Promptfoo config và chạy eval.
+```
+
+---
+
+## 27.1. Actors
+
+```text
+Primary actor:
+- QC / QA member
+
+Supporting actors:
+- Workspace Admin / Owner
+- Backend Java API
+- Redis Streams
+- Runner Node.js
+- Promptfoo Node API
+- Local Artifact Storage
+```
+
+---
+
+## 27.2. Core Flow Overview
+
+```text
+1. Admin setup workspace provider/secret.
+2. QC tạo project test chatbot.
+3. QC paste cURL chatbot target.
+4. Hệ thống parse, sanitize và tách secret.
+5. QC test connection và chọn response extraction path.
+6. QC import hoặc reuse dataset.
+7. QC cấu hình evaluator.
+8. QC mở Run Setup.
+9. Backend chạy preflight summary.
+10. QC confirm Start Run.
+11. Backend lock config và publish START_RUN vào Redis Stream.
+12. Runner consume START_RUN.
+13. Runner fetch locked run config từ Backend.
+14. Runner build sanitized Promptfoo config.
+15. Runner chạy Promptfoo Node API.
+16. Runner publish testcase events vào Redis Stream.
+17. Backend consume events, persist result và push SSE xuống UI.
+18. QC xem realtime progress.
+19. Run kết thúc, Backend update dashboard summary.
+20. QC debug failed testcase bằng detail/result/artifact.
+```
+
+---
+
+## 27.3. Flow 0 — Workspace Bootstrap
+
+### Trigger
+
+Admin hoặc Owner tạo workspace cho team QC.
+
+### User steps
 
 ```text
 1. Admin tạo Team Workspace.
 2. Admin invite QC members.
 3. Admin tạo Workspace Secret.
-4. Admin tạo Workspace Provider.
-5. QC members dùng provider có sẵn để chạy LLM Judge/baseline.
+4. Admin tạo Workspace Provider cho LLM Judge hoặc baseline model.
+5. QC members vào workspace và thấy provider đã sẵn sàng.
 ```
 
----
-
-## 27.2. QC Tạo Project Test
+### System behavior
 
 ```text
-1. QC tạo project.
-2. Hệ thống tạo dataset schema mặc định question/expected.
-3. QC paste cURL chatbot target.
-4. Frontend parse cURL.
-5. QC chỉnh request config nếu cần.
-6. QC map $dataset.question vào body/query/header.
-7. QC test connection.
-8. QC chọn answer path từ response example.
-9. Backend lưu chatbot target + example history.
+1. Tạo workspaces row.
+2. Tạo workspace_members row cho creator với role OWNER.
+3. Khi invite member, tạo workspace_members row status INVITED hoặc ACTIVE.
+4. Khi tạo secret, hệ thống encrypt secret value.
+5. Sau khi lưu, không role nào được xem lại plain text secret.
+6. Provider chỉ lưu secret_id reference, không lưu API key trực tiếp.
 ```
 
----
-
-## 27.3. QC Import Dataset từ Project khác
+### Main entities
 
 ```text
-1. QC mở Project Detail.
-2. Vào Datasets tab.
-3. Bấm Import Dataset.
-4. Chọn From another project.
-5. Search project nguồn.
-6. Chọn dataset + dataset version nguồn.
-7. Preview rows.
-8. Mapping schema nếu cần.
-9. Confirm clone.
-10. Backend tạo dataset + dataset_version + dataset_rows mới.
+workspaces
+workspace_members
+secrets
+llm_providers
 ```
 
----
-
-## 27.4. QC Chạy Comparison
+### Permission rule
 
 ```text
-1. QC chọn dataset version.
-2. QC chọn internal chatbot target.
-3. QC chọn baseline provider/model.
-4. QC chọn evaluator versions.
-5. Backend lock config.
-6. Backend tạo test_run COMPARISON.
-7. Backend publish START_RUN.
-8. Runner chạy từng testcase cho từng target.
-9. Backend persist results.
-10. UI hiển thị comparison dashboard.
+- OWNER / ADMIN được tạo Workspace Secret và Workspace Provider.
+- MEMBER không được tạo Workspace Secret nhưng có thể dùng provider nếu được workspace cho phép.
+- VIEWER chỉ xem, không được chạy test.
+- PLATFORM_ADMIN có quyền vận hành platform nhưng vẫn không được xem plain text secret.
 ```
 
 ---
 
-## 27.5. QC Cancel Run
+## 27.4. Flow 1 — QC Create Project
+
+### Trigger
+
+QC muốn test một chatbot nội bộ mới.
+
+### User steps
 
 ```text
-1. QC bấm Cancel.
-2. Frontend gọi HTTP POST cancel.
-3. Backend set CANCELLING.
-4. Backend publish CANCEL_RUN.
-5. Runner check cancellation flag.
-6. Runner dừng an toàn.
-7. Runner publish RUN_CANCELLED.
-8. UI nhận SSE RUN_CANCELLED.
+1. QC chọn workspace.
+2. QC bấm Create Project.
+3. QC nhập project name và description.
+4. QC submit.
+5. Hệ thống đưa QC vào Project Detail.
+```
+
+### System behavior
+
+```text
+1. Backend validate user có role OWNER / ADMIN / MEMBER trong workspace.
+2. Backend tạo projects row.
+3. Backend tạo dataset_schemas mặc định scope PROJECT.
+4. Backend tạo dataset_schema_columns mặc định:
+   - question
+   - expected
+5. Project status sẵn sàng để cấu hình target/dataset/evaluator.
+```
+
+### Main entities
+
+```text
+projects
+dataset_schemas
+dataset_schema_columns
+```
+
+### Default project schema
+
+```text
+question: required=true
+expected: required=false
 ```
 
 ---
+
+## 27.5. Flow 2 — QC Configure Chatbot Target by cURL
+
+### Trigger
+
+QC cần cấu hình API chatbot nội bộ để hệ thống có thể replay request cho từng testcase.
+
+### User steps
+
+```text
+1. QC vào Project Detail.
+2. QC mở tab Chatbot Targets.
+3. QC bấm Add Target.
+4. QC paste cURL chatbot API.
+5. Frontend parse cURL thành:
+   - method
+   - url
+   - headers
+   - query params
+   - body
+6. UI hiển thị parsed request preview.
+7. UI highlight các secret candidates:
+   - Authorization
+   - Cookie
+   - X-API-Key
+   - token
+   - api_key
+   - password
+   - secret
+8. QC chọn cách lưu secret:
+   - dùng Workspace Secret có sẵn
+   - dùng Personal Secret
+   - tạo secret mới
+9. QC map dataset fields vào request:
+   - $dataset.question
+   - $dataset.expected
+   - $dataset.context nếu có
+10. QC bấm Save Draft hoặc Test Connection.
+```
+
+### System behavior
+
+```text
+1. Frontend không gửi raw cURL có secret plain text nếu đã detect được secret.
+2. Frontend gửi parsed request config + sanitized raw cURL + secret candidates.
+3. Backend validate target config.
+4. Backend tách secret thật sang Secret entity nếu có secret mới.
+5. Backend chỉ lưu raw_curl_sanitized.
+6. Backend chỉ lưu headers/body/query đã sanitized.
+7. Backend lưu auth_config_json bằng secret reference.
+8. Backend không shell-execute raw cURL.
+9. Backend không lưu raw cURL nguyên bản nếu có Authorization/API key/token/cookie/credential.
+```
+
+### Main entities
+
+```text
+chatbot_targets
+secrets
+```
+
+### Important security rule
+
+```text
+raw_curl_sanitized được dùng để audit/debug.
+Request thật khi chạy được build từ parsed request config + secret reference.
+Secret thật chỉ được resolve runtime, không ghi vào DB/log/artifact/Redis event.
+```
+
+---
+
+## 27.6. Flow 3 — Test Connection and Select Response Extraction
+
+### Trigger
+
+QC muốn kiểm tra chatbot target có gọi được không và chọn field answer chính.
+
+### User steps
+
+```text
+1. QC bấm Test Connection.
+2. Hệ thống render request mẫu từ dataset sample hoặc manual sample input.
+3. QC xem response example.
+4. UI hiển thị response JSON tree.
+5. QC chọn main answer path, ví dụ:
+   - $.data.answer
+   - $.answer
+   - $.choices[0].message.content
+6. QC có thể chọn thêm optional fields:
+   - intent path
+   - confidence path
+   - sources path
+7. QC bấm Save Extraction Config.
+```
+
+### System behavior
+
+```text
+1. Backend resolve secret runtime để gọi test request.
+2. Backend mask request/response trước khi lưu.
+3. Mỗi lần test connection tạo một chatbot_target_examples row.
+4. Backend cập nhật chatbot_targets.latest_example_id.
+5. Backend lưu response_extraction_config_json vào chatbot_targets.
+6. Runner sau này convert extraction config sang Promptfoo HTTP provider transformResponse.
+```
+
+### Main entities
+
+```text
+chatbot_targets
+chatbot_target_examples
+```
+
+### Failure handling
+
+```text
+Nếu test connection fail:
+1. Lưu chatbot_target_examples row với error_message.
+2. Mark target status = INVALID nếu lỗi config rõ ràng.
+3. UI hiển thị lỗi HTTP/status/timeout đã mask.
+4. QC có thể sửa request config và test lại.
+```
+
+---
+
+## 27.7. Flow 4 — Import or Reuse Dataset
+
+### Trigger
+
+QC cần dataset để chạy evaluation.
+
+### User entry points
+
+```text
+Project Detail → Datasets tab → Import Dataset
+```
+
+### Import options
+
+```text
+1. From Excel
+2. From another project
+3. From workspace dataset
+4. From my datasets
+```
+
+---
+
+### 27.7.1. Import from Excel
+
+#### User steps
+
+```text
+1. QC upload Excel.
+2. UI đọc sheet names.
+3. QC chọn sheet.
+4. UI preview 10-20 dòng đầu.
+5. QC mapping Excel columns với project schema.
+6. Với mỗi cột Excel, QC chọn:
+   - map vào schema column hiện có
+   - ignore
+   - add as new schema column
+7. QC confirm import.
+```
+
+#### System behavior
+
+```text
+1. Backend tạo dataset_import_jobs row status PENDING/IMPORTING.
+2. Nếu user thêm cột mới, backend tạo dataset_schemas version mới.
+3. Backend tạo datasets row scope PROJECT.
+4. Backend tạo dataset_versions row.
+5. Backend insert dataset_rows.
+6. Backend update row_count.
+7. Backend set dataset_versions.status = ACTIVE.
+8. Backend set datasets.current_version_id.
+9. Backend set dataset_import_jobs.status = COMPLETED.
+```
+
+#### Main entities
+
+```text
+dataset_import_jobs
+datasets
+dataset_versions
+dataset_rows
+dataset_schemas
+dataset_schema_columns
+```
+
+---
+
+### 27.7.2. Import from Another Project
+
+#### User steps
+
+```text
+1. QC chọn From another project.
+2. UI hiển thị list project user có quyền xem.
+3. QC search/chọn source project.
+4. UI hiển thị datasets trong source project.
+5. QC chọn source dataset và source dataset version.
+6. UI preview rows.
+7. Hệ thống check schema compatibility.
+8. Nếu schema giống, QC confirm clone.
+9. Nếu schema khác, QC mapping source columns sang target schema.
+10. QC confirm import.
+```
+
+#### System behavior
+
+```text
+1. Backend validate permission ở source project và target project.
+2. Backend tạo dataset_import_jobs row.
+3. Backend clone dataset rows sang dataset version mới trong target project.
+4. Backend lưu source_dataset_id, source_dataset_version_id, source_project_id, source_type.
+5. Backend lưu import_mapping_json để trace.
+6. Dataset mới là bản clone độc lập, không auto-sync với source dataset.
+```
+
+#### Main entities
+
+```text
+datasets
+dataset_versions
+dataset_rows
+dataset_import_jobs
+```
+
+---
+
+## 27.8. Flow 5 — Configure Evaluator
+
+### Trigger
+
+QC cần định nghĩa cách chấm câu trả lời.
+
+### User steps
+
+```text
+1. QC vào Evaluators tab.
+2. QC bấm Create Evaluator.
+3. QC chọn evaluator type:
+   - RULE_BASED
+   - LLM_JUDGE
+   - MIXED
+4. Nếu RULE_BASED:
+   - QC chọn response field hoặc extracted output field.
+   - QC chọn operator.
+   - QC nhập expected value hoặc map $dataset.expected.
+   - QC set weight/required nếu cần.
+5. Nếu LLM_JUDGE:
+   - QC chọn judge provider/model.
+   - QC nhập rubric.
+   - QC chọn threshold/pass condition.
+6. QC bấm Save Evaluator.
+```
+
+### System behavior
+
+```text
+1. Backend tạo evaluators row.
+2. Backend tạo evaluator_versions row version 1.
+3. Với rule-based evaluator, backend tạo evaluator_rules rows.
+4. Khi QC sửa evaluator đã từng dùng trong run, backend tạo evaluator version mới thay vì update version cũ.
+5. Runner sau này convert evaluator version sang Promptfoo assertions.
+```
+
+### Main entities
+
+```text
+evaluators
+evaluator_versions
+evaluator_rules
+```
+
+### MVP security decision
+
+```text
+MVP không expose custom_javascript cho QC nhập trực tiếp.
+Nếu cần logic phức tạp, hệ thống chỉ dùng adapter-generated safe assertion nội bộ.
+```
+
+---
+
+## 27.9. Flow 6 — Run Setup and Preflight
+
+### Trigger
+
+QC muốn chạy single target run hoặc comparison run.
+
+### User steps
+
+```text
+1. QC bấm New Run.
+2. QC chọn run type:
+   - SINGLE
+   - COMPARISON
+3. QC chọn dataset version.
+4. QC chọn chatbot target.
+5. Nếu COMPARISON:
+   - QC chọn thêm baseline provider/model.
+6. QC chọn evaluator versions.
+7. QC chọn judge provider/model nếu run có LLM Judge.
+8. UI gọi Preflight API.
+9. UI hiển thị preflight summary:
+   - row_count
+   - target_count
+   - evaluator_count
+   - estimated_target_calls
+   - estimated_judge_calls
+   - estimated_max_duration
+   - estimated_cost_range nếu có
+   - warnings
+10. QC confirm Start Run.
+```
+
+### System behavior
+
+```text
+1. Backend validate permission.
+2. Backend validate dataset version ACTIVE.
+3. Backend validate target ACTIVE.
+4. Backend validate evaluator versions.
+5. Backend validate judge provider/model nếu cần.
+6. Backend tính estimated_target_calls.
+7. Backend tính estimated_judge_calls.
+8. Backend reject nếu row_count > maxRowsPerRun.
+9. Backend trả preflight summary cho UI.
+```
+
+### Main entities read
+
+```text
+datasets
+dataset_versions
+dataset_rows
+chatbot_targets
+evaluators
+evaluator_versions
+llm_providers
+```
+
+### Preflight formula MVP
+
+```text
+estimated_target_calls = row_count * target_count
+
+estimated_judge_calls =
+  row_count * target_count * llm_judge_evaluator_count
+```
+
+---
+
+## 27.10. Flow 7 — Start Run
+
+### Trigger
+
+QC confirm Start Run sau preflight.
+
+### User steps
+
+```text
+1. QC bấm Start Run.
+2. UI gọi POST /api/test-runs.
+3. UI chuyển sang Run Detail page.
+4. UI mở SSE connection để nghe progress.
+```
+
+### System behavior
+
+```text
+1. Backend validate lại permission và preflight constraints.
+2. Backend lock dataset_id.
+3. Backend lock dataset_version_id.
+4. Backend lock dataset_schema_id và dataset_schema_version.
+5. Backend lock evaluator_versions.
+6. Backend lock judge_provider_id và judge_model nếu có.
+7. Backend lock test_run_targets.
+8. Backend tạo domain_config_snapshot_json sanitized.
+9. Backend tạo promptfoo_config_snapshot_json sanitized compact.
+10. Backend tính domain_config_hash.
+11. Backend tính promptfoo_config_hash.
+12. Backend tạo test_runs row status PENDING.
+13. Backend tạo test_run_targets rows.
+14. Backend tạo test_run_evaluator_versions rows.
+15. Backend tạo runner_commands row command_type START_RUN.
+16. Backend XADD START_RUN vào vfqc:runs:commands.
+17. Backend update runner_commands.stream_message_id và status PUBLISHED.
+```
+
+### Main entities
+
+```text
+test_runs
+test_run_targets
+test_run_evaluator_versions
+runner_commands
+```
+
+### Redis command payload
+
+```json
+{
+  "commandId": "cmd_123",
+  "commandType": "START_RUN",
+  "testRunId": "run_123",
+  "projectId": "project_456",
+  "requestedBy": "user_789",
+  "createdAt": "2026-07-02T10:00:00+07:00"
+}
+```
+
+### Important rule
+
+```text
+START_RUN command chỉ chứa reference.
+Không chứa dataset rows.
+Không chứa full config.
+Không chứa secret.
+Không chứa artifact.
+```
+
+---
+
+## 27.11. Flow 8 — Runner Consume Command
+
+### Trigger
+
+Runner đang listen Redis Stream và nhận START_RUN.
+
+### Runner steps
+
+```text
+1. Runner dùng XREADGROUP đọc vfqc:runs:commands.
+2. Runner claim một START_RUN message.
+3. Runner update runner_instances status RUNNING.
+4. Runner update current_test_run_id.
+5. Runner check idempotency:
+   - command_id đã xử lý chưa?
+   - test_run.status có còn PENDING không?
+6. Runner gọi Backend internal API:
+   GET /internal/runner/test-runs/{testRunId}/config
+7. Backend trả locked run config.
+8. Runner publish RUN_STARTED event.
+9. Backend consume RUN_STARTED và update test_runs status RUNNING.
+```
+
+### Main entities
+
+```text
+runner_instances
+runner_commands
+runner_events
+test_runs
+```
+
+### Idempotency rule
+
+```text
+Nếu duplicate START_RUN tới runner:
+1. Runner check test_run.status.
+2. Nếu run đã RUNNING/COMPLETED/FAILED/CANCELLED thì skip idempotently.
+3. Không tạo execution thứ hai cho cùng testRunId.
+```
+
+---
+
+## 27.12. Flow 9 — Runner Build Promptfoo Config
+
+### Trigger
+
+Runner đã có locked run config.
+
+### Runner steps
+
+```text
+1. Runner load dataset rows từ locked dataset_version_id.
+2. Runner load chatbot target config.
+3. Runner resolve secret runtime.
+4. Runner load evaluator versions.
+5. Runner build Promptfoo TestSuiteConfiguration object.
+6. Runner convert dataset rows thành tests[].vars.
+7. Runner convert chatbot target thành HTTP provider config.
+8. Runner convert response extraction path thành transformResponse.
+9. Runner convert rule-based evaluator thành assertions.
+10. Runner convert LLM Judge evaluator thành llm-rubric assertion.
+11. Runner disable Promptfoo cache by default.
+12. Runner sanitize generated config.
+13. Runner write promptfooconfig.json artifact.
+14. Runner compute config_sha256.
+```
+
+### Promptfoo mapping
+
+```text
+Dataset row                      → tests[].vars
+$dataset.question                 → {{question}}
+$dataset.expected                 → {{expected}}
+Chatbot Target HTTP config        → HTTP provider
+Response extraction path          → transformResponse
+Rule-based evaluator              → assertions
+LLM Judge                         → llm-rubric assertion
+Comparison targets                → multiple providers/targets
+```
+
+### Cache rule
+
+```text
+1. Internal chatbot target run: Promptfoo cache disabled by default.
+2. Baseline run: cache disabled by default trong MVP.
+3. Chỉ bật cache trong controlled baseline/debug mode.
+4. Nếu cache enabled, snapshot phải lưu cache_mode và cache_namespace.
+```
+
+### Security rule
+
+```text
+Generated Promptfoo config artifact không được chứa plain API key.
+Nếu Promptfoo cần env var, artifact chỉ ghi env var name hoặc secret reference, không ghi secret value.
+```
+
+---
+
+## 27.13. Flow 10 — Runner Execute Promptfoo
+
+### Trigger
+
+Promptfoo config đã build xong.
+
+### Runner steps
+
+```text
+1. Runner gọi Promptfoo Node API.
+2. Với mỗi testcase/target:
+   - render vars
+   - call chatbot target hoặc baseline model
+   - extract output
+   - run assertions
+   - run LLM Judge nếu có
+   - normalize result
+   - mask sensitive fields
+   - publish TESTCASE_COMPLETED event
+3. Runner ghi partial/final artifact nếu cần.
+4. Runner check cancellation flag giữa các testcase.
+5. Runner tiếp tục cho đến khi completed/cancelled/failed.
+```
+
+### Event payload rule
+
+```text
+Redis event chỉ chứa normalized compact result.
+Không chứa raw artifact lớn.
+Không chứa plain secret.
+```
+
+### Example TESTCASE_COMPLETED event
+
+```json
+{
+  "eventId": "evt_001",
+  "eventType": "TESTCASE_COMPLETED",
+  "testRunId": "run_123",
+  "runnerId": "runner_01",
+  "datasetRowId": "row_001",
+  "targetId": "target_internal_bot",
+  "status": "PASSED",
+  "passed": true,
+  "score": 0.86,
+  "latencyMs": 1200,
+  "completed": 1,
+  "total": 100,
+  "createdAt": "2026-07-02T10:00:15+07:00"
+}
+```
+
+### Main entities eventually affected
+
+```text
+runner_events
+test_case_results
+test_runs
+promptfoo_run_artifacts
+```
+
+---
+
+## 27.14. Flow 11 — Backend Consume Runner Events and Push SSE
+
+### Trigger
+
+Runner publish event vào `vfqc:runs:events`.
+
+### Backend steps
+
+```text
+1. Backend event consumer dùng XREADGROUP đọc vfqc:runs:events.
+2. Backend validate event_id idempotency.
+3. Backend insert runner_events row hoặc update lifecycle fields.
+4. Backend persist side effect:
+   - update test_runs progress/status
+   - insert/update test_case_results
+   - update summary metrics nếu cần
+5. Backend ACK Redis event chỉ sau khi persist thành công.
+6. Backend publish internal application event.
+7. SSE controller push event xuống frontend clients đang subscribe testRunId.
+```
+
+### SSE endpoint
+
+```text
+GET /api/test-runs/{testRunId}/events
+```
+
+### SSE event types
+
+```text
+RUN_STARTED
+TESTCASE_STARTED
+TESTCASE_COMPLETED
+RUN_PROGRESS
+RUN_COMPLETED
+RUN_FAILED
+RUN_CANCELLED
+```
+
+### SSE replay rule
+
+```text
+1. Backend set SSE id = runner_events.sequence_no.
+2. Frontend lưu last received event id.
+3. Khi reconnect, frontend gửi Last-Event-ID.
+4. Backend replay events sau sequence_no nếu còn trong DB retention.
+5. Nếu replay không đủ, frontend fallback bằng snapshot API:
+   - GET /api/test-runs/{testRunId}
+   - GET /api/test-runs/{testRunId}/results
+```
+
+---
+
+## 27.15. Flow 12 — Run Completed
+
+### Trigger
+
+Runner chạy xong toàn bộ testcase/target.
+
+### Runner steps
+
+```text
+1. Runner write final results.json.
+2. Runner write results.jsonl.
+3. Runner write report.html nếu có.
+4. Runner write runner.log đã mask.
+5. Runner run VfqcSensitiveDataMasker lần cuối trước khi expose artifact.
+6. Runner compute result_sha256.
+7. Runner create/update promptfoo_run_artifacts metadata qua Backend API.
+8. Runner publish RUN_COMPLETED event.
+9. Runner ACK START_RUN command sau khi final event publish thành công.
+10. Runner update runner_instances status IDLE.
+```
+
+### Backend steps
+
+```text
+1. Backend consume RUN_COMPLETED.
+2. Backend update test_runs status COMPLETED.
+3. Backend set finished_at.
+4. Backend update summary_metrics_json.
+5. Backend ACK event sau khi persist thành công.
+6. Backend push SSE RUN_COMPLETED.
+```
+
+### Main entities
+
+```text
+test_runs
+test_case_results
+promptfoo_run_artifacts
+runner_commands
+runner_events
+runner_instances
+```
+
+---
+
+## 27.16. Flow 13 — Dashboard and Testcase Debug
+
+### Trigger
+
+QC xem kết quả sau hoặc trong lúc run.
+
+### User steps
+
+```text
+1. QC mở Run Detail.
+2. QC xem summary:
+   - total
+   - completed
+   - passed
+   - failed
+   - error
+   - pass rate
+   - average score
+   - average latency
+3. QC filter failed/error testcase.
+4. QC mở testcase detail.
+5. QC xem:
+   - dataset row
+   - rendered prompt
+   - resolved request đã mask
+   - raw response đã mask
+   - extracted output
+   - rule result
+   - LLM Judge reason
+   - latency
+   - error message
+   - artifact reference
+```
+
+### System behavior
+
+```text
+1. Backend đọc test_runs summary.
+2. Backend query test_case_results theo test_run_id.
+3. Backend chỉ expose masked request/response.
+4. Backend chỉ expose artifact nếu promptfoo_run_artifacts.sanitized = true.
+5. Backend không expose plain secret trong mọi trường hợp.
+```
+
+### Main entities
+
+```text
+test_runs
+test_run_targets
+test_case_results
+promptfoo_run_artifacts
+dataset_rows
+```
+
+---
+
+## 27.17. Flow 14 — Cancel Run
+
+### Trigger
+
+QC muốn dừng run đang chạy.
+
+### User steps
+
+```text
+1. QC bấm Cancel Run.
+2. UI gọi POST /api/test-runs/{testRunId}/cancel.
+3. UI vẫn giữ SSE connection để chờ RUN_CANCELLED.
+```
+
+### Backend behavior
+
+```text
+1. Backend validate permission.
+2. Backend check test_run.status.
+3. Nếu status là PENDING/RUNNING:
+   - update status = CANCELLING
+   - set cancel_requested_at
+   - tạo runner_commands row command_type CANCEL_RUN
+   - XADD CANCEL_RUN vào vfqc:runs:commands
+   - push SSE RUN_PROGRESS/CANCELLING nếu cần
+4. Nếu status đã terminal:
+   - return current status, không tạo command mới.
+```
+
+### Runner behavior
+
+```text
+1. Runner có thể nhận CANCEL_RUN từ Redis.
+2. Runner cũng chủ động poll control API giữa các testcase:
+   GET /internal/runner/test-runs/{testRunId}/control-state
+3. Nếu shouldCancel = true:
+   - dừng trước testcase tiếp theo nếu an toàn
+   - mark remaining testcase SKIPPED/CANCELLED nếu cần
+   - write partial artifact
+   - publish RUN_CANCELLED
+   - ACK START_RUN command
+```
+
+### Main entities
+
+```text
+test_runs
+runner_commands
+runner_events
+test_case_results
+promptfoo_run_artifacts
+```
+
+### State transition
+
+```text
+RUNNING → CANCELLING → CANCELLED
+PENDING → CANCELLED
+```
+
+---
+
+## 27.18. Flow 15 — Failure, Retry and DLQ
+
+### Failure categories
+
+```text
+1. Business fail:
+   - chatbot trả lời sai
+   - rule-based evaluator fail
+   - LLM Judge chấm failed
+
+2. Execution error:
+   - target timeout
+   - provider error
+   - judge parse error
+   - network transient error
+
+3. System failure:
+   - runner crash
+   - backend unavailable
+   - Redis temporary issue
+   - artifact write failure
+```
+
+### Rule
+
+```text
+Business fail không làm test_run FAILED.
+Business fail chỉ tạo test_case_results.status = FAILED.
+
+System failure không recover được mới làm test_run FAILED.
+```
+
+### Retry behavior
+
+```text
+1. Redis pending command/event chưa ACK có thể được claim lại bằng XAUTOCLAIM.
+2. attempt_count tăng sau mỗi lần retry/recover.
+3. Nếu attempt_count > maxAttempts:
+   - move message sang DLQ stream
+   - ghi last_error
+   - mark command/event status DLQ hoặc FAILED
+4. Nếu START_RUN vào DLQ:
+   - test_run chuyển FAILED system-level.
+5. Nếu event final vào DLQ:
+   - backend cần reconcile bằng DB/artifact nếu có.
+```
+
+### DLQ streams
+
+```text
+vfqc:runs:commands:dlq
+vfqc:runs:events:dlq
+```
+
+---
+
+## 27.19. Flow 16 — Redis Stream Retention and Safe Trimming
+
+### Rule
+
+```text
+Redis Streams chỉ là transport/recovery buffer ngắn hạn.
+DB và artifact storage mới là source of truth lâu dài.
+```
+
+### Safe trimming behavior
+
+```text
+1. Không trim thấp hơn oldest pending message id.
+2. Với Redis >= 8.2, ưu tiên XTRIM ... ACKED cho streams có consumer group.
+3. Với Redis < 8.2, scheduled trimming phải check XPENDING trước.
+4. Nếu XAUTOCLAIM gặp deleted/trimmed message id:
+   - không retry như message bình thường
+   - ghi reconcile log
+   - chuyển context liên quan sang recoverable hoặc DLQ tùy mức độ
+```
+
+### Retention policy MVP
+
+```text
+vfqc:runs:commands:
+  keep last 100_000 messages hoặc 7 ngày
+
+vfqc:runs:events:
+  keep last 1_000_000 messages hoặc 7 ngày
+
+DLQ streams:
+  keep last 100_000 messages hoặc 30 ngày
+```
+
+---
+
+## 27.20. Core User Flow — Sequence Diagram
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor QC
+  participant FE as Frontend
+  participant BE as Backend Java
+  participant DB as PostgreSQL
+  participant Redis as Redis Streams
+  participant Runner as Node Runner
+  participant PF as Promptfoo Node API
+  participant FS as Artifact Storage
+
+  QC->>FE: Create Project
+  FE->>BE: POST /projects
+  BE->>DB: Insert project + default dataset schema
+  BE-->>FE: Project created
+
+  QC->>FE: Paste cURL target
+  FE->>FE: Parse cURL + detect secret candidates
+  FE->>BE: Save sanitized target config
+  BE->>DB: Save chatbot_target + secret references
+  BE-->>FE: Target saved
+
+  QC->>FE: Test Connection
+  FE->>BE: POST /targets/{id}/test
+  BE->>BE: Resolve secret runtime only
+  BE->>BE: Call target API
+  BE->>DB: Save masked example response
+  BE-->>FE: Response example
+  QC->>FE: Select answer path
+
+  QC->>FE: Import Dataset
+  FE->>BE: Upload/import dataset
+  BE->>DB: Save dataset/version/rows/schema mapping
+  BE-->>FE: Dataset ready
+
+  QC->>FE: Configure Evaluator
+  FE->>BE: Save evaluator
+  BE->>DB: Save evaluator + evaluator_version + rules
+  BE-->>FE: Evaluator ready
+
+  QC->>FE: Start Run
+  FE->>BE: POST /test-runs/preflight
+  BE->>DB: Read locked candidates
+  BE-->>FE: Preflight summary
+  QC->>FE: Confirm Start
+  FE->>BE: POST /test-runs
+  BE->>DB: Create test_run PENDING + lock config
+  BE->>Redis: XADD START_RUN
+  BE-->>FE: testRunId
+
+  FE->>BE: GET /test-runs/{id}/events SSE
+  Runner->>Redis: XREADGROUP START_RUN
+  Runner->>BE: GET /internal/runner/test-runs/{id}/config
+  BE->>DB: Read locked config
+  BE-->>Runner: Locked run config
+
+  Runner->>Redis: XADD RUN_STARTED
+  BE->>Redis: XREADGROUP events
+  BE->>DB: Persist RUN_STARTED, status RUNNING
+  BE-->>FE: SSE RUN_STARTED
+
+  Runner->>Runner: Build sanitized Promptfoo config
+  Runner->>FS: Write promptfooconfig.json
+  Runner->>PF: evaluate(testSuite, options)
+
+  loop Each testcase/target
+    PF-->>Runner: Testcase result
+    Runner->>Runner: Normalize + mask result
+    Runner->>Redis: XADD TESTCASE_COMPLETED
+    BE->>Redis: XREADGROUP event
+    BE->>DB: Upsert test_case_result + progress
+    BE-->>FE: SSE TESTCASE_COMPLETED
+  end
+
+  Runner->>FS: Write final artifacts
+  Runner->>BE: Save artifact metadata/hash
+  Runner->>Redis: XADD RUN_COMPLETED
+  BE->>DB: Persist summary + status COMPLETED
+  BE-->>FE: SSE RUN_COMPLETED
+  QC->>FE: View dashboard/debug failed cases
+```
+
+---
+
+## 27.21. Core Flow Acceptance Criteria
+
+Core flow được xem là đạt MVP nếu:
+
+```text
+1. QC tạo được project và default schema question/expected.
+2. QC paste cURL và hệ thống lưu được sanitized target config.
+3. Secret không xuất hiện plain text trong DB/log/Redis/artifact.
+4. QC test connection và chọn được answer path.
+5. QC import được Excel dataset.
+6. QC reuse được dataset từ project khác.
+7. QC tạo được rule-based evaluator.
+8. QC tạo được LLM Judge evaluator.
+9. Backend preflight được row_count, target_count, estimated calls và warning.
+10. Backend tạo TestRun và lock đúng dataset/schema/evaluator/target/provider snapshot.
+11. Backend publish START_RUN vào Redis Stream.
+12. Runner consume START_RUN bằng consumer group.
+13. Runner fetch locked config từ Backend, không lấy config trực tiếp từ Redis.
+14. Runner build được Promptfoo config sanitized.
+15. Promptfoo cache disabled by default cho internal chatbot target.
+16. Runner chạy Promptfoo Node API thành công.
+17. Runner publish TESTCASE_COMPLETED events.
+18. Backend consume events, persist test_case_results và ACK sau persist.
+19. Frontend nhận realtime progress qua SSE.
+20. RUN_COMPLETED cập nhật summary dashboard.
+21. QC xem được testcase detail với request/response/evaluator reason đã mask.
+22. Cancel run chuyển được RUNNING → CANCELLING → CANCELLED.
+23. Pending command/event recover được bằng XAUTOCLAIM.
+24. Message vượt maxAttempts được đưa vào DLQ.
+25. Duplicate START_RUN không tạo duplicate execution.
+26. Duplicate event không tạo duplicate testcase result.
+```
+
 
 # 28. MVP Scope v0.5
 
