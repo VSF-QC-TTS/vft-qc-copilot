@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: vinfast-qc-copilot
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+server:
+  servlet:
+    context-path: /
+
+vfqc:
+  admin:
+    seed:
+      email: ${VFQC_ADMIN_EMAIL:}
+      password: ${VFQC_ADMIN_PASSWORD:}
+      display-name: ${VFQC_ADMIN_DISPLAY_NAME:Administrator}
