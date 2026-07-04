@@ -579,7 +579,7 @@ docs/api/04-secret-provider-api.md
 Backend encryption and masking implementation should be defined in:
 
 ```text
-docs/backend/security-secret-masking-spec.md
+docs/backend/13-security-masking-implementation.md
 ```
 
 ---
@@ -712,4 +712,3 @@ Before implementing a new API module, verify:
 11. Related DB entities are clear.
 12. Related Redis/SSE behavior is clear if applicable.
 ```
-

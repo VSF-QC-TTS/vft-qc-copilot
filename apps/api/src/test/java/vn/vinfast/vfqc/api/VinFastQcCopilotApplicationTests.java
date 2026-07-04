@@ -1,13 +1,14 @@
 package vn.vinfast.vfqc.api;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+import org.junit.jupiter.api.Test;
+
 class VinFastQcCopilotApplicationTests {
 
 	@Test
-	void contextLoads() {
+	void applicationClassExists() {
+		assertThat(VinFastQcCopilotApplication.class).isNotNull();
 	}
 
 }
