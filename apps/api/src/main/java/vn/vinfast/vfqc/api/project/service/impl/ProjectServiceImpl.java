@@ -67,14 +67,15 @@ public class ProjectServiceImpl implements ProjectService {
     var now = OffsetDateTime.now(clock);
     var project =
         projectRepository.save(
-            new Project()
-                .setWorkspaceId(workspaceId)
-                .setName(normalized.displayName())
-                .setNameLookup(normalized.lookupName())
-                .setDescription(request.description())
-                .setCreatedBy(user.id())
-                .setCreatedAt(now)
-                .setUpdatedAt(now));
+            Project.builder()
+                .workspaceId(workspaceId)
+                .name(normalized.displayName())
+                .nameLookup(normalized.lookupName())
+                .description(request.description())
+                .createdBy(user.id())
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
     datasetSchemaBootstrapService.createDefaultProjectSchema(project.getId(), user.id());
     log.info(
         "Project created: projectId={} workspaceId={} actorId={}",
@@ -102,7 +103,8 @@ public class ProjectServiceImpl implements ProjectService {
               project.getWorkspaceId(), normalized.lookupName())) {
         throw ErrorCode.PROJECT_NAME_ALREADY_EXISTS.throwIt();
       }
-      project.setName(normalized.displayName()).setNameLookup(normalized.lookupName());
+      project.setName(normalized.displayName());
+      project.setNameLookup(normalized.lookupName());
     }
     if (request.description() != null) {
       project.setDescription(request.description());
@@ -117,7 +119,8 @@ public class ProjectServiceImpl implements ProjectService {
   public ProjectResponse archive(CurrentUser user, UUID projectId) {
     var project = projectPermissionService.requireProject(user, projectId, PermissionAction.EDIT);
     var now = OffsetDateTime.now(clock);
-    project.setArchivedAt(now).setUpdatedAt(now);
+    project.setArchivedAt(now);
+    project.setUpdatedAt(now);
     log.info("Project archived: projectId={} actorId={}", projectId, user.id());
     return projectMapper.toResponse(project);
   }
@@ -127,7 +130,8 @@ public class ProjectServiceImpl implements ProjectService {
   public void delete(CurrentUser user, UUID projectId) {
     var project = projectPermissionService.requireProject(user, projectId, PermissionAction.MANAGE);
     var now = OffsetDateTime.now(clock);
-    project.setDeletedAt(now).setUpdatedAt(now);
+    project.setDeletedAt(now);
+    project.setUpdatedAt(now);
     log.info("Project soft-deleted: projectId={} actorId={}", projectId, user.id());
   }
 }
