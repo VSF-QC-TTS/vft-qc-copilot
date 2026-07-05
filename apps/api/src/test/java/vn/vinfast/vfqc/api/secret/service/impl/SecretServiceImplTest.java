@@ -56,7 +56,11 @@ class SecretServiceImplTest {
     when(secretRepository.existsByOwnerUserIdAndNameLookupAndDeletedAtIsNull(user.id(), "gemini key"))
         .thenReturn(false);
     when(secretRepository.save(saved.capture()))
-        .thenAnswer(invocation -> invocation.getArgument(0, Secret.class).setId(UUID.randomUUID()));
+        .thenAnswer(invocation -> {
+          var s = invocation.getArgument(0, Secret.class);
+          s.setId(UUID.randomUUID());
+          return s;
+        });
     when(secretMapper.toResponse(any(Secret.class)))
         .thenAnswer(
             invocation -> {
@@ -109,7 +113,11 @@ class SecretServiceImplTest {
             user.id(), "internal password"))
         .thenReturn(false);
     when(secretRepository.save(saved.capture()))
-        .thenAnswer(invocation -> invocation.getArgument(0, Secret.class).setId(UUID.randomUUID()));
+        .thenAnswer(invocation -> {
+          var s = invocation.getArgument(0, Secret.class);
+          s.setId(UUID.randomUUID());
+          return s;
+        });
     when(secretMapper.toResponse(any(Secret.class)))
         .thenAnswer(
             invocation -> {

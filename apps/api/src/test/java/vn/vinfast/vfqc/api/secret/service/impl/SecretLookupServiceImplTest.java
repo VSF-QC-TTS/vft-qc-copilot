@@ -35,11 +35,12 @@ class SecretLookupServiceImplTest {
     var user = user(UUID.randomUUID());
     var secretId = UUID.randomUUID();
     var secret =
-        new Secret()
-            .setId(secretId)
-            .setScope(SecretScope.WORKSPACE)
-            .setWorkspaceId(UUID.randomUUID())
-            .setStatus(SecretStatus.ACTIVE);
+        Secret.builder()
+            .id(secretId)
+            .scope(SecretScope.WORKSPACE)
+            .workspaceId(UUID.randomUUID())
+            .status(SecretStatus.ACTIVE)
+            .build();
     var service = new SecretLookupServiceImpl(secretRepository, workspacePermissionService);
     when(secretRepository.findByIdAndStatusAndDeletedAtIsNull(secretId, SecretStatus.ACTIVE))
         .thenReturn(Optional.of(secret));
@@ -58,11 +59,12 @@ class SecretLookupServiceImplTest {
     var user = user(UUID.randomUUID());
     var secretId = UUID.randomUUID();
     var secret =
-        new Secret()
-            .setId(secretId)
-            .setScope(SecretScope.PERSONAL)
-            .setOwnerUserId(UUID.randomUUID())
-            .setStatus(SecretStatus.ACTIVE);
+        Secret.builder()
+            .id(secretId)
+            .scope(SecretScope.PERSONAL)
+            .ownerUserId(UUID.randomUUID())
+            .status(SecretStatus.ACTIVE)
+            .build();
     var service = new SecretLookupServiceImpl(secretRepository, workspacePermissionService);
     when(secretRepository.findByIdAndStatusAndDeletedAtIsNull(secretId, SecretStatus.ACTIVE))
         .thenReturn(Optional.of(secret));
@@ -82,11 +84,12 @@ class SecretLookupServiceImplTest {
     var workspaceId = UUID.randomUUID();
     var secretId = UUID.randomUUID();
     var secret =
-        new Secret()
-            .setId(secretId)
-            .setScope(SecretScope.WORKSPACE)
-            .setWorkspaceId(workspaceId)
-            .setStatus(SecretStatus.ACTIVE);
+        Secret.builder()
+            .id(secretId)
+            .scope(SecretScope.WORKSPACE)
+            .workspaceId(workspaceId)
+            .status(SecretStatus.ACTIVE)
+            .build();
     var service = new SecretLookupServiceImpl(secretRepository, workspacePermissionService);
     when(secretRepository.findByIdAndStatusAndDeletedAtIsNull(secretId, SecretStatus.ACTIVE))
         .thenReturn(Optional.of(secret));
