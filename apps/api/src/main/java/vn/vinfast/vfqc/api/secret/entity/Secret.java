@@ -10,10 +10,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.experimental.Accessors;
 import vn.vinfast.vfqc.api.secret.enums.SecretScope;
 import vn.vinfast.vfqc.api.secret.enums.SecretStatus;
 
@@ -22,7 +23,8 @@ import vn.vinfast.vfqc.api.secret.enums.SecretStatus;
 @Getter
 @Setter
 @NoArgsConstructor
-@Accessors(chain = true)
+@AllArgsConstructor
+@Builder
 public class Secret {
 
   @Id

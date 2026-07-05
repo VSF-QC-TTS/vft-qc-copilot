@@ -71,11 +71,12 @@ public class SecretServiceImpl implements SecretService {
     return create(
         user,
         request.value(),
-        new Secret()
-            .setScope(SecretScope.WORKSPACE)
-            .setWorkspaceId(workspaceId)
-            .setName(normalized.displayName())
-            .setNameLookup(normalized.lookupName()));
+        Secret.builder()
+            .scope(SecretScope.WORKSPACE)
+            .workspaceId(workspaceId)
+            .name(normalized.displayName())
+            .nameLookup(normalized.lookupName())
+            .build());
   }
 
   @Override
@@ -89,11 +90,12 @@ public class SecretServiceImpl implements SecretService {
     return create(
         user,
         request.value(),
-        new Secret()
-            .setScope(SecretScope.PERSONAL)
-            .setOwnerUserId(user.id())
-            .setName(normalized.displayName())
-            .setNameLookup(normalized.lookupName()));
+        Secret.builder()
+            .scope(SecretScope.PERSONAL)
+            .ownerUserId(user.id())
+            .name(normalized.displayName())
+            .nameLookup(normalized.lookupName())
+            .build());
   }
 
   @Override
@@ -109,7 +111,8 @@ public class SecretServiceImpl implements SecretService {
     if (request.name() != null) {
       var normalized = nameNormalizer.normalize(request.name(), 160);
       validateUniqueName(secret, normalized.lookupName());
-      secret.setName(normalized.displayName()).setNameLookup(normalized.lookupName());
+      secret.setName(normalized.displayName());
+      secret.setNameLookup(normalized.lookupName());
     }
     secret.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Secret metadata updated: secretId={} actorId={}", secretId, user.id());
@@ -130,7 +133,8 @@ public class SecretServiceImpl implements SecretService {
   @Transactional
   public SecretResponse disable(CurrentUser user, UUID secretId) {
     var secret = requireOwnedOrVisible(user, secretId, PermissionAction.EDIT);
-    secret.setStatus(SecretStatus.DISABLED).setUpdatedAt(OffsetDateTime.now(clock));
+    secret.setStatus(SecretStatus.DISABLED);
+    secret.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Secret disabled: secretId={} actorId={}", secretId, user.id());
     return secretMapper.toResponse(secret);
   }
@@ -146,19 +150,18 @@ public class SecretServiceImpl implements SecretService {
   private SecretResponse create(CurrentUser user, String plaintext, Secret secret) {
     var now = OffsetDateTime.now(clock);
     applySecretValue(secret, plaintext);
-    var saved =
-        secretRepository.save(
-            secret
-                .setStatus(SecretStatus.ACTIVE)
-                .setCreatedBy(user.id())
-                .setCreatedAt(now)
-                .setUpdatedAt(now));
+    secret.setStatus(SecretStatus.ACTIVE);
+    secret.setCreatedBy(user.id());
+    secret.setCreatedAt(now);
+    secret.setUpdatedAt(now);
+    var saved = secretRepository.save(secret);
     log.info("Secret created: secretId={} actorId={}", saved.getId(), user.id());
     return secretMapper.toResponse(saved);
   }
 
   private void applySecretValue(Secret secret, String plaintext) {
-    secret.setEncryptedValue(encryptionService.encrypt(plaintext)).setMaskedPreview("****");
+    secret.setEncryptedValue(encryptionService.encrypt(plaintext));
+    secret.setMaskedPreview("****");
   }
 
   private Secret requireOwnedOrVisible(CurrentUser user, UUID secretId, PermissionAction action) {
