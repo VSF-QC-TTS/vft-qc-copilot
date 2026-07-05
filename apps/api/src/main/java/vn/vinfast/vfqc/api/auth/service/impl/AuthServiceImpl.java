@@ -186,9 +186,9 @@ public class AuthServiceImpl implements AuthService {
     if (user.getStatus() == UserStatus.DISABLED) {
       throw ErrorCode.USER_DISABLED.throwIt();
     }
-    user.setPasswordHash(passwordEncoder.encode(request.password()))
-        .setStatus(UserStatus.ACTIVE)
-        .setUpdatedAt(OffsetDateTime.now(clock));
+    user.setPasswordHash(passwordEncoder.encode(request.password()));
+    user.setStatus(UserStatus.ACTIVE);
+    user.setUpdatedAt(OffsetDateTime.now(clock));
     refreshTokenService.revokeActiveForUser(user.getId());
     authEmailTokenService.revokeActiveForUser(user.getId());
     log.info("User password reset: userId={}", user.getId());

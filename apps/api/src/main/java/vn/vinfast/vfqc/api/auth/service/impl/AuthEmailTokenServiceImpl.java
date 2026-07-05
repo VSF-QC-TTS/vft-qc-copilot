@@ -41,15 +41,16 @@ public class AuthEmailTokenServiceImpl implements AuthEmailTokenService {
     var now = OffsetDateTime.now(clock);
     var expiresAt = now.plus(ttl);
     repository.save(
-        new AuthEmailToken()
-            .setUserId(user.getId())
-            .setTokenHash(hash(rawToken))
-            .setPurpose(purpose)
-            .setStatus(AuthEmailTokenStatus.ACTIVE)
-            .setIssuedAt(now)
-            .setExpiresAt(expiresAt)
-            .setCreatedIp(ip)
-            .setUserAgent(userAgent));
+        AuthEmailToken.builder()
+            .userId(user.getId())
+            .tokenHash(hash(rawToken))
+            .purpose(purpose)
+            .status(AuthEmailTokenStatus.ACTIVE)
+            .issuedAt(now)
+            .expiresAt(expiresAt)
+            .createdIp(ip)
+            .userAgent(userAgent)
+            .build());
     return new AuthEmailTokenIssue(rawToken, expiresAt);
   }
 
@@ -71,7 +72,8 @@ public class AuthEmailTokenServiceImpl implements AuthEmailTokenService {
       token.setStatus(AuthEmailTokenStatus.EXPIRED);
       throw ErrorCode.EMAIL_TOKEN_EXPIRED.throwIt();
     }
-    token.setStatus(AuthEmailTokenStatus.USED).setUsedAt(now);
+    token.setStatus(AuthEmailTokenStatus.USED);
+    token.setUsedAt(now);
     return userRepository
         .findById(token.getUserId())
         .orElseThrow(ErrorCode.EMAIL_TOKEN_INVALID::throwIt);
@@ -90,7 +92,8 @@ public class AuthEmailTokenServiceImpl implements AuthEmailTokenService {
   }
 
   private void revoke(AuthEmailToken token) {
-    token.setStatus(AuthEmailTokenStatus.REVOKED).setRevokedAt(OffsetDateTime.now(clock));
+    token.setStatus(AuthEmailTokenStatus.REVOKED);
+    token.setRevokedAt(OffsetDateTime.now(clock));
   }
 
   private String randomToken() {

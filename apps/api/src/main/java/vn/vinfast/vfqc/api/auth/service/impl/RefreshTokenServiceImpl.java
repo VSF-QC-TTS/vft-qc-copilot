@@ -57,7 +57,9 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
       existing.setStatus(AuthRefreshTokenStatus.EXPIRED);
       throw ErrorCode.REFRESH_TOKEN_EXPIRED.throwIt();
     }
-    existing.setStatus(AuthRefreshTokenStatus.REVOKED).setRotatedAt(now).setRevokedAt(now);
+    existing.setStatus(AuthRefreshTokenStatus.REVOKED);
+    existing.setRotatedAt(now);
+    existing.setRevokedAt(now);
     var user =
         userRepository
             .findById(existing.getUserId())
@@ -78,9 +80,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         .findByTokenHash(hash(rawToken))
         .ifPresent(
             token -> {
-              token
-                  .setStatus(AuthRefreshTokenStatus.REVOKED)
-                  .setRevokedAt(OffsetDateTime.now(clock));
+              token.setStatus(AuthRefreshTokenStatus.REVOKED);
+              token.setRevokedAt(OffsetDateTime.now(clock));
               log.info(
                   "Refresh token revoked: tokenId={} userId={}", token.getId(), token.getUserId());
             });
@@ -94,7 +95,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         .findByUserIdAndStatus(userId, AuthRefreshTokenStatus.ACTIVE)
         .forEach(
             token -> {
-              token.setStatus(AuthRefreshTokenStatus.REVOKED).setRevokedAt(now);
+              token.setStatus(AuthRefreshTokenStatus.REVOKED);
+              token.setRevokedAt(now);
               log.info(
                   "Refresh token revoked after password change: tokenId={} userId={}",
                   token.getId(),
@@ -110,15 +112,16 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     var maxAge = properties.refreshExpiration() * 60;
     var refreshToken =
         repository.save(
-            new AuthRefreshToken()
-                .setUserId(user.getId())
-                .setTokenHash(hash(rawToken))
-                .setFamilyId(familyId)
-                .setStatus(AuthRefreshTokenStatus.ACTIVE)
-                .setIssuedAt(now)
-                .setExpiresAt(now.plusSeconds(maxAge))
-                .setCreatedIp(ip)
-                .setUserAgent(userAgent));
+            AuthRefreshToken.builder()
+                .userId(user.getId())
+                .tokenHash(hash(rawToken))
+                .familyId(familyId)
+                .status(AuthRefreshTokenStatus.ACTIVE)
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(maxAge))
+                .createdIp(ip)
+                .userAgent(userAgent)
+                .build());
     log.debug(
         "Refresh token issued: tokenId={} userId={} familyId={}",
         refreshToken.getId(),
