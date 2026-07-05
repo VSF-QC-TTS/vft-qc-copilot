@@ -27,6 +27,8 @@ import vn.vinfast.vfqc.api.dataset.dto.DatasetVariableResponse;
 import vn.vinfast.vfqc.api.dataset.dto.DatasetVersionResponse;
 import vn.vinfast.vfqc.api.dataset.dto.PatchDatasetRowCellsRequest;
 import vn.vinfast.vfqc.api.dataset.dto.UpdateDatasetRequest;
+import vn.vinfast.vfqc.api.dataset.service.DatasetDraftService;
+import vn.vinfast.vfqc.api.dataset.service.DatasetRowService;
 import vn.vinfast.vfqc.api.dataset.service.DatasetSchemaService;
 import vn.vinfast.vfqc.api.dataset.service.DatasetService;
 
@@ -38,6 +40,8 @@ public class DatasetController {
 
   private final DatasetSchemaService schemaService;
   private final DatasetService datasetService;
+  private final DatasetDraftService draftService;
+  private final DatasetRowService rowService;
 
   @GetMapping("/projects/{projectId}/dataset-schema")
   @Operation(summary = "Get latest project dataset schema")
@@ -113,7 +117,7 @@ public class DatasetController {
   @ApiResponse(responseCode = "200", description = "Draft version created")
   public DatasetVersionResponse createDraft(
       @AuthenticationPrincipal CurrentUser user, @PathVariable UUID datasetId) {
-    return datasetService.createDraft(user, datasetId);
+    return draftService.createDraft(user, datasetId);
   }
 
   @GetMapping("/dataset-versions/{versionId}/rows")
@@ -121,7 +125,7 @@ public class DatasetController {
   @ApiResponse(responseCode = "200", description = "Dataset rows returned")
   public CollectionResponse<DatasetRowResponse> rows(
       @AuthenticationPrincipal CurrentUser user, @PathVariable UUID versionId) {
-    return CollectionResponse.of(datasetService.rows(user, versionId));
+    return CollectionResponse.of(rowService.rows(user, versionId));
   }
 
   @PostMapping("/dataset-versions/{versionId}/rows")
@@ -131,7 +135,7 @@ public class DatasetController {
       @AuthenticationPrincipal CurrentUser user,
       @PathVariable UUID versionId,
       @Valid @RequestBody CreateDatasetRowRequest request) {
-    return datasetService.addRow(user, versionId, request);
+    return rowService.addRow(user, versionId, request);
   }
 
   @PatchMapping("/dataset-rows/{rowId}")
@@ -141,7 +145,7 @@ public class DatasetController {
       @AuthenticationPrincipal CurrentUser user,
       @PathVariable Long rowId,
       @Valid @RequestBody PatchDatasetRowCellsRequest request) {
-    return datasetService.patchRow(user, rowId, request);
+    return rowService.patchRow(user, rowId, request);
   }
 
   @PostMapping("/dataset-versions/{versionId}/publish")
@@ -149,7 +153,7 @@ public class DatasetController {
   @ApiResponse(responseCode = "200", description = "Draft published as active version")
   public DatasetVersionResponse publish(
       @AuthenticationPrincipal CurrentUser user, @PathVariable UUID versionId) {
-    return datasetService.publish(user, versionId);
+    return draftService.publish(user, versionId);
   }
 
   @PostMapping("/dataset-versions/{versionId}/discard")
@@ -157,6 +161,6 @@ public class DatasetController {
   @ApiResponse(responseCode = "200", description = "Draft discarded")
   public DatasetVersionResponse discard(
       @AuthenticationPrincipal CurrentUser user, @PathVariable UUID versionId) {
-    return datasetService.discard(user, versionId);
+    return draftService.discard(user, versionId);
   }
 }
