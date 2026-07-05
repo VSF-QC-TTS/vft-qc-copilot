@@ -26,10 +26,11 @@ class OpenAiCompatibleProviderClientTest {
     var server = MockRestServiceServer.bindTo(builder).build();
     var client = new OpenAiCompatibleProviderClient(builder);
     var provider =
-        new LlmProvider()
-            .setId(UUID.randomUUID())
-            .setProviderType(ProviderType.OPENAI_COMPATIBLE)
-            .setBaseUrl("https://llm.example.test/v1");
+        LlmProvider.builder()
+            .id(UUID.randomUUID())
+            .providerType(ProviderType.OPENAI_COMPATIBLE)
+            .baseUrl("https://llm.example.test/v1")
+            .build();
     server
         .expect(once(), requestTo("https://llm.example.test/v1/chat/completions"))
         .andExpect(method(HttpMethod.POST))
@@ -52,10 +53,11 @@ class OpenAiCompatibleProviderClientTest {
     var server = MockRestServiceServer.bindTo(builder).build();
     var client = new OpenAiCompatibleProviderClient(builder);
     var provider =
-        new LlmProvider()
-            .setId(UUID.randomUUID())
-            .setProviderType(ProviderType.OPENAI_COMPATIBLE)
-            .setBaseUrl("https://llm.example.test/v1");
+        LlmProvider.builder()
+            .id(UUID.randomUUID())
+            .providerType(ProviderType.OPENAI_COMPATIBLE)
+            .baseUrl("https://llm.example.test/v1")
+            .build();
     server
         .expect(once(), requestTo("https://llm.example.test/v1/chat/completions"))
         .andRespond(withSuccess("x".repeat(900), MediaType.APPLICATION_JSON));

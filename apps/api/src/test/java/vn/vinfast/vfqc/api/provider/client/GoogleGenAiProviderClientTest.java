@@ -25,10 +25,11 @@ class GoogleGenAiProviderClientTest {
     var server = MockRestServiceServer.bindTo(builder).build();
     var client = new GoogleGenAiProviderClient(builder);
     var provider =
-        new LlmProvider()
-            .setId(UUID.randomUUID())
-            .setProviderType(ProviderType.GOOGLE_GENAI)
-            .setBaseUrl("https://google.example.test/v1beta");
+        LlmProvider.builder()
+            .id(UUID.randomUUID())
+            .providerType(ProviderType.GOOGLE_GENAI)
+            .baseUrl("https://google.example.test/v1beta")
+            .build();
     server
         .expect(once(), requestTo("https://google.example.test/v1beta/models/gemini-test:generateContent"))
         .andExpect(method(HttpMethod.POST))

@@ -25,10 +25,11 @@ class CustomHttpProviderClientTest {
     var server = MockRestServiceServer.bindTo(builder).build();
     var client = new CustomHttpProviderClient(builder);
     var provider =
-        new LlmProvider()
-            .setId(UUID.randomUUID())
-            .setProviderType(ProviderType.CUSTOM_HTTP)
-            .setBaseUrl("https://custom.example.test/test");
+        LlmProvider.builder()
+            .id(UUID.randomUUID())
+            .providerType(ProviderType.CUSTOM_HTTP)
+            .baseUrl("https://custom.example.test/test")
+            .build();
     server
         .expect(once(), requestTo("https://custom.example.test/test"))
         .andExpect(method(HttpMethod.POST))

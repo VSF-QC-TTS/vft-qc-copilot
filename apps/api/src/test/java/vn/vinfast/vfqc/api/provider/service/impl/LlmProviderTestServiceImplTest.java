@@ -58,14 +58,15 @@ class LlmProviderTestServiceImplTest {
             UUID.randomUUID(), "owner@vinfast.vn", "Owner", SystemRole.USER, UserStatus.ACTIVE);
     var providerId = UUID.randomUUID();
     var provider =
-        new LlmProvider()
-            .setId(providerId)
-            .setScope(ProviderScope.PERSONAL)
-            .setOwnerUserId(user.id())
-            .setProviderType(ProviderType.OPENAI_COMPATIBLE)
-            .setSecretId(UUID.randomUUID())
-            .setDefaultModel("gpt-test")
-            .setStatus(ProviderStatus.ACTIVE);
+        LlmProvider.builder()
+            .id(providerId)
+            .scope(ProviderScope.PERSONAL)
+            .ownerUserId(user.id())
+            .providerType(ProviderType.OPENAI_COMPATIBLE)
+            .secretId(UUID.randomUUID())
+            .defaultModel("gpt-test")
+            .status(ProviderStatus.ACTIVE)
+            .build();
     var savedLog = ArgumentCaptor.forClass(LlmProviderTestLog.class);
     var clock = Clock.fixed(Instant.parse("2026-07-05T03:30:00Z"), ZoneOffset.UTC);
     var service =
@@ -83,7 +84,11 @@ class LlmProviderTestServiceImplTest {
         .thenReturn("sk-plain-secret");
     when(clientFactory.clientFor(ProviderType.OPENAI_COMPATIBLE)).thenReturn(client);
     when(testLogRepository.save(savedLog.capture()))
-        .thenAnswer(invocation -> invocation.getArgument(0, LlmProviderTestLog.class).setId(1L));
+        .thenAnswer(invocation -> {
+          var l = invocation.getArgument(0, LlmProviderTestLog.class);
+          l.setId(1L);
+          return l;
+        });
     when(client.test(any())).thenThrow(new RuntimeException("provider rejected sk-plain-secret"));
 
     // Act
@@ -105,22 +110,24 @@ class LlmProviderTestServiceImplTest {
             UUID.randomUUID(), "owner@vinfast.vn", "Owner", SystemRole.USER, UserStatus.ACTIVE);
     var providerId = UUID.randomUUID();
     var provider =
-        new LlmProvider()
-            .setId(providerId)
-            .setScope(ProviderScope.PERSONAL)
-            .setOwnerUserId(user.id())
-            .setProviderType(ProviderType.OPENAI_COMPATIBLE)
-            .setSecretId(UUID.randomUUID())
-            .setDefaultModel("gpt-test");
+        LlmProvider.builder()
+            .id(providerId)
+            .scope(ProviderScope.PERSONAL)
+            .ownerUserId(user.id())
+            .providerType(ProviderType.OPENAI_COMPATIBLE)
+            .secretId(UUID.randomUUID())
+            .defaultModel("gpt-test")
+            .build();
     var pageable = ArgumentCaptor.forClass(Pageable.class);
     var log =
-        new LlmProviderTestLog()
-            .setId(10L)
-            .setLlmProviderId(providerId)
-            .setStatus(ProviderTestStatus.SUCCESS)
-            .setModel("gpt-test")
-            .setRequestJsonSanitized(Map.of("model", "gpt-test"))
-            .setTestedAt(OffsetDateTime.parse("2026-07-05T03:30:00Z"));
+        LlmProviderTestLog.builder()
+            .id(10L)
+            .llmProviderId(providerId)
+            .status(ProviderTestStatus.SUCCESS)
+            .model("gpt-test")
+            .requestJsonSanitized(Map.of("model", "gpt-test"))
+            .testedAt(OffsetDateTime.parse("2026-07-05T03:30:00Z"))
+            .build();
     var mapped =
         new LlmProviderTestLogResponse(
             10L,
@@ -166,14 +173,15 @@ class LlmProviderTestServiceImplTest {
             UUID.randomUUID(), "owner@vinfast.vn", "Owner", SystemRole.USER, UserStatus.ACTIVE);
     var providerId = UUID.randomUUID();
     var provider =
-        new LlmProvider()
-            .setId(providerId)
-            .setScope(ProviderScope.PERSONAL)
-            .setOwnerUserId(user.id())
-            .setProviderType(ProviderType.OPENAI_COMPATIBLE)
-            .setSecretId(UUID.randomUUID())
-            .setDefaultModel("gpt-test")
-            .setStatus(ProviderStatus.TEST_FAILED);
+        LlmProvider.builder()
+            .id(providerId)
+            .scope(ProviderScope.PERSONAL)
+            .ownerUserId(user.id())
+            .providerType(ProviderType.OPENAI_COMPATIBLE)
+            .secretId(UUID.randomUUID())
+            .defaultModel("gpt-test")
+            .status(ProviderStatus.TEST_FAILED)
+            .build();
     var savedLog = ArgumentCaptor.forClass(LlmProviderTestLog.class);
     var service =
         new LlmProviderTestServiceImpl(
@@ -192,7 +200,11 @@ class LlmProviderTestServiceImplTest {
     when(client.test(any()))
         .thenReturn(new ProviderClientTestResult("provider returned Bearer sk-plain-secret", 22, Map.of()));
     when(testLogRepository.save(savedLog.capture()))
-        .thenAnswer(invocation -> invocation.getArgument(0, LlmProviderTestLog.class).setId(2L));
+        .thenAnswer(invocation -> {
+          var l = invocation.getArgument(0, LlmProviderTestLog.class);
+          l.setId(2L);
+          return l;
+        });
 
     // Act
     var response = service.test(user, providerId, new TestLlmProviderRequest(null, null, Map.of()));

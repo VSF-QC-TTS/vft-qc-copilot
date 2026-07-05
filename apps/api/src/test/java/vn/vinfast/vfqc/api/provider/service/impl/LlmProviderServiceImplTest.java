@@ -71,7 +71,11 @@ class LlmProviderServiceImplTest {
             user.id(), "openai judge"))
         .thenReturn(false);
     when(providerRepository.save(saved.capture()))
-        .thenAnswer(invocation -> invocation.getArgument(0, LlmProvider.class).setId(UUID.randomUUID()));
+        .thenAnswer(invocation -> {
+          var p = invocation.getArgument(0, LlmProvider.class);
+          p.setId(UUID.randomUUID());
+          return p;
+        });
     when(assembler.toResponse(any(LlmProvider.class)))
         .thenAnswer(
             invocation -> {
