@@ -1,0 +1,47 @@
+# ── Test Profile ──────────────────────────────────────────────────────────────
+# Activated by PostgresIntegrationTestBase via spring.profiles.active=test.
+# Datasource is overridden at runtime by Testcontainers @DynamicPropertySource.
+
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+  mail:
+    host: localhost
+    port: 1025
+
+vfqc:
+  admin:
+    seed:
+      email: ""
+      password: ""
+  client:
+    base-url: http://localhost:3000
+  server:
+    base-url: http://localhost:8080
+  user:
+    default-avatar-url: "https://ui-avatars.com/api/?name={name}&background=random&color=fff&size=128"
+  mail:
+    enabled: false
+    from: no-reply@test.localhost
+  security:
+    access-expiration: 15
+    refresh-expiration: 10080
+    jwt:
+      secret-key: dev-only-change-me-dev-only-change-me
+    encryption-key: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    encryption-salt: 5c0744940b5c369b
+    cookie:
+      secure: false
+      same-site: lax

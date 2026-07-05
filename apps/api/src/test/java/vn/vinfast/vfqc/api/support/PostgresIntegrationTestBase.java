@@ -30,21 +30,7 @@ import vn.vinfast.vfqc.api.workspace.enums.WorkspaceType;
 import vn.vinfast.vfqc.api.workspace.repository.WorkspaceMemberRepository;
 import vn.vinfast.vfqc.api.workspace.repository.WorkspaceRepository;
 
-@SpringBootTest(
-    properties = {
-      "spring.profiles.active=test",
-      "spring.jpa.hibernate.ddl-auto=validate",
-      "spring.jpa.open-in-view=false",
-      "spring.flyway.enabled=true",
-      "spring.data.redis.repositories.enabled=false",
-      "vfqc.security.jwt.secret-key=dev-only-change-me-dev-only-change-me",
-      "vfqc.security.encryption-key=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "vfqc.client.base-url=http://localhost",
-      "vfqc.server.base-url=http://localhost",
-      "vfqc.admin.seed.email=",
-      "vfqc.admin.seed.password=",
-      "vfqc.mail.enabled=false"
-    })
+@SpringBootTest(properties = "spring.profiles.active=test")
 @AutoConfigureMockMvc
 @Testcontainers
 public abstract class PostgresIntegrationTestBase {
