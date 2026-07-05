@@ -66,7 +66,11 @@ class UserAdministrationServiceImplTest {
     when(userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull("user@vinfast.vn"))
         .thenReturn(false);
     when(userRepository.save(any(AppUser.class)))
-        .thenAnswer(invocation -> invocation.<AppUser>getArgument(0).setId(userId));
+        .thenAnswer(invocation -> {
+          var u = invocation.<AppUser>getArgument(0);
+          u.setId(userId);
+          return u;
+        });
     when(authEmailTokenService.issue(
             any(), eq(AuthEmailTokenPurpose.ADMIN_INVITE), any(), eq("127.0.0.1"), eq("JUnit")))
         .thenReturn(new AuthEmailTokenIssue("raw-token", OffsetDateTime.now(CLOCK).plusDays(1)));
