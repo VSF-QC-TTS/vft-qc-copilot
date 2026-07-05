@@ -65,15 +65,16 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     var now = OffsetDateTime.now(clock);
     var member =
         memberRepository.save(
-            new WorkspaceMember()
-                .setWorkspaceId(workspaceId)
-                .setUserId(targetUser.getId())
-                .setRole(request.role())
-                .setStatus(WorkspaceMemberStatus.ACTIVE)
-                .setInvitedBy(user.id())
-                .setJoinedAt(now)
-                .setCreatedAt(now)
-                .setUpdatedAt(now));
+            WorkspaceMember.builder()
+                .workspaceId(workspaceId)
+                .userId(targetUser.getId())
+                .role(request.role())
+                .status(WorkspaceMemberStatus.ACTIVE)
+                .invitedBy(user.id())
+                .joinedAt(now)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
     log.info(
         "Workspace member added: workspaceId={} memberId={} targetUserId={} actorId={}",
         workspaceId,
@@ -93,7 +94,8 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
     if (!workspaceId.equals(member.getWorkspaceId())) {
       throw ErrorCode.RESOURCE_NOT_FOUND.throwIt();
     }
-    member.setRole(request.role()).setUpdatedAt(OffsetDateTime.now(clock));
+    member.setRole(request.role());
+    member.setUpdatedAt(OffsetDateTime.now(clock));
     log.info(
         "Workspace member role updated: workspaceId={} memberId={} role={} actorId={}",
         workspaceId,

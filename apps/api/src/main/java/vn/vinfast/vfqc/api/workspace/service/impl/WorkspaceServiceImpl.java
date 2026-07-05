@@ -63,23 +63,25 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     var now = OffsetDateTime.now(clock);
     var workspace =
         workspaceRepository.save(
-            new Workspace()
-                .setName(normalized.displayName())
-                .setNameLookup(normalized.lookupName())
-                .setType(WorkspaceType.TEAM)
-                .setCreatedBy(user.id())
-                .setCreatedAt(now)
-                .setUpdatedAt(now));
+            Workspace.builder()
+                .name(normalized.displayName())
+                .nameLookup(normalized.lookupName())
+                .type(WorkspaceType.TEAM)
+                .createdBy(user.id())
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
     memberRepository.save(
-        new WorkspaceMember()
-            .setWorkspaceId(workspace.getId())
-            .setUserId(user.id())
-            .setRole(WorkspaceRole.OWNER)
-            .setStatus(WorkspaceMemberStatus.ACTIVE)
-            .setInvitedBy(user.id())
-            .setJoinedAt(now)
-            .setCreatedAt(now)
-            .setUpdatedAt(now));
+        WorkspaceMember.builder()
+            .workspaceId(workspace.getId())
+            .userId(user.id())
+            .role(WorkspaceRole.OWNER)
+            .status(WorkspaceMemberStatus.ACTIVE)
+            .invitedBy(user.id())
+            .joinedAt(now)
+            .createdAt(now)
+            .updatedAt(now)
+            .build());
     log.info("Workspace created: workspaceId={} actorId={}", workspace.getId(), user.id());
     return workspaceMapper.toResponse(workspace, WorkspaceRole.OWNER);
   }
@@ -111,7 +113,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
           && workspaceRepository.existsByNameLookupAndDeletedAtIsNull(normalized.lookupName())) {
         throw ErrorCode.WORKSPACE_NAME_ALREADY_EXISTS.throwIt();
       }
-      workspace.setName(normalized.displayName()).setNameLookup(normalized.lookupName());
+      workspace.setName(normalized.displayName());
+      workspace.setNameLookup(normalized.lookupName());
     }
     workspace.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Workspace updated: workspaceId={} actorId={}", workspace.getId(), user.id());
