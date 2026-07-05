@@ -45,33 +45,36 @@ public class DatasetSchemaServiceImpl
     var now = OffsetDateTime.now(clock);
     var schema =
         schemaRepository.save(
-            new DatasetSchema()
-                .setScope(DatasetSchemaScope.PROJECT)
-                .setProjectId(projectId)
-                .setVersion(1)
-                .setName("Default Project Dataset Schema")
-                .setCreatedBy(createdBy)
-                .setCreatedAt(now));
+            DatasetSchema.builder()
+                .scope(DatasetSchemaScope.PROJECT)
+                .projectId(projectId)
+                .version(1)
+                .name("Default Project Dataset Schema")
+                .createdBy(createdBy)
+                .createdAt(now)
+                .build());
     columnRepository.save(
-        new DatasetSchemaColumn()
-            .setSchemaId(schema.getId())
-            .setName("question")
-            .setDisplayName("Question")
-            .setDataType(DatasetColumnDataType.TEXT)
-            .setRequired(true)
-            .setOrderIndex(0)
-            .setCreatedAt(now)
-            .setUpdatedAt(now));
+        DatasetSchemaColumn.builder()
+            .schemaId(schema.getId())
+            .name("question")
+            .displayName("Question")
+            .dataType(DatasetColumnDataType.TEXT)
+            .required(true)
+            .orderIndex(0)
+            .createdAt(now)
+            .updatedAt(now)
+            .build());
     columnRepository.save(
-        new DatasetSchemaColumn()
-            .setSchemaId(schema.getId())
-            .setName("expected")
-            .setDisplayName("Expected")
-            .setDataType(DatasetColumnDataType.TEXT)
-            .setRequired(false)
-            .setOrderIndex(1)
-            .setCreatedAt(now)
-            .setUpdatedAt(now));
+        DatasetSchemaColumn.builder()
+            .schemaId(schema.getId())
+            .name("expected")
+            .displayName("Expected")
+            .dataType(DatasetColumnDataType.TEXT)
+            .required(false)
+            .orderIndex(1)
+            .createdAt(now)
+            .updatedAt(now)
+            .build());
     log.info(
         "Default dataset schema created: projectId={} schemaId={} actorId={}",
         projectId,

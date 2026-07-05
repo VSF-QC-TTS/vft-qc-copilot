@@ -78,27 +78,29 @@ public class DatasetServiceImpl implements DatasetService {
     var now = OffsetDateTime.now(clock);
     var dataset =
         datasetRepository.save(
-            new Dataset()
-                .setScope(DatasetScope.PROJECT)
-                .setWorkspaceId(project.getWorkspaceId())
-                .setProjectId(projectId)
-                .setName(normalized.displayName())
-                .setNameLookup(normalized.lookupName())
-                .setDescription(request.description())
-                .setSourceType(DatasetSourceType.MANUAL)
-                .setCreatedBy(user.id())
-                .setCreatedAt(now)
-                .setUpdatedAt(now));
+            Dataset.builder()
+                .scope(DatasetScope.PROJECT)
+                .workspaceId(project.getWorkspaceId())
+                .projectId(projectId)
+                .name(normalized.displayName())
+                .nameLookup(normalized.lookupName())
+                .description(request.description())
+                .sourceType(DatasetSourceType.MANUAL)
+                .createdBy(user.id())
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
     versionRepository.save(
-        new DatasetVersion()
-            .setDatasetId(dataset.getId())
-            .setVersion(1)
-            .setSchemaId(schema.getId())
-            .setSchemaVersion(schema.getVersion())
-            .setRowCount(0)
-            .setStatus(DatasetVersionStatus.DRAFT)
-            .setCreatedBy(user.id())
-            .setCreatedAt(now));
+        DatasetVersion.builder()
+            .datasetId(dataset.getId())
+            .version(1)
+            .schemaId(schema.getId())
+            .schemaVersion(schema.getVersion())
+            .rowCount(0)
+            .status(DatasetVersionStatus.DRAFT)
+            .createdBy(user.id())
+            .createdAt(now)
+            .build());
     log.info(
         "Dataset created: datasetId={} projectId={} workspaceId={} actorId={}",
         dataset.getId(),
@@ -126,7 +128,8 @@ public class DatasetServiceImpl implements DatasetService {
               dataset.getProjectId(), normalized.lookupName())) {
         throw ErrorCode.DATASET_NAME_ALREADY_EXISTS.throwIt();
       }
-      dataset.setName(normalized.displayName()).setNameLookup(normalized.lookupName());
+      dataset.setName(normalized.displayName());
+      dataset.setNameLookup(normalized.lookupName());
     }
     if (request.description() != null) {
       dataset.setDescription(request.description());
@@ -141,7 +144,8 @@ public class DatasetServiceImpl implements DatasetService {
   public void delete(CurrentUser user, UUID datasetId) {
     var dataset = requireDataset(user, datasetId, PermissionAction.EDIT);
     var now = OffsetDateTime.now(clock);
-    dataset.setDeletedAt(now).setUpdatedAt(now);
+    dataset.setDeletedAt(now);
+    dataset.setUpdatedAt(now);
     log.info("Dataset soft-deleted: datasetId={} actorId={}", datasetId, user.id());
   }
 
@@ -174,28 +178,30 @@ public class DatasetServiceImpl implements DatasetService {
     var now = OffsetDateTime.now(clock);
     var draft =
         versionRepository.save(
-            new DatasetVersion()
-                .setDatasetId(datasetId)
-                .setVersion(latest.getVersion() + 1)
-                .setSchemaId(latest.getSchemaId())
-                .setSchemaVersion(latest.getSchemaVersion())
-                .setBaseVersionId(base == null ? null : base.getId())
-                .setRowCount(0)
-                .setStatus(DatasetVersionStatus.DRAFT)
-                .setCreatedBy(user.id())
-                .setCreatedAt(now));
+            DatasetVersion.builder()
+                .datasetId(datasetId)
+                .version(latest.getVersion() + 1)
+                .schemaId(latest.getSchemaId())
+                .schemaVersion(latest.getSchemaVersion())
+                .baseVersionId(base == null ? null : base.getId())
+                .rowCount(0)
+                .status(DatasetVersionStatus.DRAFT)
+                .createdBy(user.id())
+                .createdAt(now)
+                .build());
     if (base != null) {
       var copied =
           rowRepository.findByDatasetVersionIdOrderByRowIndexAsc(base.getId()).stream()
               .map(
                   row ->
-                      new DatasetRow()
-                          .setDatasetVersionId(draft.getId())
-                          .setRowIndex(row.getRowIndex())
-                          .setCellsJson(row.getCellsJson())
-                          .setRevision(0)
-                          .setCreatedAt(now)
-                          .setUpdatedAt(now))
+                      DatasetRow.builder()
+                          .datasetVersionId(draft.getId())
+                          .rowIndex(row.getRowIndex())
+                          .cellsJson(row.getCellsJson())
+                          .revision(0)
+                          .createdAt(now)
+                          .updatedAt(now)
+                          .build())
               .toList();
       rowRepository.saveAll(copied);
       draft.setRowCount(copied.size());
@@ -229,13 +235,14 @@ public class DatasetServiceImpl implements DatasetService {
     var rowIndex = (int) rowRepository.countByDatasetVersionId(versionId);
     var row =
         rowRepository.save(
-            new DatasetRow()
-                .setDatasetVersionId(versionId)
-                .setRowIndex(rowIndex)
-                .setCellsJson(request.cells())
-                .setRevision(0)
-                .setCreatedAt(now)
-                .setUpdatedAt(now));
+            DatasetRow.builder()
+                .datasetVersionId(versionId)
+                .rowIndex(rowIndex)
+                .cellsJson(request.cells())
+                .revision(0)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
     version.setRowCount(rowIndex + 1);
     log.debug(
         "Dataset row added: versionId={} rowId={} actorId={}", versionId, row.getId(), user.id());
@@ -249,9 +256,9 @@ public class DatasetServiceImpl implements DatasetService {
     var row = rowRepository.findById(rowId).orElseThrow(ErrorCode.RESOURCE_NOT_FOUND::throwIt);
     var version = requireDraftVersion(user, row.getDatasetVersionId());
     validateCells(version, request.cells());
-    row.setCellsJson(request.cells())
-        .setRevision(row.getRevision() + 1)
-        .setUpdatedAt(OffsetDateTime.now(clock));
+    row.setCellsJson(request.cells());
+    row.setRevision(row.getRevision() + 1);
+    row.setUpdatedAt(OffsetDateTime.now(clock));
     log.debug(
         "Dataset row patched: rowId={} versionId={} actorId={}", rowId, version.getId(), user.id());
     return datasetMapper.toResponse(row);
@@ -268,11 +275,11 @@ public class DatasetServiceImpl implements DatasetService {
     var oldActive =
         versionRepository.findByDatasetIdAndStatus(dataset.getId(), DatasetVersionStatus.ACTIVE);
     oldActive.ifPresent(active -> active.setStatus(DatasetVersionStatus.ARCHIVED));
-    version
-        .setStatus(DatasetVersionStatus.ACTIVE)
-        .setPublishedAt(OffsetDateTime.now(clock))
-        .setRowCount((int) rowRepository.countByDatasetVersionId(versionId));
-    dataset.setCurrentVersionId(version.getId()).setUpdatedAt(OffsetDateTime.now(clock));
+    version.setStatus(DatasetVersionStatus.ACTIVE);
+    version.setPublishedAt(OffsetDateTime.now(clock));
+    version.setRowCount((int) rowRepository.countByDatasetVersionId(versionId));
+    dataset.setCurrentVersionId(version.getId());
+    dataset.setUpdatedAt(OffsetDateTime.now(clock));
     log.info(
         "Dataset version published: datasetId={} versionId={} actorId={}",
         dataset.getId(),
@@ -285,7 +292,8 @@ public class DatasetServiceImpl implements DatasetService {
   @Override
   public DatasetVersionResponse discard(CurrentUser user, UUID versionId) {
     var version = requireDraftVersion(user, versionId);
-    version.setStatus(DatasetVersionStatus.DISCARDED).setDiscardedAt(OffsetDateTime.now(clock));
+    version.setStatus(DatasetVersionStatus.DISCARDED);
+    version.setDiscardedAt(OffsetDateTime.now(clock));
     log.info(
         "Dataset draft discarded: datasetId={} versionId={} actorId={}",
         version.getDatasetId(),

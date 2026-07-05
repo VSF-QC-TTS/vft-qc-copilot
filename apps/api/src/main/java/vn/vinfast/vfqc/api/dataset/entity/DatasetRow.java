@@ -9,10 +9,11 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.experimental.Accessors;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -21,7 +22,8 @@ import org.hibernate.type.SqlTypes;
 @Getter
 @Setter
 @NoArgsConstructor
-@Accessors(chain = true)
+@AllArgsConstructor
+@Builder
 public class DatasetRow {
 
   @Id
