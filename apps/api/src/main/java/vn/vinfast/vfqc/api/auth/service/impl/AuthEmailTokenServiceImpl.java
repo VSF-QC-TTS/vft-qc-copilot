@@ -82,18 +82,20 @@ public class AuthEmailTokenServiceImpl implements AuthEmailTokenService {
   @Transactional
   @Override
   public void revokeActiveForUser(UUID userId) {
-    repository.findByUserIdAndStatus(userId, AuthEmailTokenStatus.ACTIVE).forEach(this::revoke);
+    repository.revokeAllByUserIdAndStatus(
+        userId,
+        AuthEmailTokenStatus.ACTIVE,
+        AuthEmailTokenStatus.REVOKED,
+        OffsetDateTime.now(clock));
   }
 
   private void revokeActive(UUID userId, Set<AuthEmailTokenPurpose> purposes) {
-    repository
-        .findByUserIdAndPurposeInAndStatus(userId, purposes, AuthEmailTokenStatus.ACTIVE)
-        .forEach(this::revoke);
-  }
-
-  private void revoke(AuthEmailToken token) {
-    token.setStatus(AuthEmailTokenStatus.REVOKED);
-    token.setRevokedAt(OffsetDateTime.now(clock));
+    repository.revokeAllByUserIdAndPurposesAndStatus(
+        userId,
+        purposes,
+        AuthEmailTokenStatus.ACTIVE,
+        AuthEmailTokenStatus.REVOKED,
+        OffsetDateTime.now(clock));
   }
 
   private String randomToken() {

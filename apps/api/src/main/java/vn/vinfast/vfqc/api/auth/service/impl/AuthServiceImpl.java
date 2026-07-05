@@ -1,14 +1,13 @@
 package vn.vinfast.vfqc.api.auth.service.impl;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,12 +29,13 @@ import vn.vinfast.vfqc.api.auth.service.JwtTokenService;
 import vn.vinfast.vfqc.api.auth.service.RefreshTokenService;
 import vn.vinfast.vfqc.api.common.config.AuthProperties;
 import vn.vinfast.vfqc.api.common.config.AuthProperties.RegistrationMode;
-import vn.vinfast.vfqc.api.common.config.ClientProperties;
+import vn.vinfast.vfqc.api.common.config.UserProperties;
 import vn.vinfast.vfqc.api.common.error.ErrorCode;
-import vn.vinfast.vfqc.api.common.mail.MailService;
+import vn.vinfast.vfqc.api.common.mail.event.MailSendEvent;
 import vn.vinfast.vfqc.api.common.mail.model.EmailVerificationMailModel;
 import vn.vinfast.vfqc.api.common.mail.model.PasswordResetMailModel;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
+import vn.vinfast.vfqc.api.common.util.AuthLinkBuilder;
 import vn.vinfast.vfqc.api.user.entity.AppUser;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
@@ -54,14 +54,12 @@ public class AuthServiceImpl implements AuthService {
   private final JwtTokenService jwtTokenService;
   private final RefreshTokenService refreshTokenService;
   private final AuthEmailTokenService authEmailTokenService;
-  private final MailService mailService;
+  private final ApplicationEventPublisher eventPublisher;
   private final AuthProperties authProperties;
-  private final ClientProperties clientProperties;
+  private final UserProperties userProperties;
+  private final AuthLinkBuilder linkBuilder;
   private final AuthMapper authMapper;
   private final Clock clock;
-
-  @Value("${vfqc.user.default-avatar-url}")
-  private String avatarUrl;
 
   @Transactional
   @Override
@@ -80,7 +78,7 @@ public class AuthServiceImpl implements AuthService {
                 .email(email)
                 .displayName(request.displayName().trim())
                 .passwordHash(passwordEncoder.encode(request.password()))
-                .avatarUrl(avatarUrl)
+                .avatarUrl(userProperties.defaultAvatarUrl())
                 .systemRole(SystemRole.USER)
                 .status(UserStatus.PENDING_EMAIL_VERIFICATION)
                 .createdAt(now)
@@ -93,9 +91,10 @@ public class AuthServiceImpl implements AuthService {
             Duration.ofMinutes(authProperties.emailToken().verificationExpirationMinutes()),
             ip,
             userAgent);
-    mailService.send(
-        new EmailVerificationMailModel(
-            user.getEmail(), user.getDisplayName(), verificationLink(token.token())));
+    eventPublisher.publishEvent(
+        new MailSendEvent(
+            new EmailVerificationMailModel(
+                user.getEmail(), user.getDisplayName(), linkBuilder.verificationLink(token.token()))));
     log.info("User registration accepted: userId={}", user.getId());
     return new RegisterResponse(
         user.getId(),
@@ -208,25 +207,14 @@ public class AuthServiceImpl implements AuthService {
             Duration.ofMinutes(authProperties.emailToken().passwordResetExpirationMinutes()),
             ip,
             userAgent);
-    mailService.send(
-        new PasswordResetMailModel(
-            user.getEmail(), user.getDisplayName(), resetLink(token.token())));
+    eventPublisher.publishEvent(
+        new MailSendEvent(
+            new PasswordResetMailModel(
+                user.getEmail(), user.getDisplayName(), linkBuilder.resetLink(token.token()))));
     log.info("Password reset email requested: userId={}", user.getId());
   }
 
   private String normalizeEmail(String email) {
-    return email.trim().toLowerCase();
-  }
-
-  private String verificationLink(String token) {
-    return clientProperties.baseUrl() + "/verify-email?token=" + encode(token);
-  }
-
-  private String resetLink(String token) {
-    return clientProperties.baseUrl() + "/reset-password?token=" + encode(token);
-  }
-
-  private String encode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    return AuthLinkBuilder.normalizeEmail(email);
   }
 }

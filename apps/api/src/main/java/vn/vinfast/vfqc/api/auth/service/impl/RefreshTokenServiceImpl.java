@@ -90,18 +90,16 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
   @Transactional
   @Override
   public void revokeActiveForUser(UUID userId) {
-    var now = OffsetDateTime.now(clock);
-    repository
-        .findByUserIdAndStatus(userId, AuthRefreshTokenStatus.ACTIVE)
-        .forEach(
-            token -> {
-              token.setStatus(AuthRefreshTokenStatus.REVOKED);
-              token.setRevokedAt(now);
-              log.info(
-                  "Refresh token revoked after password change: tokenId={} userId={}",
-                  token.getId(),
-                  token.getUserId());
-            });
+    var count =
+        repository.revokeAllByUserIdAndStatus(
+            userId,
+            AuthRefreshTokenStatus.ACTIVE,
+            AuthRefreshTokenStatus.REVOKED,
+            OffsetDateTime.now(clock));
+    if (count > 0) {
+      log.info(
+          "Refresh tokens revoked after password change: userId={} count={}", userId, count);
+    }
   }
 
   @Transactional

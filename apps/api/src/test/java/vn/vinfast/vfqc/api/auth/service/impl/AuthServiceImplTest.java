@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import vn.vinfast.vfqc.api.auth.dto.ForgotPasswordRequest;
@@ -35,11 +36,12 @@ import vn.vinfast.vfqc.api.auth.service.RefreshTokenService;
 import vn.vinfast.vfqc.api.common.config.AuthProperties;
 import vn.vinfast.vfqc.api.common.config.AuthProperties.RegistrationMode;
 import vn.vinfast.vfqc.api.common.config.ClientProperties;
+import vn.vinfast.vfqc.api.common.config.UserProperties;
 import vn.vinfast.vfqc.api.common.error.ApiException;
 import vn.vinfast.vfqc.api.common.error.ErrorCode;
-import vn.vinfast.vfqc.api.common.mail.MailService;
-import vn.vinfast.vfqc.api.common.mail.MailTemplateModel;
+import vn.vinfast.vfqc.api.common.mail.event.MailSendEvent;
 import vn.vinfast.vfqc.api.common.mail.model.EmailVerificationMailModel;
+import vn.vinfast.vfqc.api.common.util.AuthLinkBuilder;
 import vn.vinfast.vfqc.api.user.entity.AppUser;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
@@ -55,7 +57,7 @@ class AuthServiceImplTest {
   @Mock private JwtTokenService jwtTokenService;
   @Mock private RefreshTokenService refreshTokenService;
   @Mock private AuthEmailTokenService authEmailTokenService;
-  @Mock private MailService mailService;
+  @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private AuthMapper authMapper;
 
   private final PasswordEncoder passwordEncoder =
@@ -64,6 +66,7 @@ class AuthServiceImplTest {
 
   @BeforeEach
   void setUp() {
+    var linkBuilder = new AuthLinkBuilder(new ClientProperties("http://localhost:3000"));
     service =
         new AuthServiceImpl(
             userRepository,
@@ -71,11 +74,12 @@ class AuthServiceImplTest {
             jwtTokenService,
             refreshTokenService,
             authEmailTokenService,
-            mailService,
+            eventPublisher,
             new AuthProperties(
                 new AuthProperties.Registration(RegistrationMode.SELF_VERIFY),
                 new AuthProperties.EmailToken(1440, 15)),
-            new ClientProperties("http://localhost:3000"),
+            new UserProperties("https://example.com/avatar.png"),
+            linkBuilder,
             authMapper,
             CLOCK);
   }
@@ -98,7 +102,7 @@ class AuthServiceImplTest {
             eq("127.0.0.1"),
             eq("JUnit")))
         .thenReturn(new AuthEmailTokenIssue("raw-token", OffsetDateTime.now(CLOCK).plusDays(1)));
-    var mailCaptor = ArgumentCaptor.forClass(MailTemplateModel.class);
+    var eventCaptor = ArgumentCaptor.forClass(MailSendEvent.class);
 
     var response =
         service.register(
@@ -109,9 +113,9 @@ class AuthServiceImplTest {
     assertThat(response.id()).isEqualTo(userId);
     assertThat(response.email()).isEqualTo("user@vinfast.vn");
     assertThat(response.status()).isEqualTo(UserStatus.PENDING_EMAIL_VERIFICATION);
-    verify(mailService).send(mailCaptor.capture());
-    assertThat(mailCaptor.getValue()).isInstanceOf(EmailVerificationMailModel.class);
-    assertThat(((EmailVerificationMailModel) mailCaptor.getValue()).verificationLink())
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().model()).isInstanceOf(EmailVerificationMailModel.class);
+    assertThat(((EmailVerificationMailModel) eventCaptor.getValue().model()).verificationLink())
         .contains("/verify-email?token=");
   }
 
@@ -141,7 +145,7 @@ class AuthServiceImplTest {
             new ForgotPasswordRequest("missing@vinfast.vn"), "127.0.0.1", "JUnit");
 
     assertThat(response.message()).contains("If the email exists");
-    verifyNoInteractions(authEmailTokenService, mailService);
+    verifyNoInteractions(authEmailTokenService, eventPublisher);
   }
 
   @Test
