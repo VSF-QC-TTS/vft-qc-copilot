@@ -85,37 +85,40 @@ public abstract class PostgresIntegrationTestBase {
   protected AppUser user(String email) {
     var now = OffsetDateTime.now();
     return userRepository.save(
-        new AppUser()
-            .setEmail(email)
-            .setDisplayName("Test User")
-            .setPasswordHash("{noop}password")
-            .setSystemRole(SystemRole.USER)
-            .setStatus(UserStatus.ACTIVE)
-            .setCreatedAt(now)
-            .setUpdatedAt(now));
+        AppUser.builder()
+            .email(email)
+            .displayName("Test User")
+            .passwordHash("{noop}password")
+            .systemRole(SystemRole.USER)
+            .status(UserStatus.ACTIVE)
+            .createdAt(now)
+            .updatedAt(now)
+            .build());
   }
 
   protected Workspace workspace(AppUser owner) {
     var now = OffsetDateTime.now();
     var workspace =
         workspaceRepository.save(
-            new Workspace()
-                .setName("Workspace " + UUID.randomUUID())
-                .setNameLookup("workspace " + UUID.randomUUID())
-                .setType(WorkspaceType.TEAM)
-                .setCreatedBy(owner.getId())
-                .setCreatedAt(now)
-                .setUpdatedAt(now));
+            Workspace.builder()
+                .name("Workspace " + UUID.randomUUID())
+                .nameLookup("workspace " + UUID.randomUUID())
+                .type(WorkspaceType.TEAM)
+                .createdBy(owner.getId())
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
     workspaceMemberRepository.save(
-        new WorkspaceMember()
-            .setWorkspaceId(workspace.getId())
-            .setUserId(owner.getId())
-            .setRole(WorkspaceRole.OWNER)
-            .setStatus(WorkspaceMemberStatus.ACTIVE)
-            .setInvitedBy(owner.getId())
-            .setJoinedAt(now)
-            .setCreatedAt(now)
-            .setUpdatedAt(now));
+        WorkspaceMember.builder()
+            .workspaceId(workspace.getId())
+            .userId(owner.getId())
+            .role(WorkspaceRole.OWNER)
+            .status(WorkspaceMemberStatus.ACTIVE)
+            .invitedBy(owner.getId())
+            .joinedAt(now)
+            .createdAt(now)
+            .updatedAt(now)
+            .build());
     return workspace;
   }
 
