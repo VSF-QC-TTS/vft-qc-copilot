@@ -5,13 +5,35 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
+  mvc:
+    problemdetails:
+      enabled: true
+
+  ai:
+    model:
+      chat: ${SPRING_AI_MODEL_CHAT:none}
+      embedding:
+        text: ${SPRING_AI_MODEL_EMBEDDING_TEXT:none}
+
 server:
   servlet:
     context-path: /
 
 vfqc:
+  auth:
+    registration:
+      mode: ${VFQC_AUTH_REGISTRATION_MODE:ADMIN_ONLY}
+    email-token:
+      verification-expiration-minutes: ${VFQC_EMAIL_VERIFICATION_EXPIRATION_MINUTES:1440}
+      password-reset-expiration-minutes: ${VFQC_PASSWORD_RESET_EXPIRATION_MINUTES:15}
   admin:
     seed:
       email: ${VFQC_ADMIN_EMAIL:}
       password: ${VFQC_ADMIN_PASSWORD:}
       display-name: ${VFQC_ADMIN_DISPLAY_NAME:Administrator}
+  mail:
+    enabled: ${VFQC_MAIL_ENABLED:true}
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-}]"

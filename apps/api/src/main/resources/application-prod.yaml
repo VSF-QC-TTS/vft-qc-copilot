@@ -128,6 +128,7 @@ vfqc:
       email: ${VFQC_ADMIN_EMAIL}
       password: ${VFQC_ADMIN_PASSWORD}
       display-name: ${VFQC_ADMIN_DISPLAY_NAME:Administrator}
+      avatar-url: ${DEFAULT_AVATAR_URL:https://ui-avatars.com/api/?name={name}&background=random&color=fff&size=128}
   client:
     base-url: ${WEB_BASE_URL}
   server:
@@ -135,6 +136,7 @@ vfqc:
   user:
     default-avatar-url: ${DEFAULT_AVATAR_URL:https://ui-avatars.com/api/?name={name}&background=random&color=fff&size=128}
   mail:
+    enabled: ${VFQC_MAIL_ENABLED:true}
     from: ${MAIL_FROM}
   security:
     access-expiration: 15

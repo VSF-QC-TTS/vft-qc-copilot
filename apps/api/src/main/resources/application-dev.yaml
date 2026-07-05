@@ -103,6 +103,7 @@ vfqc:
       email: ${VFQC_ADMIN_EMAIL:admin@vinfast.vn}
       password: ${VFQC_ADMIN_PASSWORD:Admin@123}
       display-name: ${VFQC_ADMIN_DISPLAY_NAME:Administrator}
+      avatar-url: ${DEFAULT_AVATAR_URL:https://ui-avatars.com/api/?name={name}&background=random&color=fff&size=128}
   client:
     base-url: ${WEB_BASE_URL}
   server:
@@ -110,12 +111,13 @@ vfqc:
   user:
     default-avatar-url: ${DEFAULT_AVATAR_URL:https://ui-avatars.com/api/?name={name}&background=random&color=fff&size=128}
   mail:
+    enabled: ${VFQC_MAIL_ENABLED:true}
     from: ${MAIL_FROM:no-reply@localhost}
   security:
     access-expiration: 15
     refresh-expiration: 10080
     jwt:
-      secret-key: ${JWT_SECRET_KEY}
+      secret-key: ${JWT_SECRET_KEY:dev-only-change-me-dev-only-change-me}
     encryption-key: ${ENCRYPTION_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
     encryption-salt: ${ENCRYPTION_SALT:5c0744940b5c369b}
     cookie:
