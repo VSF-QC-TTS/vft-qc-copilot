@@ -138,19 +138,20 @@ public class LlmProviderTestServiceImpl implements LlmProviderTestService {
       Map<String, Object> tokenUsage) {
     var now = OffsetDateTime.now(clock);
     return testLogRepository.save(
-        new LlmProviderTestLog()
-            .setLlmProviderId(provider.getId())
-            .setStatus(status)
-            .setModel(model)
-            .setRequestJsonSanitized(requestJsonSanitized)
-            .setResponsePreview(responsePreview)
-            .setErrorCode(errorCode)
-            .setErrorMessage(errorMessage)
-            .setLatencyMs(latencyMs)
-            .setTokenUsageJson(tokenUsage == null ? Map.of() : tokenUsage)
-            .setTestedBy(user.id())
-            .setTestedAt(now)
-            .setCreatedAt(now));
+        LlmProviderTestLog.builder()
+            .llmProviderId(provider.getId())
+            .status(status)
+            .model(model)
+            .requestJsonSanitized(requestJsonSanitized)
+            .responsePreview(responsePreview)
+            .errorCode(errorCode)
+            .errorMessage(errorMessage)
+            .latencyMs(latencyMs)
+            .tokenUsageJson(tokenUsage == null ? Map.of() : tokenUsage)
+            .testedBy(user.id())
+            .testedAt(now)
+            .createdAt(now)
+            .build());
   }
 
   private String chooseModel(LlmProvider provider, TestLlmProviderRequest request) {

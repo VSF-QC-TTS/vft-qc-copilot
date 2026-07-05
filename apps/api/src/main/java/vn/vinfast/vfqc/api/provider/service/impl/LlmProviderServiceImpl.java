@@ -65,11 +65,12 @@ public class LlmProviderServiceImpl implements LlmProviderService {
       throw ErrorCode.DUPLICATE_RESOURCE.throwIt("Provider name already exists");
     }
     var provider =
-        new LlmProvider()
-            .setScope(ProviderScope.WORKSPACE)
-            .setWorkspaceId(workspaceId)
-            .setName(normalized.displayName())
-            .setNameLookup(normalized.lookupName());
+        LlmProvider.builder()
+            .scope(ProviderScope.WORKSPACE)
+            .workspaceId(workspaceId)
+            .name(normalized.displayName())
+            .nameLookup(normalized.lookupName())
+            .build();
     return saveNew(user, provider, request);
   }
 
@@ -83,11 +84,12 @@ public class LlmProviderServiceImpl implements LlmProviderService {
       throw ErrorCode.DUPLICATE_RESOURCE.throwIt("Provider name already exists");
     }
     var provider =
-        new LlmProvider()
-            .setScope(ProviderScope.PERSONAL)
-            .setOwnerUserId(user.id())
-            .setName(normalized.displayName())
-            .setNameLookup(normalized.lookupName());
+        LlmProvider.builder()
+            .scope(ProviderScope.PERSONAL)
+            .ownerUserId(user.id())
+            .name(normalized.displayName())
+            .nameLookup(normalized.lookupName())
+            .build();
     return saveNew(user, provider, request);
   }
 
@@ -105,7 +107,8 @@ public class LlmProviderServiceImpl implements LlmProviderService {
     if (request.name() != null) {
       var normalized = nameNormalizer.normalize(request.name(), 160);
       validateUniqueName(provider, normalized.lookupName());
-      provider.setName(normalized.displayName()).setNameLookup(normalized.lookupName());
+      provider.setName(normalized.displayName());
+      provider.setNameLookup(normalized.lookupName());
     }
     if (request.secretId() != null) {
       secretLookupService.requireActiveForUse(
@@ -144,19 +147,17 @@ public class LlmProviderServiceImpl implements LlmProviderService {
     var now = OffsetDateTime.now(clock);
     var config =
         configValidator.validateAndSanitize(request.providerType(), request.config()).value();
-    var saved =
-        providerRepository.save(
-            provider
-                .setProviderType(request.providerType())
-                .setSecretId(request.secretId())
-                .setBaseUrl(request.baseUrl())
-                .setDefaultModel(request.defaultModel())
-                .setAvailableModelsJson(null)
-                .setConfigJson(config)
-                .setStatus(ProviderStatus.ACTIVE)
-                .setCreatedBy(user.id())
-                .setCreatedAt(now)
-                .setUpdatedAt(now));
+    provider.setProviderType(request.providerType());
+    provider.setSecretId(request.secretId());
+    provider.setBaseUrl(request.baseUrl());
+    provider.setDefaultModel(request.defaultModel());
+    provider.setAvailableModelsJson(null);
+    provider.setConfigJson(config);
+    provider.setStatus(ProviderStatus.ACTIVE);
+    provider.setCreatedBy(user.id());
+    provider.setCreatedAt(now);
+    provider.setUpdatedAt(now);
+    var saved = providerRepository.save(provider);
     log.info("LLM provider created: providerId={} actorId={}", saved.getId(), user.id());
     return assembler.toResponse(saved);
   }
