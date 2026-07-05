@@ -11,7 +11,6 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.*;
-import lombok.experimental.Accessors;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
 
@@ -19,7 +18,6 @@ import vn.vinfast.vfqc.api.user.enums.UserStatus;
 @Table(name = "users")
 @Getter
 @Setter
-@Accessors(chain = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
