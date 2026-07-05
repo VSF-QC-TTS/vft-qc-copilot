@@ -1,6 +1,6 @@
 # Backend API Implementation Context
 
-Last checked: 2026-07-05 21:03 Asia/Bangkok.
+Last checked: 2026-07-05 23:15 Asia/Bangkok.
 
 Purpose: this is the short handoff file for the next agent/session. Read this first before re-reading all backend docs. It summarizes `docs/backend/README.md`, `docs/backend/IMPLEMENTATION_ORDER.md`, and the current `apps/api` implementation state.
 
@@ -315,10 +315,16 @@ Follow the current project style when adding new backend code:
 - Add Javadoc for service interface methods so callers can understand intent, permissions, transaction expectations, and important side effects without opening the implementation.
 - DTOs should be Java records where practical. Request DTO fields should use Jakarta Bean Validation and Swagger/OpenAPI schema messages/descriptions so API docs are understandable.
 - Controllers should include Swagger annotations such as `@Tag`, `@Operation`, and useful `@ApiResponse` entries.
-- Use Lombok for boilerplate already accepted in the codebase: `@RequiredArgsConstructor`, `@Slf4j`, entity getters/setters where consistent with existing entities.
+- Use Lombok for boilerplate already accepted in the codebase: `@RequiredArgsConstructor`, `@Slf4j`, `@Getter`, `@Setter`, `@Builder`, `@AllArgsConstructor`, `@NoArgsConstructor` for entities. Entities use standard non-chaining setters (no `@Accessors(chain = true)`).
 - Use MapStruct for simple entity-to-DTO mapping. Use assemblers only when a response is an aggregate/read model and MapStruct alone would hide orchestration.
 - Keep controllers thin: validation, authentication principal, path/body binding, and delegation only. Business rules belong in services/domain validators.
 - Keep code clean and OOP-oriented: focused classes, intention-revealing names, constructor injection, small methods, guard clauses, no god services, no hardcoded magic values.
+- Use `@ConfigurationProperties` records for typed configuration binding (e.g. `AuthProperties`, `UserProperties`, `SecurityProperties`). Avoid `@Value` field injection.
+- Use `AuthLinkBuilder` for email URL construction and `AuthLinkBuilder.normalizeEmail()` for email normalisation across auth/user modules.
+- Use `ApplicationEventPublisher` + `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` for mail delivery. Do not call `MailService.send()` directly inside `@Transactional` methods.
+- Use `DatasetCellValidator` for dataset row schema validation. Dataset operations are split into `DatasetService` (CRUD), `DatasetDraftService` (draft lifecycle), and `DatasetRowService` (row mutations).
+- Use `@Modifying @Query` bulk UPDATEs for token revocation instead of find-then-loop patterns.
+- Integration test configuration lives in `src/test/resources/application-test.yaml`, activated via `spring.profiles.active=test`. Do not hardcode properties in `@SpringBootTest` annotations.
 - Prefer immutable DTO/value objects, final injected dependencies, and coding to interfaces (`List`, `Map`) rather than concrete implementations.
 - Avoid N+1 queries. Use repository projections, `@EntityGraph`, join fetches, or focused queries for read models before adding loops over lazy relationships.
 - Keep transactions in the service layer. Use `@Transactional(readOnly = true)` for reads and normal `@Transactional` for writes.
@@ -363,7 +369,9 @@ Follow the current project style when adding new backend code:
 
 ## Caveats For Next Agent
 
-- Worktree had many `apps/api` files already modified/untracked when this context was written. Treat them as existing user/session work; do not revert.
+- Worktree is clean as of 2026-07-05 23:15 Asia/Bangkok.
 - `apps/api/target` may exist because `mvnw test` was run.
 - Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, email-token hashing/expiry/consume behavior, admin invite service flow, controller delegation, DTO validation, encryption round-trip, secret create safety, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create sanitization, provider client request shapes, provider test history clamping, provider test log sanitization, and Phase 5 Spring MVC/security/PostgreSQL integration coverage.
 - JavaMail usage follows Spring Boot 4.0.7/Spring Framework 7 docs: rely on `JavaMailSender` auto-configuration when `spring.mail.host` is configured; use `MimeMessage`/`MimeMessageHelper`; set SMTP timeouts through `spring.mail.properties[...]`.
+- Mail is now delivered asynchronously via `MailSendEvent` + `MailSendEventListener` after transaction commit. `@EnableAsync` is on the main application class.
+
