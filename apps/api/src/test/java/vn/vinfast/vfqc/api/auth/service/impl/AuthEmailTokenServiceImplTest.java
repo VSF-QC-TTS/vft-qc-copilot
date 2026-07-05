@@ -47,7 +47,7 @@ class AuthEmailTokenServiceImplTest {
 
   @Test
   void issue_UserAndPurpose_StoresHashOnly() {
-    var user = new AppUser().setId(UUID.randomUUID());
+    var user = AppUser.builder().id(UUID.randomUUID()).build();
     var captor = ArgumentCaptor.forClass(AuthEmailToken.class);
 
     var result =
@@ -70,11 +70,12 @@ class AuthEmailTokenServiceImplTest {
   @Test
   void consume_ExpiredToken_MarksExpiredAndThrows() {
     var token =
-        new AuthEmailToken()
-            .setTokenHash("hash")
-            .setPurpose(AuthEmailTokenPurpose.EMAIL_VERIFICATION)
-            .setStatus(AuthEmailTokenStatus.ACTIVE)
-            .setExpiresAt(OffsetDateTime.now(CLOCK).minusSeconds(1));
+        AuthEmailToken.builder()
+            .tokenHash("hash")
+            .purpose(AuthEmailTokenPurpose.EMAIL_VERIFICATION)
+            .status(AuthEmailTokenStatus.ACTIVE)
+            .expiresAt(OffsetDateTime.now(CLOCK).minusSeconds(1))
+            .build();
     when(repository.findByTokenHashAndStatus(any(), any())).thenReturn(Optional.of(token));
 
     assertThatThrownBy(
@@ -88,13 +89,14 @@ class AuthEmailTokenServiceImplTest {
   @Test
   void consume_ValidToken_ReturnsUserAndMarksUsed() {
     var userId = UUID.randomUUID();
-    var user = new AppUser().setId(userId);
+    var user = AppUser.builder().id(userId).build();
     var token =
-        new AuthEmailToken()
-            .setUserId(userId)
-            .setPurpose(AuthEmailTokenPurpose.ADMIN_INVITE)
-            .setStatus(AuthEmailTokenStatus.ACTIVE)
-            .setExpiresAt(OffsetDateTime.now(CLOCK).plusMinutes(15));
+        AuthEmailToken.builder()
+            .userId(userId)
+            .purpose(AuthEmailTokenPurpose.ADMIN_INVITE)
+            .status(AuthEmailTokenStatus.ACTIVE)
+            .expiresAt(OffsetDateTime.now(CLOCK).plusMinutes(15))
+            .build();
     when(repository.findByTokenHashAndStatus(any(), any())).thenReturn(Optional.of(token));
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 

@@ -86,7 +86,11 @@ class AuthServiceImplTest {
     when(userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull("user@vinfast.vn"))
         .thenReturn(false);
     when(userRepository.save(any(AppUser.class)))
-        .thenAnswer(invocation -> invocation.<AppUser>getArgument(0).setId(userId));
+        .thenAnswer(invocation -> {
+          var u = invocation.<AppUser>getArgument(0);
+          u.setId(userId);
+          return u;
+        });
     when(authEmailTokenService.issue(
             any(),
             eq(AuthEmailTokenPurpose.EMAIL_VERIFICATION),
@@ -114,9 +118,9 @@ class AuthServiceImplTest {
   @Test
   void login_PendingVerificationUser_ThrowsEmailNotVerified() {
     var user =
-        user("user@vinfast.vn")
-            .setPasswordHash(passwordEncoder.encode("ChangeMe@123"))
-            .setStatus(UserStatus.PENDING_EMAIL_VERIFICATION);
+        user("user@vinfast.vn");
+    user.setPasswordHash(passwordEncoder.encode("ChangeMe@123"));
+    user.setStatus(UserStatus.PENDING_EMAIL_VERIFICATION);
     when(userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("user@vinfast.vn"))
         .thenReturn(Optional.of(user));
 
@@ -142,7 +146,8 @@ class AuthServiceImplTest {
 
   @Test
   void resetPassword_ValidToken_UpdatesPasswordAndRevokesRefreshTokens() {
-    var user = user("user@vinfast.vn").setStatus(UserStatus.PENDING_EMAIL_VERIFICATION);
+    var user = user("user@vinfast.vn");
+    user.setStatus(UserStatus.PENDING_EMAIL_VERIFICATION);
     when(authEmailTokenService.consume(eq("raw-token"), any())).thenReturn(user);
 
     var response = service.resetPassword(new ResetPasswordRequest("raw-token", "NewPassword@123"));
@@ -155,13 +160,14 @@ class AuthServiceImplTest {
   }
 
   private AppUser user(String email) {
-    return new AppUser()
-        .setId(UUID.randomUUID())
-        .setEmail(email)
-        .setDisplayName("Test User")
-        .setSystemRole(SystemRole.USER)
-        .setStatus(UserStatus.ACTIVE)
-        .setCreatedAt(OffsetDateTime.now(CLOCK))
-        .setUpdatedAt(OffsetDateTime.now(CLOCK));
+    return AppUser.builder()
+        .id(UUID.randomUUID())
+        .email(email)
+        .displayName("Test User")
+        .systemRole(SystemRole.USER)
+        .status(UserStatus.ACTIVE)
+        .createdAt(OffsetDateTime.now(CLOCK))
+        .updatedAt(OffsetDateTime.now(CLOCK))
+        .build();
   }
 }
