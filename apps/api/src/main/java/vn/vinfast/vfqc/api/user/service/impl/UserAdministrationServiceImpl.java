@@ -1,24 +1,23 @@
 package vn.vinfast.vfqc.api.user.service.impl;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.vinfast.vfqc.api.auth.enums.AuthEmailTokenPurpose;
 import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenService;
 import vn.vinfast.vfqc.api.common.config.AuthProperties;
-import vn.vinfast.vfqc.api.common.config.ClientProperties;
+import vn.vinfast.vfqc.api.common.config.UserProperties;
 import vn.vinfast.vfqc.api.common.error.ErrorCode;
-import vn.vinfast.vfqc.api.common.mail.MailService;
+import vn.vinfast.vfqc.api.common.mail.event.MailSendEvent;
 import vn.vinfast.vfqc.api.common.mail.model.AdminInviteMailModel;
+import vn.vinfast.vfqc.api.common.util.AuthLinkBuilder;
 import vn.vinfast.vfqc.api.user.dto.AdminCreateUserRequest;
 import vn.vinfast.vfqc.api.user.dto.AdminCreateUserResponse;
 import vn.vinfast.vfqc.api.user.entity.AppUser;
@@ -35,19 +34,17 @@ public class UserAdministrationServiceImpl implements UserAdministrationService 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final AuthEmailTokenService authEmailTokenService;
-  private final MailService mailService;
+  private final ApplicationEventPublisher eventPublisher;
   private final AuthProperties authProperties;
-  private final ClientProperties clientProperties;
+  private final UserProperties userProperties;
+  private final AuthLinkBuilder linkBuilder;
   private final Clock clock;
-
-  @Value("${vfqc.user.default-avatar-url}")
-  private String avatarUrl;
 
   @Transactional
   @Override
   public AdminCreateUserResponse createUser(
       AdminCreateUserRequest request, String ip, String userAgent) {
-    var email = request.email().trim().toLowerCase();
+    var email = AuthLinkBuilder.normalizeEmail(request.email());
     if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
       throw ErrorCode.DUPLICATE_RESOURCE.throwIt("Email already exists");
     }
@@ -58,7 +55,7 @@ public class UserAdministrationServiceImpl implements UserAdministrationService 
                 .email(email)
                 .displayName(request.displayName().trim())
                 .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
-                .avatarUrl(avatarUrl)
+                .avatarUrl(userProperties.defaultAvatarUrl())
                 .systemRole(SystemRole.USER)
                 .status(UserStatus.PENDING_EMAIL_VERIFICATION)
                 .createdAt(now)
@@ -71,19 +68,12 @@ public class UserAdministrationServiceImpl implements UserAdministrationService 
             Duration.ofMinutes(authProperties.emailToken().verificationExpirationMinutes()),
             ip,
             userAgent);
-    mailService.send(
-        new AdminInviteMailModel(
-            user.getEmail(), user.getDisplayName(), inviteLink(token.token())));
+    eventPublisher.publishEvent(
+        new MailSendEvent(
+            new AdminInviteMailModel(
+                user.getEmail(), user.getDisplayName(), linkBuilder.inviteLink(token.token()))));
     log.info("Admin created user invite: userId={}", user.getId());
     return new AdminCreateUserResponse(
         user.getId(), user.getEmail(), user.getStatus(), "User created. Invite email sent.");
-  }
-
-  private String inviteLink(String token) {
-    return clientProperties.baseUrl() + "/reset-password?token=" + encode(token);
-  }
-
-  private String encode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 }

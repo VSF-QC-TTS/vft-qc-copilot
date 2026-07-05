@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import vn.vinfast.vfqc.api.auth.enums.AuthEmailTokenPurpose;
 import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenIssue;
@@ -24,9 +25,10 @@ import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenService;
 import vn.vinfast.vfqc.api.common.config.AuthProperties;
 import vn.vinfast.vfqc.api.common.config.AuthProperties.RegistrationMode;
 import vn.vinfast.vfqc.api.common.config.ClientProperties;
-import vn.vinfast.vfqc.api.common.mail.MailService;
-import vn.vinfast.vfqc.api.common.mail.MailTemplateModel;
+import vn.vinfast.vfqc.api.common.config.UserProperties;
+import vn.vinfast.vfqc.api.common.mail.event.MailSendEvent;
 import vn.vinfast.vfqc.api.common.mail.model.AdminInviteMailModel;
+import vn.vinfast.vfqc.api.common.util.AuthLinkBuilder;
 import vn.vinfast.vfqc.api.user.dto.AdminCreateUserRequest;
 import vn.vinfast.vfqc.api.user.entity.AppUser;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
@@ -41,22 +43,24 @@ class UserAdministrationServiceImplTest {
 
   @Mock private UserRepository userRepository;
   @Mock private AuthEmailTokenService authEmailTokenService;
-  @Mock private MailService mailService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   private UserAdministrationServiceImpl service;
 
   @BeforeEach
   void setUp() {
+    var linkBuilder = new AuthLinkBuilder(new ClientProperties("http://localhost:3000"));
     service =
         new UserAdministrationServiceImpl(
             userRepository,
             PasswordEncoderFactories.createDelegatingPasswordEncoder(),
             authEmailTokenService,
-            mailService,
+            eventPublisher,
             new AuthProperties(
                 new AuthProperties.Registration(RegistrationMode.ADMIN_ONLY),
                 new AuthProperties.EmailToken(1440, 15)),
-            new ClientProperties("http://localhost:3000"),
+            new UserProperties("https://example.com/avatar.png"),
+            linkBuilder,
             CLOCK);
   }
 
@@ -75,7 +79,7 @@ class UserAdministrationServiceImplTest {
             any(), eq(AuthEmailTokenPurpose.ADMIN_INVITE), any(), eq("127.0.0.1"), eq("JUnit")))
         .thenReturn(new AuthEmailTokenIssue("raw-token", OffsetDateTime.now(CLOCK).plusDays(1)));
     var userCaptor = ArgumentCaptor.forClass(AppUser.class);
-    var mailCaptor = ArgumentCaptor.forClass(MailTemplateModel.class);
+    var eventCaptor = ArgumentCaptor.forClass(MailSendEvent.class);
 
     var response =
         service.createUser(
@@ -86,9 +90,9 @@ class UserAdministrationServiceImplTest {
     assertThat(userCaptor.getValue().getEmail()).isEqualTo("user@vinfast.vn");
     assertThat(userCaptor.getValue().getSystemRole()).isEqualTo(SystemRole.USER);
     assertThat(userCaptor.getValue().getStatus()).isEqualTo(UserStatus.PENDING_EMAIL_VERIFICATION);
-    verify(mailService).send(mailCaptor.capture());
-    assertThat(mailCaptor.getValue()).isInstanceOf(AdminInviteMailModel.class);
-    assertThat(((AdminInviteMailModel) mailCaptor.getValue()).inviteLink())
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().model()).isInstanceOf(AdminInviteMailModel.class);
+    assertThat(((AdminInviteMailModel) eventCaptor.getValue().model()).inviteLink())
         .contains("/reset-password?token=");
   }
 }
