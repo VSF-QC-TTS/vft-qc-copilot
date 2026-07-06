@@ -20,6 +20,7 @@ import vn.vinfast.vfqc.api.dataset.repository.DatasetRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRowRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetVersionRepository;
 import vn.vinfast.vfqc.api.dataset.service.DatasetDraftService;
+import vn.vinfast.vfqc.api.dataset.service.DatasetRowHashService;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,7 @@ public class DatasetDraftServiceImpl implements DatasetDraftService {
   private final DatasetVersionRepository versionRepository;
   private final DatasetRowRepository rowRepository;
   private final ProjectPermissionService projectPermissionService;
+  private final DatasetRowHashService rowHashService;
   private final DatasetMapper datasetMapper;
   private final Clock clock;
 
@@ -78,6 +80,7 @@ public class DatasetDraftServiceImpl implements DatasetDraftService {
                           .rowIndex(row.getRowIndex())
                           .cellsJson(row.getCellsJson())
                           .revision(0)
+                          .rowHash(rowHashService.hash(row.getCellsJson()))
                           .createdAt(now)
                           .updatedAt(now)
                           .build())

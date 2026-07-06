@@ -22,6 +22,7 @@ import vn.vinfast.vfqc.api.dataset.mapper.DatasetMapper;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRowRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetVersionRepository;
+import vn.vinfast.vfqc.api.dataset.service.DatasetRowHashService;
 import vn.vinfast.vfqc.api.dataset.service.DatasetRowService;
 import vn.vinfast.vfqc.api.dataset.validator.DatasetCellValidator;
 
@@ -35,6 +36,7 @@ public class DatasetRowServiceImpl implements DatasetRowService {
   private final DatasetRowRepository rowRepository;
   private final ProjectPermissionService projectPermissionService;
   private final DatasetCellValidator cellValidator;
+  private final DatasetRowHashService rowHashService;
   private final DatasetMapper datasetMapper;
   private final Clock clock;
 
@@ -64,6 +66,7 @@ public class DatasetRowServiceImpl implements DatasetRowService {
                 .rowIndex(rowIndex)
                 .cellsJson(request.cells())
                 .revision(0)
+                .rowHash(rowHashService.hash(request.cells()))
                 .createdAt(now)
                 .updatedAt(now)
                 .build());
@@ -82,6 +85,7 @@ public class DatasetRowServiceImpl implements DatasetRowService {
     cellValidator.validate(version.getSchemaId(), request.cells());
     row.setCellsJson(request.cells());
     row.setRevision(row.getRevision() + 1);
+    row.setRowHash(rowHashService.hash(request.cells()));
     row.setUpdatedAt(OffsetDateTime.now(clock));
     log.debug(
         "Dataset row patched: rowId={} versionId={} actorId={}", rowId, version.getId(), user.id());
