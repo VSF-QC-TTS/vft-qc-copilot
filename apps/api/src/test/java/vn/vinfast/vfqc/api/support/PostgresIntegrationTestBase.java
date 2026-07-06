@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -15,9 +16,17 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import vn.vinfast.vfqc.api.auth.repository.AuthEmailTokenRepository;
 import vn.vinfast.vfqc.api.auth.repository.AuthRefreshTokenRepository;
 import vn.vinfast.vfqc.api.auth.service.JwtTokenService;
+import vn.vinfast.vfqc.api.dataset.repository.DatasetRepository;
+import vn.vinfast.vfqc.api.dataset.repository.DatasetRowRepository;
+import vn.vinfast.vfqc.api.dataset.repository.DatasetSchemaColumnRepository;
+import vn.vinfast.vfqc.api.dataset.repository.DatasetSchemaRepository;
+import vn.vinfast.vfqc.api.dataset.repository.DatasetVersionRepository;
+import vn.vinfast.vfqc.api.project.repository.ProjectRepository;
 import vn.vinfast.vfqc.api.provider.repository.LlmProviderRepository;
 import vn.vinfast.vfqc.api.provider.repository.LlmProviderTestLogRepository;
 import vn.vinfast.vfqc.api.secret.repository.SecretRepository;
+import vn.vinfast.vfqc.api.target.repository.ChatbotTargetExampleRepository;
+import vn.vinfast.vfqc.api.target.repository.ChatbotTargetRepository;
 import vn.vinfast.vfqc.api.user.entity.AppUser;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
@@ -33,6 +42,7 @@ import vn.vinfast.vfqc.api.workspace.repository.WorkspaceRepository;
 @SpringBootTest(properties = "spring.profiles.active=test")
 @AutoConfigureMockMvc
 @Testcontainers
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public abstract class PostgresIntegrationTestBase {
 
   @Container
@@ -54,6 +64,14 @@ public abstract class PostgresIntegrationTestBase {
   @Autowired protected LlmProviderTestLogRepository providerTestLogRepository;
   @Autowired protected AuthEmailTokenRepository emailTokenRepository;
   @Autowired protected AuthRefreshTokenRepository refreshTokenRepository;
+  @Autowired protected DatasetRowRepository datasetRowRepository;
+  @Autowired protected DatasetVersionRepository datasetVersionRepository;
+  @Autowired protected DatasetRepository datasetRepository;
+  @Autowired protected DatasetSchemaColumnRepository datasetSchemaColumnRepository;
+  @Autowired protected DatasetSchemaRepository datasetSchemaRepository;
+  @Autowired protected ProjectRepository projectRepository;
+  @Autowired protected ChatbotTargetExampleRepository chatbotTargetExampleRepository;
+  @Autowired protected ChatbotTargetRepository chatbotTargetRepository;
   @Autowired private JwtTokenService jwtTokenService;
 
   @AfterEach
@@ -61,6 +79,20 @@ public abstract class PostgresIntegrationTestBase {
     providerTestLogRepository.deleteAll();
     providerRepository.deleteAll();
     secretRepository.deleteAll();
+    var datasets = datasetRepository.findAll();
+    datasets.forEach(dataset -> dataset.setCurrentVersionId(null));
+    datasetRepository.saveAllAndFlush(datasets);
+    var targets = chatbotTargetRepository.findAll();
+    targets.forEach(target -> target.setLatestExampleId(null));
+    chatbotTargetRepository.saveAllAndFlush(targets);
+    chatbotTargetExampleRepository.deleteAll();
+    chatbotTargetRepository.deleteAll();
+    datasetRowRepository.deleteAll();
+    datasetVersionRepository.deleteAll();
+    datasetRepository.deleteAll();
+    datasetSchemaColumnRepository.deleteAll();
+    datasetSchemaRepository.deleteAll();
+    projectRepository.deleteAll();
     emailTokenRepository.deleteAll();
     refreshTokenRepository.deleteAll();
     workspaceMemberRepository.deleteAll();

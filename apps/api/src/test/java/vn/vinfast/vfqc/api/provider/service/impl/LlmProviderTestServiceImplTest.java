@@ -2,13 +2,12 @@ package vn.vinfast.vfqc.api.provider.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,6 +22,7 @@ import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.provider.client.LlmProviderClient;
 import vn.vinfast.vfqc.api.provider.client.ProviderClientTestResult;
 import vn.vinfast.vfqc.api.provider.dto.LlmProviderTestLogResponse;
+import vn.vinfast.vfqc.api.provider.dto.LlmProviderTestResponse;
 import vn.vinfast.vfqc.api.provider.dto.TestLlmProviderRequest;
 import vn.vinfast.vfqc.api.provider.entity.LlmProvider;
 import vn.vinfast.vfqc.api.provider.entity.LlmProviderTestLog;
@@ -31,7 +31,6 @@ import vn.vinfast.vfqc.api.provider.enums.ProviderStatus;
 import vn.vinfast.vfqc.api.provider.enums.ProviderTestStatus;
 import vn.vinfast.vfqc.api.provider.enums.ProviderType;
 import vn.vinfast.vfqc.api.provider.mapper.LlmProviderTestLogMapper;
-import vn.vinfast.vfqc.api.provider.repository.LlmProviderRepository;
 import vn.vinfast.vfqc.api.provider.repository.LlmProviderTestLogRepository;
 import vn.vinfast.vfqc.api.provider.service.LlmProviderClientFactory;
 import vn.vinfast.vfqc.api.provider.service.LlmProviderLookupService;
@@ -46,9 +45,20 @@ class LlmProviderTestServiceImplTest {
   @Mock private RuntimeSecretResolver runtimeSecretResolver;
   @Mock private LlmProviderClientFactory clientFactory;
   @Mock private LlmProviderClient client;
-  @Mock private LlmProviderRepository providerRepository;
+  @Mock private LlmProviderTestLogPersister testLogPersister;
   @Mock private LlmProviderTestLogRepository testLogRepository;
   @Mock private LlmProviderTestLogMapper testLogMapper;
+
+  private LlmProviderTestServiceImpl createService() {
+    return new LlmProviderTestServiceImpl(
+        providerLookupService,
+        runtimeSecretResolver,
+        clientFactory,
+        testLogPersister,
+        testLogRepository,
+        testLogMapper,
+        new DefaultVfqcSensitiveDataMasker());
+  }
 
   @Test
   void test_ClientFailure_SavesSanitizedLogWithoutPlaintextSecret() {
@@ -67,39 +77,63 @@ class LlmProviderTestServiceImplTest {
             .defaultModel("gpt-test")
             .status(ProviderStatus.ACTIVE)
             .build();
-    var savedLog = ArgumentCaptor.forClass(LlmProviderTestLog.class);
-    var clock = Clock.fixed(Instant.parse("2026-07-05T03:30:00Z"), ZoneOffset.UTC);
-    var service =
-        new LlmProviderTestServiceImpl(
-            providerLookupService,
-            runtimeSecretResolver,
-            clientFactory,
-            providerRepository,
-            testLogRepository,
-            testLogMapper,
-            new DefaultVfqcSensitiveDataMasker(),
-            clock);
+    var service = createService();
+
+    var persistedLog =
+        LlmProviderTestLog.builder()
+            .id(1L)
+            .llmProviderId(providerId)
+            .status(ProviderTestStatus.FAILED)
+            .model("gpt-test")
+            .errorMessage("provider rejected ****")
+            .build();
+
     when(providerLookupService.requireVisible(user, providerId)).thenReturn(provider);
     when(runtimeSecretResolver.resolve(user, provider.getSecretId(), null))
         .thenReturn("sk-plain-secret");
     when(clientFactory.clientFor(ProviderType.OPENAI_COMPATIBLE)).thenReturn(client);
-    when(testLogRepository.save(savedLog.capture()))
-        .thenAnswer(invocation -> {
-          var l = invocation.getArgument(0, LlmProviderTestLog.class);
-          l.setId(1L);
-          return l;
-        });
     when(client.test(any())).thenThrow(new RuntimeException("provider rejected sk-plain-secret"));
+    var errorCaptor = ArgumentCaptor.forClass(String.class);
+    when(testLogPersister.persistTestResult(
+            eq(provider),
+            eq(user),
+            eq(ProviderStatus.TEST_FAILED),
+            eq(ProviderTestStatus.FAILED),
+            eq("gpt-test"),
+            any(),
+            any(),
+            any(),
+            errorCaptor.capture(),
+            any(),
+            any()))
+        .thenReturn(persistedLog);
+    when(testLogMapper.toTestResponse(persistedLog))
+        .thenReturn(
+            new LlmProviderTestResponse(
+                ProviderTestStatus.FAILED, "gpt-test", Map.of(), null,
+                "RuntimeException", "provider rejected ****", null, Map.of()));
 
     // Act
-    var response = service.test(user, providerId, new TestLlmProviderRequest(null, null, Map.of()));
+    var response =
+        service.test(user, providerId, new TestLlmProviderRequest(null, null, Map.of()));
 
     // Assert
     assertThat(response.status()).isEqualTo(ProviderTestStatus.FAILED);
-    assertThat(savedLog.getValue().getErrorMessage()).isEqualTo("provider rejected ****");
-    assertThat(savedLog.getValue().toString()).doesNotContain("sk-plain-secret");
-    assertThat(provider.getStatus()).isEqualTo(ProviderStatus.TEST_FAILED);
-    verify(providerRepository).save(provider);
+    assertThat(errorCaptor.getValue()).isEqualTo("provider rejected ****");
+    assertThat(errorCaptor.getValue()).doesNotContain("sk-plain-secret");
+    verify(testLogPersister)
+        .persistTestResult(
+            eq(provider),
+            eq(user),
+            eq(ProviderStatus.TEST_FAILED),
+            eq(ProviderTestStatus.FAILED),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any());
   }
 
   @Test
@@ -140,16 +174,7 @@ class LlmProviderTestServiceImplTest {
             12,
             Map.of(),
             log.getTestedAt());
-    var service =
-        new LlmProviderTestServiceImpl(
-            providerLookupService,
-            runtimeSecretResolver,
-            clientFactory,
-            providerRepository,
-            testLogRepository,
-            testLogMapper,
-            new DefaultVfqcSensitiveDataMasker(),
-            Clock.fixed(Instant.parse("2026-07-05T03:30:00Z"), ZoneOffset.UTC));
+    var service = createService();
     when(providerLookupService.requireVisible(user, providerId)).thenReturn(provider);
     when(testLogRepository.findByLlmProviderIdOrderByTestedAtDesc(
             org.mockito.ArgumentMatchers.eq(providerId), pageable.capture()))
@@ -182,37 +207,65 @@ class LlmProviderTestServiceImplTest {
             .defaultModel("gpt-test")
             .status(ProviderStatus.TEST_FAILED)
             .build();
-    var savedLog = ArgumentCaptor.forClass(LlmProviderTestLog.class);
-    var service =
-        new LlmProviderTestServiceImpl(
-            providerLookupService,
-            runtimeSecretResolver,
-            clientFactory,
-            providerRepository,
-            testLogRepository,
-            testLogMapper,
-            new DefaultVfqcSensitiveDataMasker(),
-            Clock.fixed(Instant.parse("2026-07-05T03:30:00Z"), ZoneOffset.UTC));
+
+    var persistedLog =
+        LlmProviderTestLog.builder()
+            .id(2L)
+            .llmProviderId(providerId)
+            .status(ProviderTestStatus.SUCCESS)
+            .model("gpt-test")
+            .responsePreview("provider returned Bearer ****")
+            .build();
+
+    var service = createService();
     when(providerLookupService.requireVisible(user, providerId)).thenReturn(provider);
     when(runtimeSecretResolver.resolve(user, provider.getSecretId(), null))
         .thenReturn("sk-plain-secret");
     when(clientFactory.clientFor(ProviderType.OPENAI_COMPATIBLE)).thenReturn(client);
     when(client.test(any()))
-        .thenReturn(new ProviderClientTestResult("provider returned Bearer sk-plain-secret", 22, Map.of()));
-    when(testLogRepository.save(savedLog.capture()))
-        .thenAnswer(invocation -> {
-          var l = invocation.getArgument(0, LlmProviderTestLog.class);
-          l.setId(2L);
-          return l;
-        });
+        .thenReturn(
+            new ProviderClientTestResult(
+                "provider returned Bearer sk-plain-secret", 22, Map.of()));
+    var previewCaptor = ArgumentCaptor.forClass(String.class);
+    when(testLogPersister.persistTestResult(
+            eq(provider),
+            eq(user),
+            eq(ProviderStatus.ACTIVE),
+            eq(ProviderTestStatus.SUCCESS),
+            eq("gpt-test"),
+            any(),
+            previewCaptor.capture(),
+            any(),
+            any(),
+            eq(22),
+            any()))
+        .thenReturn(persistedLog);
+    when(testLogMapper.toTestResponse(persistedLog))
+        .thenReturn(
+            new LlmProviderTestResponse(
+                ProviderTestStatus.SUCCESS, "gpt-test", Map.of(),
+                "provider returned Bearer ****", null, null, 22, Map.of()));
 
     // Act
-    var response = service.test(user, providerId, new TestLlmProviderRequest(null, null, Map.of()));
+    var response =
+        service.test(user, providerId, new TestLlmProviderRequest(null, null, Map.of()));
 
     // Assert
     assertThat(response.status()).isEqualTo(ProviderTestStatus.SUCCESS);
-    assertThat(savedLog.getValue().getResponsePreview()).isEqualTo("provider returned Bearer ****");
-    assertThat(provider.getStatus()).isEqualTo(ProviderStatus.ACTIVE);
-    verify(providerRepository).save(provider);
+    assertThat(previewCaptor.getValue()).isEqualTo("provider returned Bearer ****");
+    assertThat(previewCaptor.getValue()).doesNotContain("sk-plain-secret");
+    verify(testLogPersister)
+        .persistTestResult(
+            eq(provider),
+            eq(user),
+            eq(ProviderStatus.ACTIVE),
+            eq(ProviderTestStatus.SUCCESS),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any());
   }
 }

@@ -1,7 +1,5 @@
 package vn.vinfast.vfqc.api.provider.service.impl;
 
-import java.time.Clock;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -17,11 +15,9 @@ import vn.vinfast.vfqc.api.provider.dto.LlmProviderTestLogResponse;
 import vn.vinfast.vfqc.api.provider.dto.LlmProviderTestResponse;
 import vn.vinfast.vfqc.api.provider.dto.TestLlmProviderRequest;
 import vn.vinfast.vfqc.api.provider.entity.LlmProvider;
-import vn.vinfast.vfqc.api.provider.entity.LlmProviderTestLog;
 import vn.vinfast.vfqc.api.provider.enums.ProviderStatus;
 import vn.vinfast.vfqc.api.provider.enums.ProviderTestStatus;
 import vn.vinfast.vfqc.api.provider.mapper.LlmProviderTestLogMapper;
-import vn.vinfast.vfqc.api.provider.repository.LlmProviderRepository;
 import vn.vinfast.vfqc.api.provider.repository.LlmProviderTestLogRepository;
 import vn.vinfast.vfqc.api.provider.service.LlmProviderClientFactory;
 import vn.vinfast.vfqc.api.provider.service.LlmProviderLookupService;
@@ -38,44 +34,48 @@ public class LlmProviderTestServiceImpl implements LlmProviderTestService {
   private final LlmProviderLookupService providerLookupService;
   private final RuntimeSecretResolver runtimeSecretResolver;
   private final LlmProviderClientFactory clientFactory;
-  private final LlmProviderRepository providerRepository;
+  private final LlmProviderTestLogPersister testLogPersister;
   private final LlmProviderTestLogRepository testLogRepository;
   private final LlmProviderTestLogMapper testLogMapper;
   private final VfqcSensitiveDataMasker masker;
-  private final Clock clock;
 
   @Override
   public LlmProviderTestResponse test(
       CurrentUser user, UUID providerId, TestLlmProviderRequest request) {
     var provider = providerLookupService.requireVisible(user, providerId);
     var model = chooseModel(provider, request);
-    var prompt = request.prompt() == null || request.prompt().isBlank() ? DEFAULT_PROMPT : request.prompt();
+    var prompt =
+        request.prompt() == null || request.prompt().isBlank() ? DEFAULT_PROMPT : request.prompt();
     var workspaceId = provider.getWorkspaceId();
     var plaintextSecret = runtimeSecretResolver.resolve(user, provider.getSecretId(), workspaceId);
     var sanitizedRequest =
-        masker.sanitizeMap(
-            Map.of(
-                "providerId",
-                provider.getId().toString(),
-                "providerType",
-                provider.getProviderType().name(),
-                "model",
-                model,
-                "prompt",
-                prompt,
-                "overrides",
-                request.overrides() == null ? Map.of() : request.overrides()))
+        masker
+            .sanitizeMap(
+                Map.of(
+                    "providerId",
+                    provider.getId().toString(),
+                    "providerType",
+                    provider.getProviderType().name(),
+                    "model",
+                    model,
+                    "prompt",
+                    prompt,
+                    "overrides",
+                    request.overrides() == null ? Map.of() : request.overrides()))
             .value();
     try {
       var result =
           clientFactory
               .clientFor(provider.getProviderType())
-              .test(new ProviderClientTestRequest(provider, plaintextSecret, model, prompt, request.overrides()));
+              .test(
+                  new ProviderClientTestRequest(
+                      provider, plaintextSecret, model, prompt, request.overrides()));
       var sanitizedPreview = masker.sanitizeText(result.responsePreview()).value();
       var testLog =
-          saveLog(
+          testLogPersister.persistTestResult(
               provider,
               user,
+              ProviderStatus.ACTIVE,
               ProviderTestStatus.SUCCESS,
               model,
               sanitizedRequest,
@@ -84,15 +84,14 @@ public class LlmProviderTestServiceImpl implements LlmProviderTestService {
               null,
               result.latencyMs(),
               result.tokenUsage());
-      provider.setStatus(ProviderStatus.ACTIVE);
-      providerRepository.save(provider);
-      return responseFrom(testLog);
+      return testLogMapper.toTestResponse(testLog);
     } catch (RuntimeException exception) {
       var sanitizedError = masker.sanitizeText(exception.getMessage()).value();
       var testLog =
-          saveLog(
+          testLogPersister.persistTestResult(
               provider,
               user,
+              ProviderStatus.TEST_FAILED,
               ProviderTestStatus.FAILED,
               model,
               sanitizedRequest,
@@ -101,14 +100,12 @@ public class LlmProviderTestServiceImpl implements LlmProviderTestService {
               sanitizedError,
               null,
               Map.of());
-      provider.setStatus(ProviderStatus.TEST_FAILED);
-      providerRepository.save(provider);
       log.warn(
           "LLM provider test failed: providerId={} actorId={} errorType={}",
           providerId,
           user.id(),
           exception.getClass().getSimpleName());
-      return responseFrom(testLog);
+      return testLogMapper.toTestResponse(testLog);
     }
   }
 
@@ -116,7 +113,7 @@ public class LlmProviderTestServiceImpl implements LlmProviderTestService {
   @Transactional(readOnly = true)
   public List<LlmProviderTestLogResponse> history(CurrentUser user, UUID providerId, int limit) {
     providerLookupService.requireVisible(user, providerId);
-    var safeLimit = Math.max(1, Math.min(limit, 100));
+    var safeLimit = Math.clamp(limit, 1, 100);
     return testLogRepository
         .findByLlmProviderIdOrderByTestedAtDesc(providerId, PageRequest.of(0, safeLimit))
         .stream()
@@ -124,52 +121,10 @@ public class LlmProviderTestServiceImpl implements LlmProviderTestService {
         .toList();
   }
 
-  @Transactional
-  protected LlmProviderTestLog saveLog(
-      LlmProvider provider,
-      CurrentUser user,
-      ProviderTestStatus status,
-      String model,
-      Map<String, Object> requestJsonSanitized,
-      String responsePreview,
-      String errorCode,
-      String errorMessage,
-      Integer latencyMs,
-      Map<String, Object> tokenUsage) {
-    var now = OffsetDateTime.now(clock);
-    return testLogRepository.save(
-        LlmProviderTestLog.builder()
-            .llmProviderId(provider.getId())
-            .status(status)
-            .model(model)
-            .requestJsonSanitized(requestJsonSanitized)
-            .responsePreview(responsePreview)
-            .errorCode(errorCode)
-            .errorMessage(errorMessage)
-            .latencyMs(latencyMs)
-            .tokenUsageJson(tokenUsage == null ? Map.of() : tokenUsage)
-            .testedBy(user.id())
-            .testedAt(now)
-            .createdAt(now)
-            .build());
-  }
-
   private String chooseModel(LlmProvider provider, TestLlmProviderRequest request) {
     if (request.model() != null && !request.model().isBlank()) {
       return request.model();
     }
     return provider.getDefaultModel();
-  }
-
-  private LlmProviderTestResponse responseFrom(LlmProviderTestLog log) {
-    return new LlmProviderTestResponse(
-        log.getStatus(),
-        log.getModel(),
-        log.getRequestJsonSanitized(),
-        log.getResponsePreview(),
-        log.getErrorCode(),
-        log.getErrorMessage(),
-        log.getLatencyMs(),
-        log.getTokenUsageJson());
   }
 }

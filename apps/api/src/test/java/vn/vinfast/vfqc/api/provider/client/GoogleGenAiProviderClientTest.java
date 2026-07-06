@@ -1,5 +1,6 @@
 package vn.vinfast.vfqc.api.provider.client;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -42,6 +43,33 @@ class GoogleGenAiProviderClientTest {
             provider, "AIza-plain-secret", "gemini-test", "Return ok", Map.of()));
 
     // Assert
+    server.verify();
+  }
+
+  @Test
+  void test_SuccessResponse_ReturnsRawPreview() {
+    // Arrange
+    var builder = RestClient.builder();
+    var server = MockRestServiceServer.bindTo(builder).build();
+    var client = new GoogleGenAiProviderClient(builder);
+    var provider =
+        LlmProvider.builder()
+            .id(UUID.randomUUID())
+            .providerType(ProviderType.GOOGLE_GENAI)
+            .baseUrl("https://google.example.test/v1beta")
+            .build();
+    server
+        .expect(once(), requestTo("https://google.example.test/v1beta/models/gemini-test:generateContent"))
+        .andRespond(withSuccess("{\"candidates\":[{\"content\":\"ok\"}]}", MediaType.APPLICATION_JSON));
+
+    // Act
+    var result =
+        client.test(
+            new ProviderClientTestRequest(
+                provider, "AIza-plain-secret", "gemini-test", "Return ok", Map.of()));
+
+    // Assert
+    assertThat(result.responsePreview()).isEqualTo("{\"candidates\":[{\"content\":\"ok\"}]}");
     server.verify();
   }
 }

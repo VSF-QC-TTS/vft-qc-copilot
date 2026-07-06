@@ -1,5 +1,7 @@
 package vn.vinfast.vfqc.api.provider.client;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -13,6 +15,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import vn.vinfast.vfqc.api.common.error.ApiException;
+import vn.vinfast.vfqc.api.common.error.ErrorCode;
 import vn.vinfast.vfqc.api.provider.entity.LlmProvider;
 import vn.vinfast.vfqc.api.provider.enums.ProviderType;
 
@@ -43,5 +47,31 @@ class CustomHttpProviderClientTest {
 
     // Assert
     server.verify();
+  }
+
+  @Test
+  void test_MissingBaseUrl_ThrowsValidationErrorBeforeHttpRequest() {
+    // Arrange
+    var client = new CustomHttpProviderClient(RestClient.builder());
+    var provider =
+        LlmProvider.builder()
+            .id(UUID.randomUUID())
+            .providerType(ProviderType.CUSTOM_HTTP)
+            .baseUrl(" ")
+            .build();
+
+    // Act / Assert
+    assertThatThrownBy(
+            () ->
+                client.test(
+                    new ProviderClientTestRequest(
+                        provider, "custom-secret", "custom-model", "Return ok", Map.of())))
+        .isInstanceOfSatisfying(
+            ApiException.class,
+            exception -> {
+              assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.VALIDATION_ERROR);
+              assertThat(exception.getMessage())
+                  .isEqualTo("Custom HTTP provider baseUrl is required");
+            });
   }
 }
