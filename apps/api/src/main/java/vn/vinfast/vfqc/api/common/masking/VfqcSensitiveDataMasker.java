@@ -6,5 +6,7 @@ public interface VfqcSensitiveDataMasker {
 
   SanitizationResult<String> sanitizeText(String text);
 
+  SanitizationResult<String> sanitizeCurl(String rawCurl);
+
   SanitizationResult<Map<String, Object>> sanitizeMap(Map<String, Object> value);
 }

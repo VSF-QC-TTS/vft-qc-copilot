@@ -10,13 +10,22 @@ import vn.vinfast.vfqc.api.project.entity.Project;
 public class ProjectSetupStatusAssembler {
 
   public ProjectSetupStatusResponse toResponse(
-      Project project, long datasetCount, long activeVersions) {
+      Project project,
+      long datasetCount,
+      long activeVersions,
+      long activeTargets,
+      long activeTargetsWithExtraction) {
     var steps =
         new ProjectSetupStatusResponse.ProjectSetupSteps(
-            datasetCount > 0, activeVersions > 0, false, false, false, false);
+            datasetCount > 0,
+            activeVersions > 0,
+            activeTargets > 0,
+            activeTargetsWithExtraction > 0,
+            false,
+            false);
     var counts =
         new ProjectSetupStatusResponse.ProjectSetupCounts(
-            datasetCount, activeVersions, 0, 0, 0, 0, 0, 0);
+            datasetCount, activeVersions, activeTargets, activeTargetsWithExtraction, 0, 0, 0, 0);
     var blockers =
         activeVersions > 0
             ? List.<ProjectSetupStatusResponse.ProjectSetupBlocker>of()
