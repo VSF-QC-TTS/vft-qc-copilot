@@ -1,6 +1,6 @@
 # Backend API Implementation Context
 
-Last checked: 2026-07-05 23:15 Asia/Bangkok.
+Last checked: 2026-07-06 22:36 Asia/Bangkok.
 
 Purpose: this is the short handoff file for the next agent/session. Read this first before re-reading all backend docs. It summarizes `docs/backend/README.md`, `docs/backend/IMPLEMENTATION_ORDER.md`, and the current `apps/api` implementation state.
 
@@ -23,9 +23,9 @@ Command run from `apps/api`:
 rtk bash mvnw test
 ```
 
-Result: build success. Maven compiled the backend and ran 42 tests successfully.
+Result: build success. Maven compiled the backend and ran 67 tests successfully.
 
-Coverage currently includes compile wiring, auth email-token service behavior, registration/verification/password-reset service flows, admin user invite service flow, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret scope lookup rejection, provider config sanitization, provider create sanitization/scope lookup, provider test history limit clamping, provider test log sanitization, provider status updates, request-shape tests for the three provider clients, and a PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration proof for Phase 5 endpoint/security/persistence behavior.
+Coverage currently includes compile wiring, auth email-token service behavior, registration/verification/password-reset service flows, admin user invite service flow, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled-secret provider-test rejection, secret scope lookup rejection, provider config sanitization, provider create/update sanitization and scope lookup, provider test history limit clamping, provider test log sanitization, provider status updates, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, dataset default-schema bootstrap, dataset row hash add/patch behavior, publish/archive and ACTIVE immutability, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 4/5/6 endpoint/security/persistence behavior.
 
 ## Current Source Shape
 
@@ -37,12 +37,12 @@ Implemented Java packages under `apps/api/src/main/java/vn/vinfast/vfqc/api`:
 - `provider`
 - `project`
 - `secret`
+- `target`
 - `user`
 - `workspace`
 
 Not found as implemented source packages yet:
 
-- `target` / `chatbot target`
 - `evaluator`
 - `testrun`
 - `runner`
@@ -57,6 +57,9 @@ Current migrations:
 - `apps/api/src/main/resources/db/migration/V2__auth_email_tokens.sql`
   - Creates `auth_email_tokens` for email verification, password reset, and admin invite flows.
   - Stores token hashes only and tracks purpose/status/expiry/audit metadata.
+- `apps/api/src/main/resources/db/migration/V3__chatbot_targets.sql`
+  - Creates `chatbot_targets` and `chatbot_target_examples` for Phase 6 target configuration and test examples.
+  - Source entities/repositories map these tables; Phase 6 backend now uses the existing JSONB fields without an additional migration.
 
 ## Phase Status Against IMPLEMENTATION_ORDER.md
 
@@ -96,7 +99,7 @@ Implemented:
 Still missing or not obvious:
 
 - `common/time`, `common/json`, `common/storage`, `common/redis` packages from the phase checklist.
-- Unit tests required by docs for masking and naming.
+- Naming unit tests required by docs.
 - Storage path traversal protection.
 - Redis stream names/constants.
 
@@ -122,7 +125,6 @@ Implemented:
 
 Still missing or not obvious:
 
-- Security tests for `/api/**` vs `/internal/runner/**` boundary.
 - OAuth/OIDC login flow despite OAuth client dependencies/config being present.
 - Rate limiting on login.
 - Rate limiting on forgot/reset token issuance.
@@ -162,41 +164,37 @@ Implemented:
 - Initial draft version creation on dataset create.
 - Draft creation from current active version.
 - Row add/patch for draft versions.
+- Deterministic `dataset_rows.row_hash` population on add/patch and when copying rows into a new draft.
 - Publish draft to active and archive old active.
 - Discard draft.
 - Required/unknown column validation.
+- Integration tests cover create-project default schema bootstrap, row hash add/patch, publish/archive, and ACTIVE immutability.
 
 Still missing from Phase 4 docs:
 
 - `DatasetImportJob`.
 - `DatasetImportService`.
-- `DatasetDraftService` as a separate service.
-- `DatasetRowService` as a separate service.
-- `DatasetVariableService` as a separate service.
+- `DatasetVariableService` as a separate service; variables are currently served by `DatasetSchemaService`.
 - Excel import preview -> mapping -> confirm.
 - Dataset export source-data flow.
-- Tests for active immutability, row count correctness, publish/discard, schema validation, and project creation default schema.
-
-Potential follow-up check:
-
-- `dataset_rows.row_hash` exists in DB but current row service code does not populate it.
+- Tests for discard lifecycle, schema validation edge cases, row count concurrency, import/export, and project setup-status completeness.
 
 ### Phase 5 - Secrets and LLM Providers
 
-Status: implemented as an MVP slice, with focused unit tests and one full integration proof.
+Status: implemented as an MVP slice, with focused unit tests and critical production-hardening integration coverage.
 
 Implemented:
 
 - `secret` entity/repository/mapper/controller/service/service impl.
 - Workspace and personal secret APIs.
-- AES-GCM `SecretEncryptionService` with versioned `v1:<iv>:<ciphertext>` payloads.
+- Google Tink AES-256-GCM `TinkSecretEncryptionService` using Tink JSON keysets for built-in key rotation and misuse-resistant IV management.
 - `RuntimeSecretResolver` and active-secret lookup boundary.
 - Secret responses expose fixed masked preview only, never plaintext or encrypted value.
 - `provider` entity/repository/mapper/controller/service/client/validator packages.
 - Workspace and personal LLM provider APIs.
 - Provider types: `OPENAI_COMPATIBLE`, `GOOGLE_GENAI`, `CUSTOM_HTTP`.
 - Provider config validation/sanitization before persistence.
-- Provider test flow with real client boundary and sanitized `llm_provider_test_logs`.
+- Provider test flow with real client boundary and sanitized `llm_provider_test_logs`, using `LlmProviderTestLogPersister` to avoid `@Transactional` self-invocation proxies.
 - Request-shape tests cover `OPENAI_COMPATIBLE`, `GOOGLE_GENAI`, and `CUSTOM_HTTP`; Google GenAI sends the API key via `x-goog-api-key` header instead of query string.
 - Provider response assembler batch-loads secret summaries for list responses to avoid N+1 lookups.
 - Controller unit tests cover Secret/Provider delegation and collection wrapping.
@@ -204,23 +202,53 @@ Implemented:
 - Secret scope tests cover workspace/personal mismatch and hidden personal secrets.
 - Provider test history clamps `limit` to `1..100` and checks provider visibility before querying logs.
 - `Phase5SecretProviderIntegrationTest` runs with PostgreSQL Testcontainers, Flyway, JPA validation, Spring Security JWT, MockMvc, real services/repositories, and a fake provider client boundary.
-- Integration coverage checks unauthenticated 401, encrypted secret persistence without plaintext leaks, fixed masked preview, cross-workspace secret/provider scope rejection, provider test success/failure status updates, and sanitized provider test history/log storage.
+- Integration coverage checks unauthenticated 401, encrypted secret persistence without plaintext leaks, fixed masked preview, secret rotate/delete safety, disabled-secret provider-test rejection without log creation, workspace non-member hidden 404 behavior, cross-workspace and personal/workspace secret/provider scope rejection, provider update scope preservation on rejection, provider test success/failure status updates, and sanitized provider test history/log storage.
 - `HttpClientConfig` provides a shared `RestClient.Builder` bean for provider clients.
 - `JacksonConfig` provides a shared `ObjectMapper` bean; tests inject it via Lombok `@RequiredArgsConstructor` and Spring `@TestConstructor`.
 - `spring.ai.model.chat` and `spring.ai.model.embedding.text` default to `none` in `application.yaml` so the app does not require a global Gemini key at startup; runtime provider keys are resolved through `Secret`.
 
 Still missing or partial:
 
-- Provider clients are minimal MVP RestClient calls; request-shape/preview tests exist, but no full contract tests against real provider fixtures.
+- Provider clients are minimal MVP RestClient calls; mocked request-shape/error/preview contract tests exist, but no real provider fixture suite is included.
 - Existing module hardening tests for auth/project/dataset remain incomplete.
 
-### Phase 6+ - Target, Evaluator, TestRun, Runner, SSE, Export
+### Phase 6 - Chatbot Target
+
+Status: backend MVP implemented.
+
+Implemented:
+
+- `target` entity/repository/controller/service/validator/parser/client/assembler foundation.
+- `ChatbotTarget` and `ChatbotTargetExample` JPA mappings.
+- `POST /api/v1/projects/{projectId}/chatbot-targets/curl/inspect`.
+- Target CRUD: list/create/get/update/delete.
+- Target runtime/config endpoints: test connection, example history, response extraction update, readiness.
+- Service contracts are interfaces under `target/service`; implementations live under `target/service/impl`; service interface methods include Javadoc.
+- Structured cURL parser for HTTP basics: URL, method, headers, query params, JSON/text body. Unsupported shell syntax, pipes, multipart/form upload, and file references are rejected.
+- cURL inspection does not execute or persist raw input.
+- cURL inspect returns sanitized cURL, sanitized parsed request preview, and secret binding candidates.
+- Shared masking facade now supports `sanitizeCurl(...)`.
+- cURL sanitizer masks Authorization Bearer values, cookies, API key query params, token-like values, and sensitive JSON fields before preview/persistence use.
+- Target create/update validates secret bindings with `SecretLookupService.requireActiveForUse(...)`, validates dataset mappings against the latest project schema, and persists only sanitized config.
+- `TargetUrlValidator` rejects non-HTTP(S), localhost, private IPv4, link-local/metadata, IPv6 loopback, and user-info URLs.
+- Target HTTP test client uses `RestClient`, validates outbound URL, enforces a 30-second connect/read timeout, limits stored response text to 256 KiB, and disables automatic redirect following.
+- Test connection resolves secrets in memory through `RuntimeSecretResolver`, applies sample dataset mappings, persists sanitized request/response/error examples, and updates `latestExampleId`.
+- Response extraction supports body text and simple JSON paths such as `$.answer`, `answer`, and `items[0].name`.
+- Project setup status now counts active chatbot targets and active targets with extraction using `ChatbotTargetRepository`.
+- Integration/unit coverage checks inspect endpoint sanitization, no target persistence during inspect, unsupported shell pipe rejection, V3 Flyway migration/JPA validation, parser behavior, target config validation, extraction behavior, and target create persistence masking.
+
+Still missing or partial:
+
+- No frontend/UI integration yet.
+- No Promptfoo runner conversion yet; target config is stored in backend domain shape for later phases.
+- Redirects are not followed automatically in the MVP target client; if following redirects becomes required, each redirect target must be revalidated before execution.
+
+### Phase 7+ - Evaluator, TestRun, Runner, SSE, Export
 
 Status: not implemented in source.
 
 No source packages/controllers/services found for:
 
-- Chatbot target
 - Evaluator
 - TestRun core/results/review
 - Runner command/event ingestion
@@ -306,6 +334,19 @@ LLM Providers:
 - `POST /api/v1/llm-providers/{providerId}/test`
 - `GET /api/v1/llm-providers/{providerId}/test-logs`
 
+Chatbot Targets:
+
+- `POST /api/v1/projects/{projectId}/chatbot-targets/curl/inspect`
+- `GET /api/v1/projects/{projectId}/chatbot-targets`
+- `POST /api/v1/projects/{projectId}/chatbot-targets`
+- `GET /api/v1/chatbot-targets/{targetId}`
+- `PATCH /api/v1/chatbot-targets/{targetId}`
+- `DELETE /api/v1/chatbot-targets/{targetId}`
+- `POST /api/v1/chatbot-targets/{targetId}/test`
+- `GET /api/v1/chatbot-targets/{targetId}/examples`
+- `PUT /api/v1/chatbot-targets/{targetId}/response-extraction`
+- `GET /api/v1/chatbot-targets/{targetId}/readiness`
+
 ## Coding Style And Conventions
 
 Follow the current project style when adding new backend code:
@@ -335,14 +376,12 @@ Follow the current project style when adding new backend code:
 ## Recommended Next Work
 
 1. Add focused tests for what already exists before building later modules:
-   - masking and naming unit tests
+   - naming unit tests
    - auth login/refresh/logout and cookie behavior
    - auth registration/forgot/reset endpoint integration tests through MockMvc and PostgreSQL
-   - `/api/**` vs `/internal/runner/**` security boundary
    - admin API role boundary for `/api/v1/admin/**`
    - workspace/project permission and hidden 404 behavior
-   - create project creates default dataset schema transactionally
-   - dataset draft/publish/discard and ACTIVE immutability
+   - dataset discard lifecycle and row-count edge cases
 
 2. Close Phase 1 gaps if they are still required:
    - storage abstraction with path traversal protection
@@ -351,15 +390,14 @@ Follow the current project style when adding new backend code:
 
 3. Finish Phase 4 MVP scope:
    - decide whether Excel import preview -> mapping -> confirm is in MVP now
-   - populate or remove/justify `dataset_rows.row_hash`
    - add import job/service if keeping the docs as source of truth
 
-4. Harden Phase 5:
-   - add broader provider client contract fixtures for response/error parsing
-   - add more service tests for provider update cross-workspace/personal scope rejection
-   - expand Testcontainers coverage for update/rotate/delete and workspace permission boundaries
+4. Continue Phase 6 chatbot target:
+   - add frontend/UI integration for target CRUD, cURL inspect, test connection, examples, extraction, and readiness
+   - add richer outbound target fixtures if product needs redirect-following or provider-like target simulations
+   - wire stored target config into later Promptfoo/TestRun runner conversion
 
-5. Start Phase 6 chatbot target only after Phase 5 endpoint behavior is verified, because target config depends on secret references.
+5. Phase 5 is ready for later phases; add real provider fixtures only if the product needs provider-specific response parsing beyond raw preview behavior.
 
 6. Harden auth mail flows before production use:
    - add rate limiting for login, forgot password, and token verification attempts
@@ -369,9 +407,8 @@ Follow the current project style when adding new backend code:
 
 ## Caveats For Next Agent
 
-- Worktree is clean as of 2026-07-05 23:15 Asia/Bangkok.
+- Worktree state should be checked with `rtk git status --short`; this file was last updated during Phase 4 hardening and Phase 6 chatbot target backend MVP work.
 - `apps/api/target` may exist because `mvnw test` was run.
-- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, email-token hashing/expiry/consume behavior, admin invite service flow, controller delegation, DTO validation, encryption round-trip, secret create safety, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create sanitization, provider client request shapes, provider test history clamping, provider test log sanitization, and Phase 5 Spring MVC/security/PostgreSQL integration coverage.
+- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, email-token hashing/expiry/consume behavior, admin invite service flow, controller delegation, DTO validation, Tink encryption round-trip, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, dataset row hash/publish/default-schema behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, and Phase 4/5/6 Spring MVC/security/PostgreSQL integration coverage.
 - JavaMail usage follows Spring Boot 4.0.7/Spring Framework 7 docs: rely on `JavaMailSender` auto-configuration when `spring.mail.host` is configured; use `MimeMessage`/`MimeMessageHelper`; set SMTP timeouts through `spring.mail.properties[...]`.
 - Mail is now delivered asynchronously via `MailSendEvent` + `MailSendEventListener` after transaction commit. `@EnableAsync` is on the main application class.
-
