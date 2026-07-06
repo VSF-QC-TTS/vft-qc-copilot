@@ -123,6 +123,12 @@ logging:
     org.telegram: INFO
 
 vfqc:
+  auth:
+    registration:
+      mode: SELF_VERIFY
+    emailToken:
+      verification-expiration-minutes: 1440
+      password-reset-expiration-minutes: 15
   admin:
     seed:
       email: ${VFQC_ADMIN_EMAIL}
