@@ -49,7 +49,8 @@ class AuthControllerTest {
   void forgotPassword_Request_DelegatesToServiceWithAuditMetadata() {
     var request = new ForgotPasswordRequest("user@vinfast.vn");
     var servletRequest = servletRequest();
-    var expected = new AuthMessageResponse("If the email exists, reset instructions have been sent.");
+    var expected =
+        new AuthMessageResponse("If the email exists, reset instructions have been sent.");
     var controller = controller();
     when(authService.forgotPassword(request, "127.0.0.1", "JUnit")).thenReturn(expected);
 
@@ -80,6 +81,7 @@ class AuthControllerTest {
             15,
             10080,
             new SecurityProperties.Jwt("dev-only-change-me-dev-only-change-me"),
+            "",
             "",
             new SecurityProperties.Cookie(false, "lax"),
             "runner-token"));

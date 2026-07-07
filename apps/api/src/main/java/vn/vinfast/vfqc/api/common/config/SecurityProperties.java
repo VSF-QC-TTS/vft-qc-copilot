@@ -8,6 +8,7 @@ public record SecurityProperties(
     long refreshExpiration,
     Jwt jwt,
     String encryptionKey,
+    String encryptionSalt,
     Cookie cookie,
     String runnerToken) {
 

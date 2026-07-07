@@ -61,7 +61,9 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
     var stored = secrets.findById(secretId).orElseThrow();
     assertThat(json.toString()).doesNotContain("sk-plain-secret", stored.getEncryptedValue());
     assertThat(json.get("maskedPreview").asText()).isEqualTo("****");
-    assertThat(stored.getEncryptedValue()).startsWith("v1:").doesNotContain("sk-plain-secret");
+    assertThat(stored.getEncryptedValue())
+        .startsWith("spring-crypto:aes-gcm:v1")
+        .doesNotContain("sk-plain-secret");
   }
 
   @Test
@@ -87,7 +89,7 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
         .doesNotContain("sk-old-secret", "sk-new-secret", before, after.getEncryptedValue())
         .contains("\"maskedPreview\":\"****\"");
     assertThat(after.getEncryptedValue())
-        .startsWith("v1:")
+        .startsWith("spring-crypto:aes-gcm:v1")
         .isNotEqualTo(before)
         .doesNotContain("sk-old-secret", "sk-new-secret");
   }
@@ -137,7 +139,8 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
   }
 
   @Test
-  void createWorkspaceProvider_WithSecretFromDifferentWorkspace_ReturnsScopeMismatch() throws Exception {
+  void createWorkspaceProvider_WithSecretFromDifferentWorkspace_ReturnsScopeMismatch()
+      throws Exception {
     var user = user("workspace-owner@vinfast.vn");
     var sourceWorkspace = workspace(user);
     var targetWorkspace = workspace(user);
@@ -232,7 +235,11 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
     assertThat(response).doesNotContain("sk-plain-secret");
     var provider = providerRepository.findById(providerId).orElseThrow();
     assertThat(provider.getStatus()).isEqualTo(ProviderStatus.TEST_FAILED);
-    var log = testLogs.findByLlmProviderIdOrderByTestedAtDesc(providerId, org.springframework.data.domain.PageRequest.of(0, 1)).getFirst();
+    var log =
+        testLogs
+            .findByLlmProviderIdOrderByTestedAtDesc(
+                providerId, org.springframework.data.domain.PageRequest.of(0, 1))
+            .getFirst();
     assertThat(log.getErrorMessage()).isEqualTo("provider rejected Bearer ****");
   }
 
@@ -265,8 +272,8 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
         .isEqualTo(ProviderStatus.ACTIVE);
   }
 
-  private UUID createPersonalSecret(vn.vinfast.vfqc.api.user.entity.AppUser user, String name, String value)
-      throws Exception {
+  private UUID createPersonalSecret(
+      vn.vinfast.vfqc.api.user.entity.AppUser user, String name, String value) throws Exception {
     var result =
         mockMvc
             .perform(
@@ -276,11 +283,13 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
                     .content(objectMapper.writeValueAsString(Map.of("name", name, "value", value))))
             .andExpect(status().isOk())
             .andReturn();
-    return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
   private UUID createWorkspaceSecret(
-      vn.vinfast.vfqc.api.user.entity.AppUser user, UUID workspaceId, String name) throws Exception {
+      vn.vinfast.vfqc.api.user.entity.AppUser user, UUID workspaceId, String name)
+      throws Exception {
     var result =
         mockMvc
             .perform(
@@ -292,7 +301,8 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
                             Map.of("name", name, "value", "sk-workspace-secret"))))
             .andExpect(status().isOk())
             .andReturn();
-    return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
   private UUID createPersonalProvider(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID secretId)
@@ -320,7 +330,8 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
                     .content(objectMapper.writeValueAsString(body)))
             .andExpect(status().isOk())
             .andReturn();
-    return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
   private UUID createWorkspaceProvider(
@@ -349,6 +360,7 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
                     .content(objectMapper.writeValueAsString(body)))
             .andExpect(status().isOk())
             .andReturn();
-    return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 }

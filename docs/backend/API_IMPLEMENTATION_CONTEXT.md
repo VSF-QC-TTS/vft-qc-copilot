@@ -1,6 +1,6 @@
 # Backend API Implementation Context
 
-Last checked: 2026-07-06 22:36 Asia/Bangkok.
+Last checked: 2026-07-07 13:50 Asia/Bangkok.
 
 Purpose: this is the short handoff file for the next agent/session. Read this first before re-reading all backend docs. It summarizes `docs/backend/README.md`, `docs/backend/IMPLEMENTATION_ORDER.md`, and the current `apps/api` implementation state.
 
@@ -187,7 +187,9 @@ Implemented:
 
 - `secret` entity/repository/mapper/controller/service/service impl.
 - Workspace and personal secret APIs.
-- Google Tink AES-256-GCM `TinkSecretEncryptionService` using Tink JSON keysets for built-in key rotation and misuse-resistant IV management.
+- Spring Security Crypto `SpringCryptoSecretEncryptionService` using `Encryptors.stronger(...)` / AES-256-GCM through a small `SecretEncryptionService` boundary.
+- Encrypted payloads are Base64 encoded and version-prefixed with `spring-crypto:aes-gcm:v1:` for format validation during decrypt.
+- Encryption is configured by `SpringCryptoSecretEncryptionConfig` from `vfqc.security.encryption-key` and `vfqc.security.encryption-salt`; production reads `ENCRYPTION_KEY` and `ENCRYPTION_SALT`.
 - `RuntimeSecretResolver` and active-secret lookup boundary.
 - Secret responses expose fixed masked preview only, never plaintext or encrypted value.
 - `provider` entity/repository/mapper/controller/service/client/validator packages.
@@ -409,6 +411,6 @@ Follow the current project style when adding new backend code:
 
 - Worktree state should be checked with `rtk git status --short`; this file was last updated during Phase 4 hardening and Phase 6 chatbot target backend MVP work.
 - `apps/api/target` may exist because `mvnw test` was run.
-- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, email-token hashing/expiry/consume behavior, admin invite service flow, controller delegation, DTO validation, Tink encryption round-trip, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, dataset row hash/publish/default-schema behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, and Phase 4/5/6 Spring MVC/security/PostgreSQL integration coverage.
+- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, email-token hashing/expiry/consume behavior, admin invite service flow, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, dataset row hash/publish/default-schema behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, and Phase 4/5/6 Spring MVC/security/PostgreSQL integration coverage.
 - JavaMail usage follows Spring Boot 4.0.7/Spring Framework 7 docs: rely on `JavaMailSender` auto-configuration when `spring.mail.host` is configured; use `MimeMessage`/`MimeMessageHelper`; set SMTP timeouts through `spring.mail.properties[...]`.
 - Mail is now delivered asynchronously via `MailSendEvent` + `MailSendEventListener` after transaction commit. `@EnableAsync` is on the main application class.
