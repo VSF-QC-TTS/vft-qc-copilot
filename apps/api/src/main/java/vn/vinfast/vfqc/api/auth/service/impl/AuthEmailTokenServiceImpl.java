@@ -17,6 +17,7 @@ import vn.vinfast.vfqc.api.auth.entity.AuthEmailToken;
 import vn.vinfast.vfqc.api.auth.enums.AuthEmailTokenPurpose;
 import vn.vinfast.vfqc.api.auth.enums.AuthEmailTokenStatus;
 import vn.vinfast.vfqc.api.auth.repository.AuthEmailTokenRepository;
+import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenConsumption;
 import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenIssue;
 import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenService;
 import vn.vinfast.vfqc.api.common.error.ErrorCode;
@@ -57,6 +58,13 @@ public class AuthEmailTokenServiceImpl implements AuthEmailTokenService {
   @Transactional
   @Override
   public AppUser consume(String rawToken, Set<AuthEmailTokenPurpose> allowedPurposes) {
+    return consumeWithPurpose(rawToken, allowedPurposes).user();
+  }
+
+  @Transactional
+  @Override
+  public AuthEmailTokenConsumption consumeWithPurpose(
+      String rawToken, Set<AuthEmailTokenPurpose> allowedPurposes) {
     if (rawToken == null || rawToken.isBlank()) {
       throw ErrorCode.EMAIL_TOKEN_MISSING.throwIt();
     }
@@ -74,9 +82,9 @@ public class AuthEmailTokenServiceImpl implements AuthEmailTokenService {
     }
     token.setStatus(AuthEmailTokenStatus.USED);
     token.setUsedAt(now);
-    return userRepository
-        .findById(token.getUserId())
-        .orElseThrow(ErrorCode.EMAIL_TOKEN_INVALID::throwIt);
+    var user =
+        userRepository.findById(token.getUserId()).orElseThrow(ErrorCode.EMAIL_TOKEN_INVALID::throwIt);
+    return new AuthEmailTokenConsumption(user, token.getPurpose());
   }
 
   @Transactional

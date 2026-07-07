@@ -87,6 +87,7 @@ class SecretControllerTest {
         secretId,
         workspaceId == null ? SecretScope.PERSONAL : SecretScope.WORKSPACE,
         workspaceId == null ? UUID.randomUUID() : null,
+        null,
         workspaceId,
         "Secret",
         "****",

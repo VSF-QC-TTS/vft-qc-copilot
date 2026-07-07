@@ -12,6 +12,7 @@ import vn.vinfast.vfqc.api.common.error.ErrorCode;
 import vn.vinfast.vfqc.api.common.permission.PermissionAction;
 import vn.vinfast.vfqc.api.common.permission.ProjectPermissionService;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
+import vn.vinfast.vfqc.api.dataset.assembler.DatasetResponseAssembler;
 import vn.vinfast.vfqc.api.dataset.dto.DatasetSchemaResponse;
 import vn.vinfast.vfqc.api.dataset.dto.DatasetVariableResponse;
 import vn.vinfast.vfqc.api.dataset.entity.DatasetSchema;
@@ -34,6 +35,7 @@ public class DatasetSchemaServiceImpl
   private final DatasetSchemaColumnRepository columnRepository;
   private final ProjectPermissionService projectPermissionService;
   private final DatasetMapper datasetMapper;
+  private final DatasetResponseAssembler datasetAssembler;
   private final Clock clock;
 
   @Override
@@ -109,6 +111,6 @@ public class DatasetSchemaServiceImpl
         columnRepository.findBySchemaIdOrderByOrderIndexAsc(schema.getId()).stream()
             .map(datasetMapper::toResponse)
             .toList();
-    return datasetMapper.toResponse(schema, columns);
+    return datasetAssembler.toResponse(schema, columns);
   }
 }

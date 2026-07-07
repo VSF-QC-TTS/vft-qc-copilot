@@ -25,6 +25,7 @@ import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
 import vn.vinfast.vfqc.api.user.repository.UserRepository;
 import vn.vinfast.vfqc.api.user.service.UserAdministrationService;
+import vn.vinfast.vfqc.api.user.service.UserSummaryService;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +38,7 @@ public class UserAdministrationServiceImpl implements UserAdministrationService 
   private final ApplicationEventPublisher eventPublisher;
   private final AuthProperties authProperties;
   private final UserProperties userProperties;
+  private final UserSummaryService userSummaryService;
   private final AuthLinkBuilder linkBuilder;
   private final Clock clock;
 
@@ -74,6 +76,10 @@ public class UserAdministrationServiceImpl implements UserAdministrationService 
                 user.getEmail(), user.getDisplayName(), linkBuilder.inviteLink(token.token()))));
     log.info("Admin created user invite: userId={}", user.getId());
     return new AdminCreateUserResponse(
-        user.getId(), user.getEmail(), user.getStatus(), "User created. Invite email sent.");
+        user.getId(),
+        user.getEmail(),
+        userSummaryService.toSummary(user),
+        user.getStatus(),
+        "User created. Invite email sent.");
   }
 }

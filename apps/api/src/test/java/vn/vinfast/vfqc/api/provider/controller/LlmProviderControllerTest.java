@@ -95,6 +95,7 @@ class LlmProviderControllerTest {
         ProviderScope.PERSONAL,
         UUID.randomUUID(),
         null,
+        null,
         "Provider",
         ProviderType.OPENAI_COMPATIBLE,
         null,

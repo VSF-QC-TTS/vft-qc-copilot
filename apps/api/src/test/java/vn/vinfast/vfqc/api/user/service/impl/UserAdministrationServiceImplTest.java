@@ -34,6 +34,7 @@ import vn.vinfast.vfqc.api.user.entity.AppUser;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
 import vn.vinfast.vfqc.api.user.repository.UserRepository;
+import vn.vinfast.vfqc.api.user.service.UserSummaryService;
 
 @ExtendWith(MockitoExtension.class)
 class UserAdministrationServiceImplTest {
@@ -44,6 +45,7 @@ class UserAdministrationServiceImplTest {
   @Mock private UserRepository userRepository;
   @Mock private AuthEmailTokenService authEmailTokenService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private UserSummaryService userSummaryService;
 
   private UserAdministrationServiceImpl service;
 
@@ -60,6 +62,7 @@ class UserAdministrationServiceImplTest {
                 new AuthProperties.Registration(RegistrationMode.ADMIN_ONLY),
                 new AuthProperties.EmailToken(1440, 15)),
             new UserProperties("https://example.com/avatar.png"),
+            userSummaryService,
             linkBuilder,
             CLOCK);
   }

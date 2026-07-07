@@ -33,6 +33,17 @@ public interface AuthEmailTokenService {
   AppUser consume(String rawToken, Set<AuthEmailTokenPurpose> allowedPurposes);
 
   /**
+   * Consumes an active token and returns both owner and token purpose for callers whose side effects
+   * differ by token type.
+   *
+   * @param rawToken raw token from a public auth request
+   * @param allowedPurposes purposes accepted by the caller
+   * @return token owner and consumed purpose
+   */
+  AuthEmailTokenConsumption consumeWithPurpose(
+      String rawToken, Set<AuthEmailTokenPurpose> allowedPurposes);
+
+  /**
    * Revokes all active email tokens for a user.
    *
    * @param userId token owner id

@@ -22,7 +22,7 @@ import vn.vinfast.vfqc.api.dataset.entity.DatasetVersion;
 import vn.vinfast.vfqc.api.dataset.enums.DatasetScope;
 import vn.vinfast.vfqc.api.dataset.enums.DatasetSourceType;
 import vn.vinfast.vfqc.api.dataset.enums.DatasetVersionStatus;
-import vn.vinfast.vfqc.api.dataset.mapper.DatasetMapper;
+import vn.vinfast.vfqc.api.dataset.assembler.DatasetResponseAssembler;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetSchemaRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetVersionRepository;
@@ -38,18 +38,15 @@ public class DatasetServiceImpl implements DatasetService {
   private final DatasetSchemaRepository schemaRepository;
   private final ProjectPermissionService projectPermissionService;
   private final ResourceNameNormalizer nameNormalizer;
-  private final DatasetMapper datasetMapper;
+  private final DatasetResponseAssembler datasetAssembler;
   private final Clock clock;
 
   @Transactional(readOnly = true)
   @Override
   public List<DatasetResponse> list(CurrentUser user, UUID projectId) {
     projectPermissionService.requireProject(user, projectId, PermissionAction.VIEW);
-    return datasetRepository
-        .findByProjectIdAndDeletedAtIsNullOrderByCreatedAtDesc(projectId)
-        .stream()
-        .map(datasetMapper::toResponse)
-        .toList();
+    return datasetAssembler.toDatasetResponses(
+        datasetRepository.findByProjectIdAndDeletedAtIsNullOrderByCreatedAtDesc(projectId));
   }
 
   @Transactional
@@ -97,14 +94,14 @@ public class DatasetServiceImpl implements DatasetService {
         projectId,
         project.getWorkspaceId(),
         user.id());
-    return datasetMapper.toResponse(dataset);
+    return datasetAssembler.toResponse(dataset);
   }
 
   @Transactional(readOnly = true)
   @Override
   public DatasetResponse get(CurrentUser user, UUID datasetId) {
     var dataset = requireDataset(user, datasetId, PermissionAction.VIEW);
-    return datasetMapper.toResponse(dataset);
+    return datasetAssembler.toResponse(dataset);
   }
 
   @Transactional
@@ -126,7 +123,7 @@ public class DatasetServiceImpl implements DatasetService {
     }
     dataset.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Dataset updated: datasetId={} actorId={}", datasetId, user.id());
-    return datasetMapper.toResponse(dataset);
+    return datasetAssembler.toResponse(dataset);
   }
 
   @Transactional
@@ -143,9 +140,7 @@ public class DatasetServiceImpl implements DatasetService {
   @Override
   public List<DatasetVersionResponse> versions(CurrentUser user, UUID datasetId) {
     requireDataset(user, datasetId, PermissionAction.VIEW);
-    return versionRepository.findByDatasetIdOrderByVersionDesc(datasetId).stream()
-        .map(datasetMapper::toResponse)
-        .toList();
+    return datasetAssembler.toVersionResponses(versionRepository.findByDatasetIdOrderByVersionDesc(datasetId));
   }
 
   private Dataset requireDataset(CurrentUser user, UUID datasetId, PermissionAction action) {

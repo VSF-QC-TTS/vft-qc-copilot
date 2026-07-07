@@ -1,6 +1,6 @@
 # Backend API Implementation Context
 
-Last checked: 2026-07-07 13:50 Asia/Bangkok.
+Last checked: 2026-07-07 14:50 Asia/Bangkok.
 
 Purpose: this is the short handoff file for the next agent/session. Read this first before re-reading all backend docs. It summarizes `docs/backend/README.md`, `docs/backend/IMPLEMENTATION_ORDER.md`, and the current `apps/api` implementation state.
 
@@ -23,9 +23,9 @@ Command run from `apps/api`:
 rtk bash mvnw test
 ```
 
-Result: build success. Maven compiled the backend and ran 67 tests successfully.
+Result: build success. Maven compiled the backend and ran 74 tests successfully.
 
-Coverage currently includes compile wiring, auth email-token service behavior, registration/verification/password-reset service flows, admin user invite service flow, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled-secret provider-test rejection, secret scope lookup rejection, provider config sanitization, provider create/update sanitization and scope lookup, provider test history limit clamping, provider test log sanitization, provider status updates, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, dataset default-schema bootstrap, dataset row hash add/patch behavior, publish/archive and ACTIVE immutability, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 4/5/6 endpoint/security/persistence behavior.
+Coverage currently includes compile wiring, auth email-token service behavior, registration/verification/password-reset service flows, personal workspace onboarding, admin user invite service flow, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled-secret provider-test rejection, secret scope lookup rejection, provider config sanitization, provider create/update sanitization and scope lookup, provider test history limit clamping, provider test log sanitization, provider status updates, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, publish/archive and ACTIVE immutability, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 3/4/5/6 endpoint/security/persistence behavior.
 
 ## Current Source Shape
 
@@ -60,6 +60,8 @@ Current migrations:
 - `apps/api/src/main/resources/db/migration/V3__chatbot_targets.sql`
   - Creates `chatbot_targets` and `chatbot_target_examples` for Phase 6 target configuration and test examples.
   - Source entities/repositories map these tables; Phase 6 backend now uses the existing JSONB fields without an additional migration.
+- `apps/api/src/main/resources/db/migration/V4__personal_workspace_unique_index.sql`
+  - Adds a partial unique index that enforces one active PERSONAL workspace per creator.
 
 ## Phase Status Against IMPLEMENTATION_ORDER.md
 
@@ -117,11 +119,13 @@ Implemented:
 - Configurable registration mode via `vfqc.auth.registration.mode`; default is `ADMIN_ONLY`, with `SELF_VERIFY` enabling self-registration and verification mail.
 - Forgot-password and admin-invite flows send reset links, not plaintext passwords.
 - Reset password consumes email tokens, activates pending users when appropriate, and revokes active refresh tokens.
+- Email verification and admin-invite password reset now ensure an idempotent PERSONAL workspace owned by the activated user.
 - OAuth2 Resource Server JWT validation for `/api/**`.
 - Separate runner service-token chain for `/internal/runner/**`.
 - `@AuthenticationPrincipal CurrentUser` mapping.
 - Workspace/project permission service skeletons with real checks for current modules.
 - Focused auth unit/controller tests cover token issuing/consumption, pending-login rejection, register mail, generic forgot-password response, password reset, and admin invite.
+- `UserSummaryResponse` is available as the small frontend-safe user read model: `id`, `email`, `name`, `avatarUrl`.
 
 Still missing or not obvious:
 
@@ -145,11 +149,14 @@ Implemented:
 - Project permission integration.
 - Project setup-status endpoint.
 - Create project now calls `DatasetSchemaBootstrapService.createDefaultProjectSchema(...)` in the same transaction.
+- Workspace, workspace member, and project responses include user summary fields beside UUID fields for frontend display.
+- Workspace/member/project read models batch-load user summaries through `UserSummaryService` to avoid N+1 queries.
+- Personal workspace onboarding is idempotent and backed by the V4 partial unique index.
 
 Still missing or partial:
 
-- Tests for CRUD, membership permission, hidden 404 behavior, archive/delete, and default dataset schema creation.
-- Setup status is intentionally partial: it counts datasets and active dataset versions only; target/evaluator/provider counts are hardcoded zero.
+- Broader tests for CRUD, membership permission, hidden 404 behavior, archive/delete, and default dataset schema creation.
+- Setup status is intentionally partial: it counts datasets, active dataset versions, active chatbot targets, and targets with extraction; evaluator/provider counts are still hardcoded zero.
 
 ### Phase 4 - Dataset Schema, Dataset Versioning and Source Data
 
@@ -169,6 +176,7 @@ Implemented:
 - Discard draft.
 - Required/unknown column validation.
 - Integration tests cover create-project default schema bootstrap, row hash add/patch, publish/archive, and ACTIVE immutability.
+- Dataset schema, dataset, and dataset version responses include `createdByUser` where a creator UUID is exposed.
 
 Still missing from Phase 4 docs:
 
@@ -199,6 +207,8 @@ Implemented:
 - Provider test flow with real client boundary and sanitized `llm_provider_test_logs`, using `LlmProviderTestLogPersister` to avoid `@Transactional` self-invocation proxies.
 - Request-shape tests cover `OPENAI_COMPATIBLE`, `GOOGLE_GENAI`, and `CUSTOM_HTTP`; Google GenAI sends the API key via `x-goog-api-key` header instead of query string.
 - Provider response assembler batch-loads secret summaries for list responses to avoid N+1 lookups.
+- Secret/provider responses include owner user summaries where the resource is personal; workspace-scoped resources keep `ownerUser` null.
+- Secret/provider response assemblers batch-load user summaries and secret summaries for list/detail responses to avoid N+1 lookups.
 - Controller unit tests cover Secret/Provider delegation and collection wrapping.
 - Request validation tests cover required Secret/Provider fields.
 - Secret scope tests cover workspace/personal mismatch and hidden personal secrets.
@@ -237,6 +247,7 @@ Implemented:
 - Test connection resolves secrets in memory through `RuntimeSecretResolver`, applies sample dataset mappings, persists sanitized request/response/error examples, and updates `latestExampleId`.
 - Response extraction supports body text and simple JSON paths such as `$.answer`, `answer`, and `items[0].name`.
 - Project setup status now counts active chatbot targets and active targets with extraction using `ChatbotTargetRepository`.
+- Target responses include `createdByUser` beside `createdBy`, loaded in batch for list responses.
 - Integration/unit coverage checks inspect endpoint sanitization, no target persistence during inspect, unsupported shell pipe rejection, V3 Flyway migration/JPA validation, parser behavior, target config validation, extraction behavior, and target create persistence masking.
 
 Still missing or partial:
@@ -360,6 +371,7 @@ Follow the current project style when adding new backend code:
 - Controllers should include Swagger annotations such as `@Tag`, `@Operation`, and useful `@ApiResponse` entries.
 - Use Lombok for boilerplate already accepted in the codebase: `@RequiredArgsConstructor`, `@Slf4j`, `@Getter`, `@Setter`, `@Builder`, `@AllArgsConstructor`, `@NoArgsConstructor` for entities. Entities use standard non-chaining setters (no `@Accessors(chain = true)`).
 - Use MapStruct for simple entity-to-DTO mapping. Use assemblers only when a response is an aggregate/read model and MapStruct alone would hide orchestration.
+- Keep UUID reference fields in responses for compatibility. Add compact summary objects beside them when the frontend needs display data, and batch-load those summaries in an assembler/service rather than inside mappers or loops.
 - Keep controllers thin: validation, authentication principal, path/body binding, and delegation only. Business rules belong in services/domain validators.
 - Keep code clean and OOP-oriented: focused classes, intention-revealing names, constructor injection, small methods, guard clauses, no god services, no hardcoded magic values.
 - Use `@ConfigurationProperties` records for typed configuration binding (e.g. `AuthProperties`, `UserProperties`, `SecurityProperties`). Avoid `@Value` field injection.
@@ -369,7 +381,7 @@ Follow the current project style when adding new backend code:
 - Use `@Modifying @Query` bulk UPDATEs for token revocation instead of find-then-loop patterns.
 - Integration test configuration lives in `src/test/resources/application-test.yaml`, activated via `spring.profiles.active=test`. Do not hardcode properties in `@SpringBootTest` annotations.
 - Prefer immutable DTO/value objects, final injected dependencies, and coding to interfaces (`List`, `Map`) rather than concrete implementations.
-- Avoid N+1 queries. Use repository projections, `@EntityGraph`, join fetches, or focused queries for read models before adding loops over lazy relationships.
+- Avoid N+1 queries. Use repository projections, `@EntityGraph`, join fetches, batch summary services, or focused queries for read models before adding loops over lazy relationships.
 - Keep transactions in the service layer. Use `@Transactional(readOnly = true)` for reads and normal `@Transactional` for writes.
 - Do not expose JPA entities directly through API responses; controllers return DTO records/response models only.
 - Validate and sanitize all external input. Never log passwords, plaintext secrets, raw external payloads, or unsanitized dataset/business-sensitive content.
@@ -382,7 +394,7 @@ Follow the current project style when adding new backend code:
    - auth login/refresh/logout and cookie behavior
    - auth registration/forgot/reset endpoint integration tests through MockMvc and PostgreSQL
    - admin API role boundary for `/api/v1/admin/**`
-   - workspace/project permission and hidden 404 behavior
+   - broader workspace/project permission and hidden 404 behavior
    - dataset discard lifecycle and row-count edge cases
 
 2. Close Phase 1 gaps if they are still required:
@@ -409,8 +421,8 @@ Follow the current project style when adding new backend code:
 
 ## Caveats For Next Agent
 
-- Worktree state should be checked with `rtk git status --short`; this file was last updated during Phase 4 hardening and Phase 6 chatbot target backend MVP work.
+- Worktree state should be checked with `rtk git status --short`; this file was last updated during personal workspace onboarding and user-summary response enrichment.
 - `apps/api/target` may exist because `mvnw test` was run.
-- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, email-token hashing/expiry/consume behavior, admin invite service flow, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, dataset row hash/publish/default-schema behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, and Phase 4/5/6 Spring MVC/security/PostgreSQL integration coverage.
+- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, email-token hashing/expiry/consume behavior, personal workspace onboarding, admin invite service flow, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, workspace member response user summaries, dataset row hash/publish/default-schema behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, and Phase 3/4/5/6 Spring MVC/security/PostgreSQL integration coverage.
 - JavaMail usage follows Spring Boot 4.0.7/Spring Framework 7 docs: rely on `JavaMailSender` auto-configuration when `spring.mail.host` is configured; use `MimeMessage`/`MimeMessageHelper`; set SMTP timeouts through `spring.mail.properties[...]`.
 - Mail is now delivered asynchronously via `MailSendEvent` + `MailSendEventListener` after transaction commit. `@EnableAsync` is on the main application class.

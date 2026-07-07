@@ -27,8 +27,10 @@ import vn.vinfast.vfqc.api.auth.dto.ForgotPasswordRequest;
 import vn.vinfast.vfqc.api.auth.dto.LoginRequest;
 import vn.vinfast.vfqc.api.auth.dto.RegisterRequest;
 import vn.vinfast.vfqc.api.auth.dto.ResetPasswordRequest;
+import vn.vinfast.vfqc.api.auth.dto.VerifyEmailRequest;
 import vn.vinfast.vfqc.api.auth.enums.AuthEmailTokenPurpose;
 import vn.vinfast.vfqc.api.auth.mapper.AuthMapper;
+import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenConsumption;
 import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenIssue;
 import vn.vinfast.vfqc.api.auth.service.AuthEmailTokenService;
 import vn.vinfast.vfqc.api.auth.service.JwtTokenService;
@@ -46,6 +48,7 @@ import vn.vinfast.vfqc.api.user.entity.AppUser;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
 import vn.vinfast.vfqc.api.user.repository.UserRepository;
+import vn.vinfast.vfqc.api.user.service.UserOnboardingService;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
@@ -59,6 +62,7 @@ class AuthServiceImplTest {
   @Mock private AuthEmailTokenService authEmailTokenService;
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private AuthMapper authMapper;
+  @Mock private UserOnboardingService userOnboardingService;
 
   private final PasswordEncoder passwordEncoder =
       PasswordEncoderFactories.createDelegatingPasswordEncoder();
@@ -79,6 +83,7 @@ class AuthServiceImplTest {
                 new AuthProperties.Registration(RegistrationMode.SELF_VERIFY),
                 new AuthProperties.EmailToken(1440, 15)),
             new UserProperties("https://example.com/avatar.png"),
+            userOnboardingService,
             linkBuilder,
             authMapper,
             CLOCK);
@@ -152,7 +157,8 @@ class AuthServiceImplTest {
   void resetPassword_ValidToken_UpdatesPasswordAndRevokesRefreshTokens() {
     var user = user("user@vinfast.vn");
     user.setStatus(UserStatus.PENDING_EMAIL_VERIFICATION);
-    when(authEmailTokenService.consume(eq("raw-token"), any())).thenReturn(user);
+    when(authEmailTokenService.consumeWithPurpose(eq("raw-token"), any()))
+        .thenReturn(new AuthEmailTokenConsumption(user, AuthEmailTokenPurpose.PASSWORD_RESET));
 
     var response = service.resetPassword(new ResetPasswordRequest("raw-token", "NewPassword@123"));
 
@@ -161,6 +167,29 @@ class AuthServiceImplTest {
     assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
     verify(refreshTokenService).revokeActiveForUser(user.getId());
     verify(authEmailTokenService).revokeActiveForUser(user.getId());
+  }
+
+  @Test
+  void resetPassword_AdminInviteToken_EnsuresPersonalWorkspace() {
+    var user = user("invited@vinfast.vn");
+    when(authEmailTokenService.consumeWithPurpose(eq("raw-token"), any()))
+        .thenReturn(new AuthEmailTokenConsumption(user, AuthEmailTokenPurpose.ADMIN_INVITE));
+
+    service.resetPassword(new ResetPasswordRequest("raw-token", "NewPassword@123"));
+
+    verify(userOnboardingService).ensurePersonalWorkspace(user);
+  }
+
+  @Test
+  void verifyEmail_PendingUser_ActivatesAndEnsuresPersonalWorkspace() {
+    var user = user("verify@vinfast.vn");
+    user.setStatus(UserStatus.PENDING_EMAIL_VERIFICATION);
+    when(authEmailTokenService.consume(eq("verify-token"), any())).thenReturn(user);
+
+    service.verifyEmail(new VerifyEmailRequest("verify-token"));
+
+    assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+    verify(userOnboardingService).ensurePersonalWorkspace(user);
   }
 
   private AppUser user(String email) {

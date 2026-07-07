@@ -453,6 +453,12 @@ Project VIEW.
       "hasResponseExtraction": true,
       "latestExampleId": 1024,
       "createdBy": "a38f0878-1ebe-49db-abf2-f6a372b6c246",
+      "createdByUser": {
+        "id": "a38f0878-1ebe-49db-abf2-f6a372b6c246",
+        "email": "qc.member@example.com",
+        "name": "QC Member",
+        "avatarUrl": null
+      },
       "createdAt": "2026-07-02T10:00:00+07:00",
       "updatedAt": "2026-07-02T10:15:00+07:00"
     }
@@ -664,6 +670,12 @@ Project VIEW.
   "status": "ACTIVE",
   "latestExampleId": 1024,
   "createdBy": "a38f0878-1ebe-49db-abf2-f6a372b6c246",
+  "createdByUser": {
+    "id": "a38f0878-1ebe-49db-abf2-f6a372b6c246",
+    "email": "qc.member@example.com",
+    "name": "QC Member",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:15:00+07:00"
 }

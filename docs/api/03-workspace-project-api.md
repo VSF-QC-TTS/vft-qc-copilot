@@ -161,6 +161,12 @@ When a project is created, backend must also create a default PROJECT dataset sc
   "type": "TEAM",
   "currentUserRole": "OWNER",
   "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "createdByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:00:00+07:00"
 }
@@ -182,6 +188,7 @@ currentUserRole:
 {
   "id": 1001,
   "workspaceId": "4bcfb80f-b2e1-4449-ad72-5c3b4ecb42a1",
+  "userId": "a38f0878-1ebe-49db-abf2-f6a372b6c246",
   "user": {
     "id": "a38f0878-1ebe-49db-abf2-f6a372b6c246",
     "email": "qc.member@example.com",
@@ -191,6 +198,12 @@ currentUserRole:
   "role": "MEMBER",
   "status": "ACTIVE",
   "invitedBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "invitedByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "joinedAt": "2026-07-02T10:30:00+07:00",
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:30:00+07:00"
@@ -208,6 +221,12 @@ currentUserRole:
   "name": "VF Sales Chatbot",
   "description": "Evaluation project for sales chatbot",
   "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "createdByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:00:00+07:00",
   "archivedAt": null
@@ -342,6 +361,12 @@ May return all workspaces depending on admin policy.
       "type": "TEAM",
       "currentUserRole": "MEMBER",
       "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+      "createdByUser": {
+        "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+        "email": "owner@example.com",
+        "name": "Workspace Owner",
+        "avatarUrl": null
+      },
       "createdAt": "2026-07-02T10:00:00+07:00",
       "updatedAt": "2026-07-02T10:00:00+07:00"
     }
@@ -416,6 +441,12 @@ Body:
   "type": "TEAM",
   "currentUserRole": "OWNER",
   "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "createdByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:00:00+07:00"
 }
@@ -464,6 +495,12 @@ Workspace VIEW permission.
   "type": "TEAM",
   "currentUserRole": "ADMIN",
   "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "createdByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:00:00+07:00"
 }
@@ -602,6 +639,7 @@ Workspace VIEW permission.
     {
       "id": 1001,
       "workspaceId": "4bcfb80f-b2e1-4449-ad72-5c3b4ecb42a1",
+      "userId": "a38f0878-1ebe-49db-abf2-f6a372b6c246",
       "user": {
         "id": "a38f0878-1ebe-49db-abf2-f6a372b6c246",
         "email": "qc.member@example.com",
@@ -611,6 +649,12 @@ Workspace VIEW permission.
       "role": "MEMBER",
       "status": "ACTIVE",
       "invitedBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+      "invitedByUser": {
+        "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+        "email": "owner@example.com",
+        "name": "Workspace Owner",
+        "avatarUrl": null
+      },
       "joinedAt": "2026-07-02T10:30:00+07:00",
       "createdAt": "2026-07-02T10:00:00+07:00",
       "updatedAt": "2026-07-02T10:30:00+07:00"
@@ -834,6 +878,12 @@ Workspace VIEW permission.
       "name": "VF Sales Chatbot",
       "description": "Evaluation project for sales chatbot",
       "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+      "createdByUser": {
+        "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+        "email": "owner@example.com",
+        "name": "Workspace Owner",
+        "avatarUrl": null
+      },
       "createdAt": "2026-07-02T10:00:00+07:00",
       "updatedAt": "2026-07-02T10:00:00+07:00",
       "archivedAt": null
@@ -909,6 +959,12 @@ Body:
   "name": "VF Sales Chatbot",
   "description": "Evaluation project for sales chatbot",
   "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "createdByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:00:00+07:00",
   "archivedAt": null

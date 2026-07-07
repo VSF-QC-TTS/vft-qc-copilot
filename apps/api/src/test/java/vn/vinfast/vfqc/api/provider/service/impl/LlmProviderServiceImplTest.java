@@ -84,6 +84,7 @@ class LlmProviderServiceImplTest {
                   provider.getId(),
                   provider.getScope(),
                   provider.getOwnerUserId(),
+                  null,
                   provider.getWorkspaceId(),
                   provider.getName(),
                   provider.getProviderType(),

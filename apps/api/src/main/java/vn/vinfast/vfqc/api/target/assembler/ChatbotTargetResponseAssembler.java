@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import vn.vinfast.vfqc.api.target.dto.ChatbotTargetExampleResponse;
 import vn.vinfast.vfqc.api.target.dto.ChatbotTargetResponse;
@@ -14,21 +15,29 @@ import vn.vinfast.vfqc.api.target.dto.TargetRequestConfigDto;
 import vn.vinfast.vfqc.api.target.entity.ChatbotTarget;
 import vn.vinfast.vfqc.api.target.entity.ChatbotTargetExample;
 import vn.vinfast.vfqc.api.target.enums.TargetBodyType;
+import vn.vinfast.vfqc.api.user.service.UserSummaryService;
 
 @Component
+@RequiredArgsConstructor
 public class ChatbotTargetResponseAssembler {
 
   private final ObjectMapper objectMapper;
-
-  public ChatbotTargetResponseAssembler(ObjectMapper objectMapper) {
-    this.objectMapper = objectMapper;
-  }
+  private final UserSummaryService userSummaryService;
 
   public List<ChatbotTargetResponse> toResponses(List<ChatbotTarget> targets) {
-    return targets.stream().map(this::toResponse).toList();
+    var usersById =
+        userSummaryService.summariesById(targets.stream().map(ChatbotTarget::getCreatedBy).toList());
+    return targets.stream()
+        .map(target -> toResponse(target, usersById.get(target.getCreatedBy())))
+        .toList();
   }
 
   public ChatbotTargetResponse toResponse(ChatbotTarget target) {
+    return toResponse(target, userSummaryService.toSummaryById(target.getCreatedBy()));
+  }
+
+  private ChatbotTargetResponse toResponse(
+      ChatbotTarget target, vn.vinfast.vfqc.api.user.dto.UserSummaryResponse createdByUser) {
     return new ChatbotTargetResponse(
         target.getId(),
         target.getProjectId(),
@@ -39,6 +48,8 @@ public class ChatbotTargetResponseAssembler {
         toExtractionConfig(target.getResponseExtractionConfigJson()),
         target.getLatestExampleId(),
         target.getStatus(),
+        target.getCreatedBy(),
+        createdByUser,
         target.getCreatedAt(),
         target.getUpdatedAt());
   }

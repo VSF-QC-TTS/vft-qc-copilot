@@ -20,7 +20,7 @@ import vn.vinfast.vfqc.api.secret.dto.UpdateSecretRequest;
 import vn.vinfast.vfqc.api.secret.entity.Secret;
 import vn.vinfast.vfqc.api.secret.enums.SecretScope;
 import vn.vinfast.vfqc.api.secret.enums.SecretStatus;
-import vn.vinfast.vfqc.api.secret.mapper.SecretMapper;
+import vn.vinfast.vfqc.api.secret.assembler.SecretResponseAssembler;
 import vn.vinfast.vfqc.api.secret.repository.SecretRepository;
 import vn.vinfast.vfqc.api.secret.service.SecretEncryptionService;
 import vn.vinfast.vfqc.api.secret.service.SecretService;
@@ -34,28 +34,22 @@ public class SecretServiceImpl implements SecretService {
   private final WorkspacePermissionService workspacePermissionService;
   private final ResourceNameNormalizer nameNormalizer;
   private final SecretEncryptionService encryptionService;
-  private final SecretMapper secretMapper;
+  private final SecretResponseAssembler secretAssembler;
   private final Clock clock;
 
   @Override
   @Transactional(readOnly = true)
   public List<SecretResponse> listWorkspace(CurrentUser user, UUID workspaceId) {
     workspacePermissionService.require(user, workspaceId, PermissionAction.VIEW);
-    return secretRepository
-        .findByWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(workspaceId)
-        .stream()
-        .map(secretMapper::toResponse)
-        .toList();
+    return secretAssembler.toResponses(
+        secretRepository.findByWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(workspaceId));
   }
 
   @Override
   @Transactional(readOnly = true)
   public List<SecretResponse> listPersonal(CurrentUser user) {
-    return secretRepository
-        .findByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(user.id())
-        .stream()
-        .map(secretMapper::toResponse)
-        .toList();
+    return secretAssembler.toResponses(
+        secretRepository.findByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(user.id()));
   }
 
   @Override
@@ -101,7 +95,7 @@ public class SecretServiceImpl implements SecretService {
   @Override
   @Transactional(readOnly = true)
   public SecretResponse get(CurrentUser user, UUID secretId) {
-    return secretMapper.toResponse(requireOwnedOrVisible(user, secretId, PermissionAction.VIEW));
+    return secretAssembler.toResponse(requireOwnedOrVisible(user, secretId, PermissionAction.VIEW));
   }
 
   @Override
@@ -116,7 +110,7 @@ public class SecretServiceImpl implements SecretService {
     }
     secret.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Secret metadata updated: secretId={} actorId={}", secretId, user.id());
-    return secretMapper.toResponse(secret);
+    return secretAssembler.toResponse(secret);
   }
 
   @Override
@@ -126,7 +120,7 @@ public class SecretServiceImpl implements SecretService {
     applySecretValue(secret, request.value());
     secret.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Secret rotated: secretId={} actorId={}", secretId, user.id());
-    return secretMapper.toResponse(secret);
+    return secretAssembler.toResponse(secret);
   }
 
   @Override
@@ -136,7 +130,7 @@ public class SecretServiceImpl implements SecretService {
     secret.setStatus(SecretStatus.DISABLED);
     secret.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Secret disabled: secretId={} actorId={}", secretId, user.id());
-    return secretMapper.toResponse(secret);
+    return secretAssembler.toResponse(secret);
   }
 
   @Override
@@ -156,7 +150,7 @@ public class SecretServiceImpl implements SecretService {
     secret.setUpdatedAt(now);
     var saved = secretRepository.save(secret);
     log.info("Secret created: secretId={} actorId={}", saved.getId(), user.id());
-    return secretMapper.toResponse(saved);
+    return secretAssembler.toResponse(saved);
   }
 
   private void applySecretValue(Secret secret, String plaintext) {

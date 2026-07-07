@@ -15,7 +15,7 @@ import vn.vinfast.vfqc.api.dataset.dto.DatasetVersionResponse;
 import vn.vinfast.vfqc.api.dataset.entity.DatasetRow;
 import vn.vinfast.vfqc.api.dataset.entity.DatasetVersion;
 import vn.vinfast.vfqc.api.dataset.enums.DatasetVersionStatus;
-import vn.vinfast.vfqc.api.dataset.mapper.DatasetMapper;
+import vn.vinfast.vfqc.api.dataset.assembler.DatasetResponseAssembler;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRowRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetVersionRepository;
@@ -32,7 +32,7 @@ public class DatasetDraftServiceImpl implements DatasetDraftService {
   private final DatasetRowRepository rowRepository;
   private final ProjectPermissionService projectPermissionService;
   private final DatasetRowHashService rowHashService;
-  private final DatasetMapper datasetMapper;
+  private final DatasetResponseAssembler datasetAssembler;
   private final Clock clock;
 
   @Transactional
@@ -93,7 +93,7 @@ public class DatasetDraftServiceImpl implements DatasetDraftService {
         datasetId,
         draft.getId(),
         user.id());
-    return datasetMapper.toResponse(draft);
+    return datasetAssembler.toResponse(draft);
   }
 
   @Transactional
@@ -117,7 +117,7 @@ public class DatasetDraftServiceImpl implements DatasetDraftService {
         dataset.getId(),
         versionId,
         user.id());
-    return datasetMapper.toResponse(version);
+    return datasetAssembler.toResponse(version);
   }
 
   @Transactional
@@ -131,7 +131,7 @@ public class DatasetDraftServiceImpl implements DatasetDraftService {
         version.getDatasetId(),
         versionId,
         user.id());
-    return datasetMapper.toResponse(version);
+    return datasetAssembler.toResponse(version);
   }
 
   private DatasetVersion requireDraftVersion(CurrentUser user, UUID versionId) {

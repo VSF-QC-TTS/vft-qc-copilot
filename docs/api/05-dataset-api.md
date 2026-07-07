@@ -548,6 +548,12 @@ Dataset APIs do not expose plaintext secrets, so the secret-deny rule does not a
     }
   ],
   "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "createdByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00"
 }
 ```
@@ -596,9 +602,22 @@ Dataset APIs do not expose plaintext secrets, so the secret-deny rule does not a
     "schemaVersion": 2,
     "rowCount": 120,
     "status": "ACTIVE",
+    "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "createdByUser": {
+      "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+      "email": "owner@example.com",
+      "name": "Workspace Owner",
+      "avatarUrl": null
+    },
     "createdAt": "2026-07-02T10:00:00+07:00"
   },
   "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "createdByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00",
   "updatedAt": "2026-07-02T10:00:00+07:00"
 }
@@ -620,6 +639,12 @@ Dataset APIs do not expose plaintext secrets, so the secret-deny rule does not a
   "rowCount": 120,
   "status": "ACTIVE",
   "createdBy": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+  "createdByUser": {
+    "id": "3f8f62cf-2504-48e1-a9b4-805e87b6e8d2",
+    "email": "owner@example.com",
+    "name": "Workspace Owner",
+    "avatarUrl": null
+  },
   "createdAt": "2026-07-02T10:00:00+07:00"
 }
 ```

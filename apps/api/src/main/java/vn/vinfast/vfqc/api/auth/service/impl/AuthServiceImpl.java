@@ -40,6 +40,7 @@ import vn.vinfast.vfqc.api.user.entity.AppUser;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
 import vn.vinfast.vfqc.api.user.repository.UserRepository;
+import vn.vinfast.vfqc.api.user.service.UserOnboardingService;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
   private final ApplicationEventPublisher eventPublisher;
   private final AuthProperties authProperties;
   private final UserProperties userProperties;
+  private final UserOnboardingService userOnboardingService;
   private final AuthLinkBuilder linkBuilder;
   private final AuthMapper authMapper;
   private final Clock clock;
@@ -160,6 +162,7 @@ public class AuthServiceImpl implements AuthService {
       user.setStatus(UserStatus.ACTIVE);
       user.setUpdatedAt(OffsetDateTime.now(clock));
     }
+    userOnboardingService.ensurePersonalWorkspace(user);
     log.info("User email verified: userId={}", user.getId());
     return new AuthMessageResponse("Email verified.");
   }
@@ -178,10 +181,11 @@ public class AuthServiceImpl implements AuthService {
   @Transactional
   @Override
   public AuthMessageResponse resetPassword(ResetPasswordRequest request) {
-    var user =
-        authEmailTokenService.consume(
+    var consumption =
+        authEmailTokenService.consumeWithPurpose(
             request.token(),
             Set.of(AuthEmailTokenPurpose.PASSWORD_RESET, AuthEmailTokenPurpose.ADMIN_INVITE));
+    var user = consumption.user();
     if (user.getStatus() == UserStatus.DISABLED) {
       throw ErrorCode.USER_DISABLED.throwIt();
     }
@@ -190,13 +194,19 @@ public class AuthServiceImpl implements AuthService {
     user.setUpdatedAt(OffsetDateTime.now(clock));
     refreshTokenService.revokeActiveForUser(user.getId());
     authEmailTokenService.revokeActiveForUser(user.getId());
+    if (consumption.purpose() == AuthEmailTokenPurpose.ADMIN_INVITE) {
+      userOnboardingService.ensurePersonalWorkspace(user);
+    }
     log.info("User password reset: userId={}", user.getId());
     return new AuthMessageResponse("Password reset successfully.");
   }
 
   @Override
   public CurrentUserResponse currentUser(CurrentUser user) {
-    return authMapper.toCurrentUserResponse(user);
+    return userRepository
+        .findById(user.id())
+        .map(authMapper::toCurrentUserResponse)
+        .orElseGet(() -> authMapper.toCurrentUserResponse(user));
   }
 
   private void sendPasswordReset(AppUser user, String ip, String userAgent) {

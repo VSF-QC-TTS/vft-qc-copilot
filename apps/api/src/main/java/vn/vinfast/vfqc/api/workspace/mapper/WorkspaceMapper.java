@@ -11,7 +11,9 @@ import vn.vinfast.vfqc.api.workspace.repository.WorkspaceSummaryView;
 public interface WorkspaceMapper {
 
   @Mapping(target = "currentUserRole", source = "currentUserRole")
+  @Mapping(target = "createdByUser", ignore = true)
   WorkspaceResponse toResponse(Workspace workspace, WorkspaceRole currentUserRole);
 
+  @Mapping(target = "createdByUser", ignore = true)
   WorkspaceResponse toResponse(WorkspaceSummaryView view);
 }

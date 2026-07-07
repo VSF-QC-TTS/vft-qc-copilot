@@ -18,10 +18,10 @@ import vn.vinfast.vfqc.api.common.permission.WorkspacePermissionService;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.secret.dto.CreateSecretRequest;
 import vn.vinfast.vfqc.api.secret.dto.SecretResponse;
+import vn.vinfast.vfqc.api.secret.assembler.SecretResponseAssembler;
 import vn.vinfast.vfqc.api.secret.entity.Secret;
 import vn.vinfast.vfqc.api.secret.enums.SecretScope;
 import vn.vinfast.vfqc.api.secret.enums.SecretStatus;
-import vn.vinfast.vfqc.api.secret.mapper.SecretMapper;
 import vn.vinfast.vfqc.api.secret.repository.SecretRepository;
 import vn.vinfast.vfqc.api.secret.service.SecretEncryptionService;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
@@ -33,7 +33,7 @@ class SecretServiceImplTest {
   @Mock private SecretRepository secretRepository;
   @Mock private WorkspacePermissionService workspacePermissionService;
   @Mock private SecretEncryptionService encryptionService;
-  @Mock private SecretMapper secretMapper;
+  @Mock private SecretResponseAssembler secretAssembler;
 
   @Test
   void createPersonal_PlaintextSecret_StoresEncryptedValueOnly() {
@@ -49,7 +49,7 @@ class SecretServiceImplTest {
             workspacePermissionService,
             new ResourceNameNormalizer(),
             encryptionService,
-            secretMapper,
+            secretAssembler,
             clock);
     var saved = ArgumentCaptor.forClass(Secret.class);
     when(encryptionService.encrypt("sk-plain-secret")).thenReturn("encrypted-payload");
@@ -61,7 +61,7 @@ class SecretServiceImplTest {
           s.setId(UUID.randomUUID());
           return s;
         });
-    when(secretMapper.toResponse(any(Secret.class)))
+    when(secretAssembler.toResponse(any(Secret.class)))
         .thenAnswer(
             invocation -> {
               var secret = invocation.getArgument(0, Secret.class);
@@ -69,6 +69,7 @@ class SecretServiceImplTest {
                   secret.getId(),
                   secret.getScope(),
                   secret.getOwnerUserId(),
+                  null,
                   secret.getWorkspaceId(),
                   secret.getName(),
                   secret.getMaskedPreview(),
@@ -105,7 +106,7 @@ class SecretServiceImplTest {
             workspacePermissionService,
             new ResourceNameNormalizer(),
             encryptionService,
-            secretMapper,
+            secretAssembler,
             clock);
     var saved = ArgumentCaptor.forClass(Secret.class);
     when(encryptionService.encrypt("my-internal-password")).thenReturn("encrypted-password");
@@ -118,7 +119,7 @@ class SecretServiceImplTest {
           s.setId(UUID.randomUUID());
           return s;
         });
-    when(secretMapper.toResponse(any(Secret.class)))
+    when(secretAssembler.toResponse(any(Secret.class)))
         .thenAnswer(
             invocation -> {
               var secret = invocation.getArgument(0, Secret.class);
@@ -126,6 +127,7 @@ class SecretServiceImplTest {
                   secret.getId(),
                   secret.getScope(),
                   secret.getOwnerUserId(),
+                  null,
                   secret.getWorkspaceId(),
                   secret.getName(),
                   secret.getMaskedPreview(),

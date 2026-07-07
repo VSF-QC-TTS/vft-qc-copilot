@@ -7,6 +7,7 @@ import org.mapstruct.Named;
 import vn.vinfast.vfqc.api.provider.dto.LlmProviderResponse;
 import vn.vinfast.vfqc.api.provider.entity.LlmProvider;
 import vn.vinfast.vfqc.api.secret.dto.SecretSummaryResponse;
+import vn.vinfast.vfqc.api.user.dto.UserSummaryResponse;
 
 @Mapper(componentModel = "spring")
 public interface LlmProviderMapper {
@@ -14,6 +15,7 @@ public interface LlmProviderMapper {
   @Mapping(target = "id", source = "provider.id")
   @Mapping(target = "scope", source = "provider.scope")
   @Mapping(target = "ownerUserId", source = "provider.ownerUserId")
+  @Mapping(target = "ownerUser", source = "ownerUser")
   @Mapping(target = "workspaceId", source = "provider.workspaceId")
   @Mapping(target = "name", source = "provider.name")
   @Mapping(target = "providerType", source = "provider.providerType")
@@ -28,7 +30,8 @@ public interface LlmProviderMapper {
   @Mapping(target = "status", source = "provider.status")
   @Mapping(target = "createdAt", source = "provider.createdAt")
   @Mapping(target = "updatedAt", source = "provider.updatedAt")
-  LlmProviderResponse toResponse(LlmProvider provider, SecretSummaryResponse secret);
+  LlmProviderResponse toResponse(
+      LlmProvider provider, SecretSummaryResponse secret, UserSummaryResponse ownerUser);
 
   @Named("valueOrEmpty")
   default Map<String, Object> valueOrEmpty(Map<String, Object> value) {

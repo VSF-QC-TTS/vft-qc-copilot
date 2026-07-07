@@ -16,13 +16,16 @@ import vn.vinfast.vfqc.api.dataset.entity.DatasetVersion;
 @Mapper(componentModel = "spring")
 public interface DatasetMapper {
 
+  @Mapping(target = "createdByUser", ignore = true)
   DatasetResponse toResponse(Dataset dataset);
 
+  @Mapping(target = "createdByUser", ignore = true)
   DatasetVersionResponse toResponse(DatasetVersion version);
 
   @Mapping(target = "cells", source = "cellsJson")
   DatasetRowResponse toResponse(DatasetRow row);
 
+  @Mapping(target = "createdByUser", ignore = true)
   @Mapping(target = "columns", source = "columns")
   DatasetSchemaResponse toResponse(DatasetSchema schema, java.util.List<DatasetSchemaColumnResponse> columns);
 

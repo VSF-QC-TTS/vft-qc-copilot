@@ -16,12 +16,12 @@ import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.workspace.dto.CreateWorkspaceRequest;
 import vn.vinfast.vfqc.api.workspace.dto.UpdateWorkspaceRequest;
 import vn.vinfast.vfqc.api.workspace.dto.WorkspaceResponse;
+import vn.vinfast.vfqc.api.workspace.assembler.WorkspaceResponseAssembler;
 import vn.vinfast.vfqc.api.workspace.entity.Workspace;
 import vn.vinfast.vfqc.api.workspace.entity.WorkspaceMember;
 import vn.vinfast.vfqc.api.workspace.enums.WorkspaceMemberStatus;
 import vn.vinfast.vfqc.api.workspace.enums.WorkspaceRole;
 import vn.vinfast.vfqc.api.workspace.enums.WorkspaceType;
-import vn.vinfast.vfqc.api.workspace.mapper.WorkspaceMapper;
 import vn.vinfast.vfqc.api.workspace.repository.WorkspaceMemberRepository;
 import vn.vinfast.vfqc.api.workspace.repository.WorkspaceRepository;
 import vn.vinfast.vfqc.api.workspace.service.WorkspaceService;
@@ -35,22 +35,18 @@ public class WorkspaceServiceImpl implements WorkspaceService {
   private final WorkspaceMemberRepository memberRepository;
   private final ResourceNameNormalizer nameNormalizer;
   private final WorkspacePermissionService permissionService;
-  private final WorkspaceMapper workspaceMapper;
+  private final WorkspaceResponseAssembler workspaceAssembler;
   private final Clock clock;
 
   @Transactional(readOnly = true)
   @Override
   public List<WorkspaceResponse> list(CurrentUser user) {
     if (user.platformAdmin()) {
-      return workspaceRepository.findByDeletedAtIsNullOrderByCreatedAtDesc().stream()
-          .map(workspace -> workspaceMapper.toResponse(workspace, null))
-          .toList();
+      return workspaceAssembler.toEntityResponses(
+          workspaceRepository.findByDeletedAtIsNullOrderByCreatedAtDesc());
     }
-    return workspaceRepository
-        .findVisibleSummariesForUser(user.id(), WorkspaceMemberStatus.ACTIVE)
-        .stream()
-        .map(workspaceMapper::toResponse)
-        .toList();
+    return workspaceAssembler.toSummaryResponses(
+        workspaceRepository.findVisibleSummariesForUser(user.id(), WorkspaceMemberStatus.ACTIVE));
   }
 
   @Transactional
@@ -83,7 +79,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             .updatedAt(now)
             .build());
     log.info("Workspace created: workspaceId={} actorId={}", workspace.getId(), user.id());
-    return workspaceMapper.toResponse(workspace, WorkspaceRole.OWNER);
+    return workspaceAssembler.toResponse(workspace, WorkspaceRole.OWNER);
   }
 
   @Transactional(readOnly = true)
@@ -94,7 +90,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             .findByIdAndDeletedAtIsNull(workspaceId)
             .orElseThrow(ErrorCode.RESOURCE_NOT_FOUND::throwIt);
     permissionService.require(user, workspaceId, PermissionAction.VIEW);
-    return workspaceMapper.toResponse(
+    return workspaceAssembler.toResponse(
         workspace, permissionService.roleOrNull(user, workspace.getId()));
   }
 
@@ -118,7 +114,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     }
     workspace.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Workspace updated: workspaceId={} actorId={}", workspace.getId(), user.id());
-    return workspaceMapper.toResponse(
+    return workspaceAssembler.toResponse(
         workspace, permissionService.roleOrNull(user, workspace.getId()));
   }
 

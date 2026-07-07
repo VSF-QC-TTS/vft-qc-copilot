@@ -7,12 +7,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import vn.vinfast.vfqc.api.workspace.entity.Workspace;
 import vn.vinfast.vfqc.api.workspace.enums.WorkspaceMemberStatus;
+import vn.vinfast.vfqc.api.workspace.enums.WorkspaceType;
 
 public interface WorkspaceRepository extends JpaRepository<Workspace, UUID> {
 
   Optional<Workspace> findByIdAndDeletedAtIsNull(UUID id);
 
   boolean existsByNameLookupAndDeletedAtIsNull(String nameLookup);
+
+  boolean existsByCreatedByAndTypeAndDeletedAtIsNull(UUID createdBy, WorkspaceType type);
 
   List<Workspace> findByDeletedAtIsNullOrderByCreatedAtDesc();
 

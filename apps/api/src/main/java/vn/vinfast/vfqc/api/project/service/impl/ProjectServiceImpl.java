@@ -19,7 +19,7 @@ import vn.vinfast.vfqc.api.project.dto.CreateProjectRequest;
 import vn.vinfast.vfqc.api.project.dto.ProjectResponse;
 import vn.vinfast.vfqc.api.project.dto.UpdateProjectRequest;
 import vn.vinfast.vfqc.api.project.entity.Project;
-import vn.vinfast.vfqc.api.project.mapper.ProjectMapper;
+import vn.vinfast.vfqc.api.project.assembler.ProjectResponseAssembler;
 import vn.vinfast.vfqc.api.project.repository.ProjectRepository;
 import vn.vinfast.vfqc.api.project.service.ProjectService;
 import vn.vinfast.vfqc.api.workspace.repository.WorkspaceRepository;
@@ -35,7 +35,7 @@ public class ProjectServiceImpl implements ProjectService {
   private final ProjectPermissionService projectPermissionService;
   private final DatasetSchemaBootstrapService datasetSchemaBootstrapService;
   private final ResourceNameNormalizer nameNormalizer;
-  private final ProjectMapper projectMapper;
+  private final ProjectResponseAssembler projectAssembler;
   private final Clock clock;
 
   @Transactional(readOnly = true)
@@ -45,11 +45,8 @@ public class ProjectServiceImpl implements ProjectService {
         .findByIdAndDeletedAtIsNull(workspaceId)
         .orElseThrow(ErrorCode.RESOURCE_NOT_FOUND::throwIt);
     workspacePermissionService.require(user, workspaceId, PermissionAction.VIEW);
-    return projectRepository
-        .findByWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(workspaceId)
-        .stream()
-        .map(projectMapper::toResponse)
-        .toList();
+    return projectAssembler.toResponses(
+        projectRepository.findByWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(workspaceId));
   }
 
   @Transactional
@@ -82,13 +79,13 @@ public class ProjectServiceImpl implements ProjectService {
         project.getId(),
         workspaceId,
         user.id());
-    return projectMapper.toResponse(project);
+    return projectAssembler.toResponse(project);
   }
 
   @Transactional(readOnly = true)
   @Override
   public ProjectResponse get(CurrentUser user, UUID projectId) {
-    return projectMapper.toResponse(
+    return projectAssembler.toResponse(
         projectPermissionService.requireProject(user, projectId, PermissionAction.VIEW));
   }
 
@@ -111,7 +108,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
     project.setUpdatedAt(OffsetDateTime.now(clock));
     log.info("Project updated: projectId={} actorId={}", projectId, user.id());
-    return projectMapper.toResponse(project);
+    return projectAssembler.toResponse(project);
   }
 
   @Transactional
@@ -122,7 +119,7 @@ public class ProjectServiceImpl implements ProjectService {
     project.setArchivedAt(now);
     project.setUpdatedAt(now);
     log.info("Project archived: projectId={} actorId={}", projectId, user.id());
-    return projectMapper.toResponse(project);
+    return projectAssembler.toResponse(project);
   }
 
   @Transactional

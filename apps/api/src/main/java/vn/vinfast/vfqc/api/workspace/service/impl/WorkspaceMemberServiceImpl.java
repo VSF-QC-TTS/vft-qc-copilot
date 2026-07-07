@@ -13,12 +13,12 @@ import vn.vinfast.vfqc.api.common.permission.PermissionAction;
 import vn.vinfast.vfqc.api.common.permission.WorkspacePermissionService;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.user.repository.UserRepository;
+import vn.vinfast.vfqc.api.workspace.assembler.WorkspaceMemberResponseAssembler;
 import vn.vinfast.vfqc.api.workspace.dto.AddWorkspaceMemberRequest;
 import vn.vinfast.vfqc.api.workspace.dto.UpdateWorkspaceMemberRoleRequest;
 import vn.vinfast.vfqc.api.workspace.dto.WorkspaceMemberResponse;
 import vn.vinfast.vfqc.api.workspace.entity.WorkspaceMember;
 import vn.vinfast.vfqc.api.workspace.enums.WorkspaceMemberStatus;
-import vn.vinfast.vfqc.api.workspace.mapper.WorkspaceMemberMapper;
 import vn.vinfast.vfqc.api.workspace.repository.WorkspaceMemberRepository;
 import vn.vinfast.vfqc.api.workspace.repository.WorkspaceRepository;
 import vn.vinfast.vfqc.api.workspace.service.WorkspaceMemberService;
@@ -32,7 +32,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
   private final WorkspaceRepository workspaceRepository;
   private final UserRepository userRepository;
   private final WorkspacePermissionService permissionService;
-  private final WorkspaceMemberMapper memberMapper;
+  private final WorkspaceMemberResponseAssembler memberAssembler;
   private final Clock clock;
 
   @Transactional(readOnly = true)
@@ -42,9 +42,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         .findByIdAndDeletedAtIsNull(workspaceId)
         .orElseThrow(ErrorCode.RESOURCE_NOT_FOUND::throwIt);
     permissionService.require(user, workspaceId, PermissionAction.VIEW);
-    return memberRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspaceId).stream()
-        .map(memberMapper::toResponse)
-        .toList();
+    return memberAssembler.toResponses(memberRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspaceId));
   }
 
   @Transactional
@@ -81,7 +79,7 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         member.getId(),
         targetUser.getId(),
         user.id());
-    return memberMapper.toResponse(member);
+    return memberAssembler.toResponse(member);
   }
 
   @Transactional
@@ -102,6 +100,6 @@ public class WorkspaceMemberServiceImpl implements WorkspaceMemberService {
         memberId,
         request.role(),
         user.id());
-    return memberMapper.toResponse(member);
+    return memberAssembler.toResponse(member);
   }
 }
