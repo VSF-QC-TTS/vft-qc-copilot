@@ -24,6 +24,7 @@ import vn.vinfast.vfqc.api.secret.enums.SecretStatus;
 import vn.vinfast.vfqc.api.secret.repository.SecretRepository;
 import vn.vinfast.vfqc.api.support.FakeLlmProviderClientFactory;
 import vn.vinfast.vfqc.api.support.PostgresIntegrationTestBase;
+import vn.vinfast.vfqc.api.workspace.enums.WorkspaceRole;
 
 @Import(FakeLlmProviderClientFactory.class)
 @RequiredArgsConstructor
@@ -139,6 +140,48 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
   }
 
   @Test
+  void createPersonalProvider_WithDisabledSecret_ReturnsNotFound() throws Exception {
+    var user = user("disabled-create-owner@vinfast.vn");
+    var secretId = createPersonalSecret(user, "Disabled Create Key", "sk-disabled-create");
+
+    mockMvc
+        .perform(post("/api/v1/secrets/" + secretId + "/disable").with(bearer(user)))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post("/api/v1/me/llm-providers")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(providerBody(secretId, "sk-disabled-create"))))
+        .andExpect(status().isNotFound());
+    assertThat(providerRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  void updatePersonalProvider_WithDeletedSecret_ReturnsNotFoundAndKeepsOldSecret()
+      throws Exception {
+    var user = user("deleted-update-owner@vinfast.vn");
+    var activeSecretId = createPersonalSecret(user, "Active Update Key", "sk-active-update");
+    var deletedSecretId = createPersonalSecret(user, "Deleted Update Key", "sk-deleted-update");
+    var providerId = createPersonalProvider(user, activeSecretId);
+
+    mockMvc
+        .perform(delete("/api/v1/secrets/" + deletedSecretId).with(bearer(user)))
+        .andExpect(status().isNoContent());
+
+    mockMvc
+        .perform(
+            patch("/api/v1/llm-providers/" + providerId)
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("secretId", deletedSecretId.toString()))))
+        .andExpect(status().isNotFound());
+    assertThat(providerRepository.findById(providerId).orElseThrow().getSecretId())
+        .isEqualTo(activeSecretId);
+  }
+
+  @Test
   void createWorkspaceProvider_WithSecretFromDifferentWorkspace_ReturnsScopeMismatch()
       throws Exception {
     var user = user("workspace-owner@vinfast.vn");
@@ -211,6 +254,122 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
     mockMvc
         .perform(get("/api/v1/secrets/" + secretId).with(bearer(outsider)))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void workspaceProvider_ForNonMember_ReturnsHiddenNotFound() throws Exception {
+    var owner = user("workspace-provider-owner@vinfast.vn");
+    var outsider = user("workspace-provider-outsider@vinfast.vn");
+    var workspace = workspace(owner);
+    var secretId = createWorkspaceSecret(owner, workspace.getId(), "Private Provider Key");
+    var providerId = createWorkspaceProvider(owner, workspace.getId(), secretId);
+
+    mockMvc
+        .perform(
+            get("/api/v1/workspaces/" + workspace.getId() + "/llm-providers")
+                .with(bearer(outsider)))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/v1/llm-providers/" + providerId).with(bearer(outsider)))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(
+            post("/api/v1/llm-providers/" + providerId + "/test")
+                .with(bearer(outsider))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("model", "gpt-test"))))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(
+            get("/api/v1/llm-providers/" + providerId + "/test-logs")
+                .with(bearer(outsider)))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void workspaceViewer_CannotMutateWorkspaceSecretsOrProviders() throws Exception {
+    var owner = user("workspace-viewer-owner@vinfast.vn");
+    var viewer = user("workspace-viewer@vinfast.vn");
+    var workspace = workspace(owner);
+    workspaceMember(workspace, viewer, WorkspaceRole.VIEWER, owner);
+    var secretId = createWorkspaceSecret(owner, workspace.getId(), "Viewer Boundary Key");
+    var providerId = createWorkspaceProvider(owner, workspace.getId(), secretId);
+
+    mockMvc
+        .perform(
+            post("/api/v1/workspaces/" + workspace.getId() + "/secrets")
+                .with(bearer(viewer))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("name", "Viewer Secret", "value", "sk-viewer-denied"))))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(
+            post("/api/v1/workspaces/" + workspace.getId() + "/llm-providers")
+                .with(bearer(viewer))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(providerBody(secretId, "sk-viewer-denied"))))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(
+            patch("/api/v1/llm-providers/" + providerId)
+                .with(bearer(viewer))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("name", "Viewer Rename"))))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(delete("/api/v1/llm-providers/" + providerId).with(bearer(viewer)))
+        .andExpect(status().isForbidden());
+    assertThat(providerRepository.findById(providerId).orElseThrow().getDeletedAt()).isNull();
+  }
+
+  @Test
+  void deleteProvider_HidesProviderAndBlocksRuntimeTestEndpoints() throws Exception {
+    var user = user("provider-delete-owner@vinfast.vn");
+    var secretId = createPersonalSecret(user, "Provider Delete Key", "sk-provider-delete");
+    var providerId = createPersonalProvider(user, secretId);
+
+    mockMvc
+        .perform(delete("/api/v1/llm-providers/" + providerId).with(bearer(user)))
+        .andExpect(status().isNoContent());
+
+    mockMvc
+        .perform(get("/api/v1/llm-providers/" + providerId).with(bearer(user)))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(
+            post("/api/v1/llm-providers/" + providerId + "/test")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("model", "gpt-test"))))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/v1/llm-providers/" + providerId + "/test-logs").with(bearer(user)))
+        .andExpect(status().isNotFound());
+    assertThat(providerRepository.findById(providerId).orElseThrow().getDeletedAt()).isNotNull();
+  }
+
+  @Test
+  void createProvider_SanitizesConfigInResponseAndPersistence() throws Exception {
+    var user = user("provider-config-owner@vinfast.vn");
+    var secretId = createPersonalSecret(user, "Config API Key", "sk-config-secret");
+
+    var result =
+        mockMvc
+            .perform(
+                post("/api/v1/me/llm-providers")
+                    .with(bearer(user))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(providerBody(secretId, "sk-config-secret"))))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    var response = result.getResponse().getContentAsString();
+    var providerId = UUID.fromString(objectMapper.readTree(response).get("id").asText());
+    var storedConfig = providerRepository.findById(providerId).orElseThrow().getConfigJson();
+    assertThat(response).contains("\"apiKey\":\"****\"").doesNotContain("sk-config-secret");
+    assertThat(storedConfig.toString()).doesNotContain("sk-config-secret");
   }
 
   @Test
@@ -307,27 +466,13 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
 
   private UUID createPersonalProvider(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID secretId)
       throws Exception {
-    var body =
-        Map.of(
-            "name",
-            "Personal Provider " + UUID.randomUUID(),
-            "providerType",
-            ProviderType.OPENAI_COMPATIBLE.name(),
-            "secretId",
-            secretId.toString(),
-            "baseUrl",
-            "https://example.test/v1",
-            "defaultModel",
-            "gpt-test",
-            "config",
-            Map.of("apiKey", "sk-plain-secret"));
     var result =
         mockMvc
             .perform(
                 post("/api/v1/me/llm-providers")
                     .with(bearer(user))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(body)))
+                    .content(objectMapper.writeValueAsString(providerBody(secretId, "sk-plain-secret"))))
             .andExpect(status().isOk())
             .andReturn();
     return UUID.fromString(
@@ -337,30 +482,36 @@ class Phase5SecretProviderIntegrationTest extends PostgresIntegrationTestBase {
   private UUID createWorkspaceProvider(
       vn.vinfast.vfqc.api.user.entity.AppUser user, UUID workspaceId, UUID secretId)
       throws Exception {
-    var body =
-        Map.of(
-            "name",
-            "Workspace Provider " + UUID.randomUUID(),
-            "providerType",
-            ProviderType.OPENAI_COMPATIBLE.name(),
-            "secretId",
-            secretId.toString(),
-            "baseUrl",
-            "https://example.test/v1",
-            "defaultModel",
-            "gpt-test",
-            "config",
-            Map.of("apiKey", "sk-workspace-secret"));
     var result =
         mockMvc
             .perform(
                 post("/api/v1/workspaces/" + workspaceId + "/llm-providers")
                     .with(bearer(user))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(body)))
+                    .content(objectMapper.writeValueAsString(providerBody(secretId, "sk-workspace-secret"))))
             .andExpect(status().isOk())
             .andReturn();
     return UUID.fromString(
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private Map<String, Object> providerBody(UUID secretId, String configSecret) {
+    return Map.of(
+        "name",
+        "Provider " + UUID.randomUUID(),
+        "providerType",
+        ProviderType.OPENAI_COMPATIBLE.name(),
+        "secretId",
+        secretId.toString(),
+        "baseUrl",
+        "https://example.test/v1",
+        "defaultModel",
+        "gpt-test",
+        "config",
+        Map.of(
+            "apiKey",
+            configSecret,
+            "headers",
+            Map.of("Authorization", "Bearer " + configSecret)));
   }
 }
