@@ -114,6 +114,20 @@ public abstract class PostgresIntegrationTestBase {
             .build());
   }
 
+  protected AppUser platformAdmin(String email) {
+    var now = OffsetDateTime.now();
+    return userRepository.save(
+        AppUser.builder()
+            .email(email)
+            .displayName("Platform Admin")
+            .passwordHash("{noop}password")
+            .systemRole(SystemRole.PLATFORM_ADMIN)
+            .status(UserStatus.ACTIVE)
+            .createdAt(now)
+            .updatedAt(now)
+            .build());
+  }
+
   protected Workspace workspace(AppUser owner) {
     var now = OffsetDateTime.now();
     var workspace =
@@ -138,6 +152,22 @@ public abstract class PostgresIntegrationTestBase {
             .updatedAt(now)
             .build());
     return workspace;
+  }
+
+  protected WorkspaceMember workspaceMember(
+      Workspace workspace, AppUser user, WorkspaceRole role, AppUser invitedBy) {
+    var now = OffsetDateTime.now();
+    return workspaceMemberRepository.save(
+        WorkspaceMember.builder()
+            .workspaceId(workspace.getId())
+            .userId(user.getId())
+            .role(role)
+            .status(WorkspaceMemberStatus.ACTIVE)
+            .invitedBy(invitedBy.getId())
+            .joinedAt(now)
+            .createdAt(now)
+            .updatedAt(now)
+            .build());
   }
 
   protected RequestPostProcessor bearer(AppUser user) {

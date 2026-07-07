@@ -1,6 +1,6 @@
 # Backend API Implementation Context
 
-Last checked: 2026-07-07 14:50 Asia/Bangkok.
+Last checked: 2026-07-07 18:55 Asia/Bangkok.
 
 Purpose: this is the short handoff file for the next agent/session. Read this first before re-reading all backend docs. It summarizes `docs/backend/README.md`, `docs/backend/IMPLEMENTATION_ORDER.md`, and the current `apps/api` implementation state.
 
@@ -23,9 +23,9 @@ Command run from `apps/api`:
 rtk bash mvnw test
 ```
 
-Result: build success. Maven compiled the backend and ran 74 tests successfully.
+Result: build success. Maven compiled the backend and ran 85 tests successfully.
 
-Coverage currently includes compile wiring, auth email-token service behavior, registration/verification/password-reset service flows, personal workspace onboarding, admin user invite service flow, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled-secret provider-test rejection, secret scope lookup rejection, provider config sanitization, provider create/update sanitization and scope lookup, provider test history limit clamping, provider test log sanitization, provider status updates, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, publish/archive and ACTIVE immutability, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 3/4/5/6 endpoint/security/persistence behavior.
+Coverage currently includes compile wiring, auth email-token service behavior, auth endpoint integration for register/verify/login/refresh/logout/forgot/reset, personal workspace onboarding, admin user invite service flow, admin API role boundary, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled-secret provider-test rejection, secret scope lookup rejection, provider config sanitization, provider create/update sanitization and scope lookup, provider test history limit clamping, provider test log sanitization, provider status updates, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace/project permission role boundaries, hidden 404 behavior for non-members, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, draft discard lifecycle, duplicate-draft rejection, row-count recalculation/copy behavior, required/unknown cell validation, publish/archive and ACTIVE immutability, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 2/3/4/5/6 endpoint/security/persistence behavior.
 
 ## Current Source Shape
 
@@ -391,11 +391,7 @@ Follow the current project style when adding new backend code:
 
 1. Add focused tests for what already exists before building later modules:
    - naming unit tests
-   - auth login/refresh/logout and cookie behavior
-   - auth registration/forgot/reset endpoint integration tests through MockMvc and PostgreSQL
-   - admin API role boundary for `/api/v1/admin/**`
-   - broader workspace/project permission and hidden 404 behavior
-   - dataset discard lifecycle and row-count edge cases
+   - dataset import/export edge cases once those flows are implemented
 
 2. Close Phase 1 gaps if they are still required:
    - storage abstraction with path traversal protection
@@ -421,8 +417,8 @@ Follow the current project style when adding new backend code:
 
 ## Caveats For Next Agent
 
-- Worktree state should be checked with `rtk git status --short`; this file was last updated during personal workspace onboarding and user-summary response enrichment.
+- Worktree state should be checked with `rtk git status --short`; this file was last updated during auth/workspace/project boundary integration test hardening.
 - `apps/api/target` may exist because `mvnw test` was run.
-- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, email-token hashing/expiry/consume behavior, personal workspace onboarding, admin invite service flow, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, workspace member response user summaries, dataset row hash/publish/default-schema behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, and Phase 3/4/5/6 Spring MVC/security/PostgreSQL integration coverage.
+- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, auth endpoint integration, email-token hashing/expiry/consume behavior, personal workspace onboarding, admin invite service flow, admin API role boundary, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, workspace/project role boundaries, hidden 404 behavior, workspace member response user summaries, dataset row hash/publish/default-schema/discard/row-count/schema-validation behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, and Phase 2/3/4/5/6 Spring MVC/security/PostgreSQL integration coverage.
 - JavaMail usage follows Spring Boot 4.0.7/Spring Framework 7 docs: rely on `JavaMailSender` auto-configuration when `spring.mail.host` is configured; use `MimeMessage`/`MimeMessageHelper`; set SMTP timeouts through `spring.mail.properties[...]`.
 - Mail is now delivered asynchronously via `MailSendEvent` + `MailSendEventListener` after transaction commit. `@EnableAsync` is on the main application class.

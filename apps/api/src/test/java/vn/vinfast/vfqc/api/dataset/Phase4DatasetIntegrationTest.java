@@ -88,6 +88,123 @@ class Phase4DatasetIntegrationTest extends PostgresIntegrationTestBase {
         .isEqualTo(secondDraftId);
   }
 
+  @Test
+  void createDraft_WhenDraftAlreadyExists_ReturnsConflict() throws Exception {
+    var user = user("dataset-duplicate-draft-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset Duplicate Draft Project");
+    var datasetId = createDataset(user, projectId, "Duplicate Draft Dataset");
+
+    mockMvc.perform(post("/api/v1/datasets/" + datasetId + "/drafts").with(bearer(user)))
+        .andExpect(status().isConflict());
+
+    assertThat(datasetVersionRepository.findByDatasetIdOrderByVersionDesc(datasetId))
+        .hasSize(1)
+        .singleElement()
+        .satisfies(version -> assertThat(version.getStatus()).isEqualTo(DatasetVersionStatus.DRAFT));
+  }
+
+  @Test
+  void discardDraft_MarksDraftDiscardedRejectsMutationAndAllowsNewDraft() throws Exception {
+    var user = user("dataset-discard-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset Discard Project");
+    var datasetId = createDataset(user, projectId, "Discard Dataset");
+    var draftId = draftVersionId(datasetId);
+    addRow(user, draftId, Map.of("question", "Q1", "expected", "A1"));
+
+    discard(user, draftId);
+
+    var discarded = datasetVersionRepository.findById(draftId).orElseThrow();
+    assertThat(discarded.getStatus()).isEqualTo(DatasetVersionStatus.DISCARDED);
+    assertThat(discarded.getDiscardedAt()).isNotNull();
+    assertThat(datasetRepository.findById(datasetId).orElseThrow().getCurrentVersionId()).isNull();
+    mockMvc
+        .perform(
+            post("/api/v1/dataset-versions/" + draftId + "/rows")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("cells", Map.of("question", "Q2")))))
+        .andExpect(status().isConflict());
+
+    mockMvc.perform(post("/api/v1/datasets/" + datasetId + "/drafts").with(bearer(user)))
+        .andExpect(status().isOk());
+
+    var replacementDraft = draftVersion(datasetId);
+    assertThat(replacementDraft.getVersion()).isEqualTo(2);
+    assertThat(replacementDraft.getStatus()).isEqualTo(DatasetVersionStatus.DRAFT);
+    assertThat(replacementDraft.getRowCount()).isZero();
+  }
+
+  @Test
+  void createDraft_FromActiveVersionCopiesRowsAndPublishRecountsRows() throws Exception {
+    var user = user("dataset-rowcount-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset RowCount Project");
+    var datasetId = createDataset(user, projectId, "RowCount Dataset");
+    var firstDraftId = draftVersionId(datasetId);
+    addRow(user, firstDraftId, Map.of("question", "Q1", "expected", "A1"));
+    addRow(user, firstDraftId, Map.of("question", "Q2", "expected", "A2"));
+
+    publish(user, firstDraftId);
+
+    var firstActive = datasetVersionRepository.findById(firstDraftId).orElseThrow();
+    assertThat(firstActive.getRowCount()).isEqualTo(2);
+    var activeRows = datasetRowRepository.findByDatasetVersionIdOrderByRowIndexAsc(firstDraftId);
+    assertThat(activeRows).hasSize(2).extracting("rowIndex").containsExactly(0, 1);
+
+    mockMvc.perform(post("/api/v1/datasets/" + datasetId + "/drafts").with(bearer(user)))
+        .andExpect(status().isOk());
+
+    var copiedDraft = draftVersion(datasetId);
+    assertThat(copiedDraft.getVersion()).isEqualTo(2);
+    assertThat(copiedDraft.getRowCount()).isEqualTo(2);
+    var copiedRows = datasetRowRepository.findByDatasetVersionIdOrderByRowIndexAsc(copiedDraft.getId());
+    assertThat(copiedRows).hasSize(2).extracting("rowHash").containsExactly(
+        activeRows.get(0).getRowHash(), activeRows.get(1).getRowHash());
+
+    addRow(user, copiedDraft.getId(), Map.of("question", "Q3", "expected", "A3"));
+    assertThat(datasetVersionRepository.findById(copiedDraft.getId()).orElseThrow().getRowCount())
+        .isEqualTo(3);
+
+    publish(user, copiedDraft.getId());
+
+    assertThat(datasetVersionRepository.findById(copiedDraft.getId()).orElseThrow().getRowCount())
+        .isEqualTo(3);
+    assertThat(datasetRepository.findById(datasetId).orElseThrow().getCurrentVersionId())
+        .isEqualTo(copiedDraft.getId());
+  }
+
+  @Test
+  void addRow_InvalidCells_ReturnsBadRequestAndDoesNotChangeRowCount() throws Exception {
+    var user = user("dataset-validation-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset Validation Project");
+    var datasetId = createDataset(user, projectId, "Validation Dataset");
+    var draftId = draftVersionId(datasetId);
+
+    mockMvc
+        .perform(
+            post("/api/v1/dataset-versions/" + draftId + "/rows")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("cells", Map.of("expected", "A1")))))
+        .andExpect(status().isBadRequest());
+    mockMvc
+        .perform(
+            post("/api/v1/dataset-versions/" + draftId + "/rows")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("cells", Map.of("question", "Q1", "unknown", "bad")))))
+        .andExpect(status().isBadRequest());
+
+    var draft = datasetVersionRepository.findById(draftId).orElseThrow();
+    assertThat(draft.getRowCount()).isZero();
+    assertThat(datasetRowRepository.countByDatasetVersionId(draftId)).isZero();
+  }
+
   private UUID createProject(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID workspaceId, String name)
       throws Exception {
     var body = Map.of("name", name, "description", "Integration test project");
@@ -119,10 +236,13 @@ class Phase4DatasetIntegrationTest extends PostgresIntegrationTestBase {
   }
 
   private UUID draftVersionId(UUID datasetId) {
+    return draftVersion(datasetId).getId();
+  }
+
+  private vn.vinfast.vfqc.api.dataset.entity.DatasetVersion draftVersion(UUID datasetId) {
     return datasetVersionRepository
         .findByDatasetIdAndStatus(datasetId, DatasetVersionStatus.DRAFT)
-        .orElseThrow()
-        .getId();
+        .orElseThrow();
   }
 
   private long addRow(
@@ -155,6 +275,12 @@ class Phase4DatasetIntegrationTest extends PostgresIntegrationTestBase {
   private void publish(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID versionId)
       throws Exception {
     mockMvc.perform(post("/api/v1/dataset-versions/" + versionId + "/publish").with(bearer(user)))
+        .andExpect(status().isOk());
+  }
+
+  private void discard(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID versionId)
+      throws Exception {
+    mockMvc.perform(post("/api/v1/dataset-versions/" + versionId + "/discard").with(bearer(user)))
         .andExpect(status().isOk());
   }
 }
