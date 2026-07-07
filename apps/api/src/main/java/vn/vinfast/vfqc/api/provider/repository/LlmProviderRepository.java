@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import vn.vinfast.vfqc.api.provider.entity.LlmProvider;
+import vn.vinfast.vfqc.api.provider.enums.ProviderStatus;
 
 public interface LlmProviderRepository extends JpaRepository<LlmProvider, UUID> {
 
@@ -17,4 +18,6 @@ public interface LlmProviderRepository extends JpaRepository<LlmProvider, UUID> 
   boolean existsByWorkspaceIdAndNameLookupAndDeletedAtIsNull(UUID workspaceId, String nameLookup);
 
   boolean existsByOwnerUserIdAndNameLookupAndDeletedAtIsNull(UUID ownerUserId, String nameLookup);
+
+  long countByWorkspaceIdAndStatusAndDeletedAtIsNull(UUID workspaceId, ProviderStatus status);
 }

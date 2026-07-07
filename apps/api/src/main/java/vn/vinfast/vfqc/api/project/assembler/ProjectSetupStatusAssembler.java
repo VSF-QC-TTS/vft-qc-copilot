@@ -14,24 +14,39 @@ public class ProjectSetupStatusAssembler {
       long datasetCount,
       long activeVersions,
       long activeTargets,
-      long activeTargetsWithExtraction) {
+      long activeTargetsWithExtraction,
+      long activeEvaluators,
+      long usableJudgeProviders) {
     var steps =
         new ProjectSetupStatusResponse.ProjectSetupSteps(
             datasetCount > 0,
             activeVersions > 0,
             activeTargets > 0,
             activeTargetsWithExtraction > 0,
-            false,
-            false);
+            activeEvaluators > 0,
+            usableJudgeProviders > 0);
     var counts =
         new ProjectSetupStatusResponse.ProjectSetupCounts(
-            datasetCount, activeVersions, activeTargets, activeTargetsWithExtraction, 0, 0, 0, 0);
+            datasetCount,
+            activeVersions,
+            activeTargets,
+            activeTargetsWithExtraction,
+            activeEvaluators,
+            usableJudgeProviders,
+            usableJudgeProviders,
+            activeTargets);
     var blockers =
         activeVersions > 0
             ? List.<ProjectSetupStatusResponse.ProjectSetupBlocker>of()
             : List.of(noActiveDatasetBlocker(project.getId()));
     return new ProjectSetupStatusResponse(
-        project.getId(), project.getWorkspaceId(), steps, counts, false, false, blockers);
+        project.getId(),
+        project.getWorkspaceId(),
+        steps,
+        counts,
+        activeVersions > 0 && activeTargetsWithExtraction > 0 && activeEvaluators > 0,
+        activeVersions > 0 && activeTargets > 1 && activeEvaluators > 0,
+        blockers);
   }
 
   private ProjectSetupStatusResponse.ProjectSetupBlocker noActiveDatasetBlocker(UUID projectId) {

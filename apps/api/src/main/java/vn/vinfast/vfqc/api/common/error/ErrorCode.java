@@ -62,6 +62,28 @@ public enum ErrorCode {
       HttpStatus.CONFLICT,
       "Dataset import job state does not allow this operation",
       "error.dataset.import.invalidState"),
+  EVALUATOR_NAME_ALREADY_EXISTS(
+      HttpStatus.CONFLICT, "Evaluator name already exists", "error.evaluator.nameAlreadyExists"),
+  EVALUATOR_RULE_INVALID(
+      HttpStatus.BAD_REQUEST, "Evaluator rule is invalid", "error.evaluator.ruleInvalid"),
+  EVALUATOR_FIELD_SOURCE_INVALID(
+      HttpStatus.BAD_REQUEST,
+      "Evaluator field source is invalid",
+      "error.evaluator.fieldSourceInvalid"),
+  EVALUATOR_EXPECTED_VALUE_INVALID(
+      HttpStatus.BAD_REQUEST,
+      "Evaluator expected value is invalid",
+      "error.evaluator.expectedValueInvalid"),
+  EVALUATOR_LLM_JUDGE_CONFIG_INVALID(
+      HttpStatus.BAD_REQUEST,
+      "LLM judge evaluator config is invalid",
+      "error.evaluator.llmJudgeConfigInvalid"),
+  EVALUATOR_CUSTOM_JAVASCRIPT_FORBIDDEN(
+      HttpStatus.BAD_REQUEST,
+      "Custom JavaScript evaluator is not allowed",
+      "error.evaluator.customJavascriptForbidden"),
+  EVALUATOR_PROVIDER_INVALID(
+      HttpStatus.BAD_REQUEST, "Evaluator provider is invalid", "error.evaluator.providerInvalid"),
   INVALID_STATE(
       HttpStatus.CONFLICT, "Resource state does not allow this operation", "error.state.invalid"),
   SECRET_SCOPE_MISMATCH(
