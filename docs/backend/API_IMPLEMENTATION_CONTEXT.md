@@ -1,6 +1,6 @@
 # Backend API Implementation Context
 
-Last checked: 2026-07-07 19:49 Asia/Bangkok.
+Last checked: 2026-07-07 22:18 Asia/Bangkok.
 
 Purpose: this is the short handoff file for the next agent/session. Read this first before re-reading all backend docs. It summarizes `docs/backend/README.md`, `docs/backend/IMPLEMENTATION_ORDER.md`, and the current `apps/api` implementation state.
 
@@ -23,9 +23,9 @@ Command run from `apps/api`:
 rtk bash mvnw test
 ```
 
-Result: build success. Maven compiled the backend and ran 101 tests successfully.
+Result: build success. Maven compiled the backend and ran 111 tests successfully.
 
-Coverage currently includes compile wiring, auth email-token service behavior, auth endpoint integration for register/verify/login/refresh/logout/forgot/reset, personal workspace onboarding, admin user invite service flow, admin API role boundary, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled/deleted-secret provider create/update/test rejection, secret scope lookup rejection, provider config response/persistence sanitization, provider create/update sanitization and scope lookup, provider soft-delete hidden 404 behavior, provider test history limit clamping, provider test log sanitization, provider status updates, workspace provider non-member hidden 404 behavior, workspace viewer mutation denial for secrets/providers, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace/project permission role boundaries, hidden 404 behavior for non-members, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, draft discard lifecycle, duplicate-draft rejection, row-count recalculation/copy behavior, required/unknown cell validation, publish/archive and ACTIVE immutability, Excel dataset import preview/confirm with schema extension, import permission boundary, import invalid-state and required-column validation, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, evaluator create/version/update/validation/setup-status behavior, evaluator viewer boundary, evaluator custom JavaScript rejection, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 2/3/4/5/6/7 endpoint/security/persistence behavior.
+Coverage currently includes compile wiring, auth email-token service behavior, auth endpoint integration for register/verify/login/refresh/logout/forgot/reset, personal workspace onboarding, admin user invite service flow, admin API role boundary, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled/deleted-secret provider create/update/test rejection, secret scope lookup rejection, provider config response/persistence sanitization, provider create/update sanitization and scope lookup, provider soft-delete hidden 404 behavior, provider test history limit clamping, provider test log sanitization, provider status updates, workspace provider non-member hidden 404 behavior, workspace viewer mutation denial for secrets/providers, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace/project permission role boundaries, hidden 404 behavior for non-members, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, draft discard lifecycle, duplicate-draft rejection, row-count recalculation/copy behavior, required/unknown cell validation, publish/archive and ACTIVE immutability, Excel dataset import preview/confirm with schema extension, import permission boundary, import invalid-state and required-column validation, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, evaluator create/version/update/validation/setup-status behavior, evaluator viewer boundary, evaluator custom JavaScript rejection, evaluator duplicate-name/soft-delete/version-read/LLM provider invalid-state/MIXED validation hardening, TestRun preflight/create snapshot/state/review/matrix behavior, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 2/3/4/5/6/7/8 endpoint/security/persistence behavior.
 
 ## Current Source Shape
 
@@ -39,12 +39,12 @@ Implemented Java packages under `apps/api/src/main/java/vn/vinfast/vfqc/api`:
 - `project`
 - `secret`
 - `target`
+- `testrun`
 - `user`
 - `workspace`
 
 Not found as implemented source packages yet:
 
-- `testrun`
 - `runner`
 - `sse`
 - `export`
@@ -68,6 +68,9 @@ Current migrations:
 - `apps/api/src/main/resources/db/migration/V6__evaluators.sql`
   - Creates `evaluators`, `evaluator_versions`, and `evaluator_rules`.
   - Adds active evaluator name uniqueness and evaluator-version indexes.
+- `apps/api/src/main/resources/db/migration/V7__test_runs.sql`
+  - Creates `test_runs`, `test_run_targets`, `test_run_evaluator_versions`, `test_case_results`, and `test_case_result_reviews`.
+  - Adds Phase 8 read/query indexes for project run lists, run targets, evaluator snapshots, testcase result lookup, and reviewer lookup.
 
 ## Phase Status Against IMPLEMENTATION_ORDER.md
 
@@ -283,22 +286,45 @@ Implemented:
 - Field-source discovery from latest project dataset schema and optional target response extraction config.
 - Operator metadata endpoint.
 - Project setup-status now reports `hasEvaluator` and `activeEvaluators`.
-- Integration tests cover create + version immutability, viewer mutation denial, custom JavaScript rejection, target field-source validation, setup-status evaluator counts, and metadata update type preservation.
+- Integration tests cover create + version immutability, viewer mutation denial, custom JavaScript rejection, target field-source validation, setup-status evaluator counts, metadata update type preservation, duplicate evaluator names, soft-delete visibility, version list/detail read models, disabled LLM judge provider rejection, and incomplete MIXED config rejection.
 
 Still missing or partial:
 
 - Richer LLM Judge provider/model compatibility checks against explicit model catalog shape.
-- MIXED evaluator edge-case coverage beyond shared validator paths.
 - Evaluator readiness detail endpoint separate from setup-status.
-- Tests for soft-delete visibility, duplicate evaluator names, version detail/list read models, and LLM judge provider invalid states.
 
-### Phase 8+ - TestRun, Runner, SSE, Export
+### Phase 8 - TestRun Core Without Runner Execution
+
+Status: backend MVP implemented.
+
+Implemented:
+
+- `testrun` entity/repository/controller/service/assembler/state foundation.
+- `TestRun`, `TestRunTarget`, `TestRunEvaluatorVersion`, `TestCaseResult`, and `TestCaseResultReview` JPA mappings backed by V7 migration.
+- TestRun preflight endpoint that checks project access, active dataset version/rows, active target readiness, evaluator versions, field-source compatibility, and provider state blockers without mutating state.
+- Create-run flow that locks sanitized domain and Promptfoo snapshots, hashes them, stores target/evaluator version snapshots, and returns run detail.
+- Phase 8 `TestRunCommandService` is intentionally no-op; no `runner_commands` table or Redis publish exists yet.
+- TestRun list/detail/cancel APIs with documented state-machine enforcement.
+- Result list/detail APIs with FINAL vs MACHINE read models, sanitized response fields, and immutable machine result behavior.
+- QC review upsert API that stores review override separately from machine results.
+- Comparison matrix API grouped by dataset row and run target, without raw request/response bodies.
+- Request DTOs include Jakarta validation messages and Swagger/OpenAPI schema descriptions.
+- Service interfaces include Javadoc for permission, transaction, and side-effect expectations.
+- Integration tests cover missing active dataset preflight blocker, snapshot locking and masking, viewer create denial, invalid CREATED cancel transition, review override final result behavior, immutable machine result preservation, and comparison matrix final-result projection.
+
+Still missing or partial:
+
+- Fine-grained `RUN_START`, `RUN_CANCEL`, and `RESULT_REVIEW` permission actions are documented but not yet implemented in `PermissionAction`; Phase 8 uses existing `VIEW`/`EDIT`.
+- No runner command persistence, Redis START_RUN publish, runner config fetch, runtime secret bundle, or runner event ingestion yet.
+- No artifact metadata/download API yet.
+- Result machine rows are currently expected to be produced by later runner/internal APIs or tests; frontend cannot create machine results.
+
+### Phase 9+ - Runner, SSE, Export
 
 Status: not implemented in source.
 
 No source packages/controllers/services found for:
 
-- TestRun core/results/review
 - Runner command/event ingestion
 - SSE realtime projection
 - Export jobs/downloads
@@ -412,6 +438,18 @@ Evaluators:
 - `GET /api/v1/projects/{projectId}/evaluator-field-sources`
 - `GET /api/v1/evaluator-operators`
 
+Test Runs:
+
+- `POST /api/v1/projects/{projectId}/test-runs/preflight`
+- `POST /api/v1/projects/{projectId}/test-runs`
+- `GET /api/v1/projects/{projectId}/test-runs`
+- `GET /api/v1/test-runs/{testRunId}`
+- `POST /api/v1/test-runs/{testRunId}/cancel`
+- `GET /api/v1/test-runs/{testRunId}/results`
+- `GET /api/v1/test-case-results/{resultId}`
+- `PUT /api/v1/test-case-results/{resultId}/review`
+- `GET /api/v1/test-runs/{testRunId}/comparison-matrix`
+
 ## Coding Style And Conventions
 
 Follow the current project style when adding new backend code:
@@ -460,13 +498,21 @@ Follow the current project style when adding new backend code:
    - add richer outbound target fixtures if product needs redirect-following or provider-like target simulations
    - wire stored target config into later Promptfoo/TestRun runner conversion
 
-5. Harden Phase 7 evaluator:
-   - add duplicate-name, soft-delete visibility, version detail/list, LLM judge provider invalid-state, and MIXED evaluator tests
-   - refine provider/model compatibility if available model metadata becomes structured enough to enforce
+5. Continue with Phase 9 runner/internal execution plumbing:
+   - add runner command persistence or queue integration according to the Phase 9 design
+   - publish START_RUN work to Redis once stream naming/config is finalized
+   - expose internal runner config/result ingestion APIs that consume locked Phase 8 snapshots
+   - add result ingestion tests for status transitions, machine result immutability, and sanitized response projection
 
-6. Phase 5 is ready for later phases; add real provider fixtures only if the product needs provider-specific response parsing beyond raw preview behavior.
+6. Harden Phase 8 TestRun after runner integration:
+   - add fine-grained `RUN_START`, `RUN_CANCEL`, and `RESULT_REVIEW` permission actions if the product authorization model requires them
+   - add pagination/filter edge-case tests for run list and result list endpoints
+   - add broader comparison-matrix fixtures once multiple targets/evaluators are populated by runner ingestion
+   - keep `TestRunCommandService` no-op until Phase 9 explicitly introduces dispatch side effects
 
-7. Harden auth mail flows before production use:
+7. Phase 5 is ready for later phases; add real provider fixtures only if the product needs provider-specific response parsing beyond raw preview behavior.
+
+8. Harden auth mail flows before production use:
    - add rate limiting for login, forgot password, and token verification attempts
    - add SMTP configuration documentation and delivery failure policy
    - decide final product policy for `ADMIN_ONLY` vs `SELF_VERIFY` registration mode
@@ -474,8 +520,8 @@ Follow the current project style when adding new backend code:
 
 ## Caveats For Next Agent
 
-- Worktree state should be checked with `rtk git status --short`; this file was last updated during Phase 7 evaluator MVP implementation.
+- Worktree state should be checked with `rtk git status --short`; this file was last updated during Phase 8 TestRun MVP implementation.
 - `apps/api/target` may exist because `mvnw test` was run.
-- Tests passing now cover compile, auth mail/register/forgot/reset service and controller slices, auth endpoint integration, email-token hashing/expiry/consume behavior, personal workspace onboarding, admin invite service flow, admin API role boundary, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, workspace/project role boundaries, hidden 404 behavior, workspace member response user summaries, dataset row hash/publish/default-schema/discard/row-count/schema-validation/import behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, evaluator create/version/update/validation/setup-status behavior, and Phase 2/3/4/5/6/7 Spring MVC/security/PostgreSQL integration coverage.
+- Tests passing now cover 111 backend tests: compile, auth mail/register/forgot/reset service and controller slices, auth endpoint integration, email-token hashing/expiry/consume behavior, personal workspace onboarding, admin invite service flow, admin API role boundary, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, workspace/project role boundaries, hidden 404 behavior, workspace member response user summaries, dataset row hash/publish/default-schema/discard/row-count/schema-validation/import behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, evaluator create/version/update/validation/setup-status/duplicate-name/soft-delete/version-read/invalid-provider/MIXED behavior, TestRun preflight/create locked-snapshot/state/review/comparison-matrix behavior, and Phase 2/3/4/5/6/7/8 Spring MVC/security/PostgreSQL integration coverage.
 - JavaMail usage follows Spring Boot 4.0.7/Spring Framework 7 docs: rely on `JavaMailSender` auto-configuration when `spring.mail.host` is configured; use `MimeMessage`/`MimeMessageHelper`; set SMTP timeouts through `spring.mail.properties[...]`.
 - Mail is now delivered asynchronously via `MailSendEvent` + `MailSendEventListener` after transaction commit. `@EnableAsync` is on the main application class.

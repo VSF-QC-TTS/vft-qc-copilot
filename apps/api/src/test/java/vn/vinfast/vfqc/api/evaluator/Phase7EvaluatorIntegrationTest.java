@@ -1,6 +1,7 @@
 package vn.vinfast.vfqc.api.evaluator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -17,6 +18,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.web.servlet.MockMvc;
 import vn.vinfast.vfqc.api.evaluator.enums.EvaluatorType;
+import vn.vinfast.vfqc.api.provider.entity.LlmProvider;
+import vn.vinfast.vfqc.api.provider.enums.ProviderScope;
+import vn.vinfast.vfqc.api.provider.enums.ProviderStatus;
+import vn.vinfast.vfqc.api.provider.enums.ProviderType;
 import vn.vinfast.vfqc.api.support.PostgresIntegrationTestBase;
 import vn.vinfast.vfqc.api.target.entity.ChatbotTarget;
 import vn.vinfast.vfqc.api.target.enums.ChatbotTargetStatus;
@@ -189,6 +194,133 @@ class Phase7EvaluatorIntegrationTest extends PostgresIntegrationTestBase {
     assertThat(evaluator.getType()).isEqualTo(EvaluatorType.RULE_BASED);
   }
 
+  @Test
+  void createOrUpdateEvaluator_WithDuplicateName_ReturnsConflict() throws Exception {
+    var user = user("evaluator-duplicate-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId());
+    var firstId = createRuleBasedEvaluator(user, projectId, "Duplicate evaluator");
+
+    mockMvc
+        .perform(
+            post("/api/v1/projects/" + projectId + "/evaluators")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(createBody(" duplicate   evaluator "))))
+        .andExpect(status().isConflict());
+
+    var secondId = createRuleBasedEvaluator(user, projectId, "Other evaluator");
+    mockMvc
+        .perform(
+            patch("/api/v1/evaluators/" + secondId)
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("name", "Duplicate evaluator"))))
+        .andExpect(status().isConflict());
+
+    assertThat(evaluatorRepository.findById(firstId)).isPresent();
+  }
+
+  @Test
+  void deleteEvaluator_HidesEvaluatorAndVersions() throws Exception {
+    var user = user("evaluator-delete-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId());
+    var evaluatorId = createRuleBasedEvaluator(user, projectId, "Deleted evaluator");
+    var versionId =
+        evaluatorVersionRepository.findByEvaluatorIdOrderByVersionDesc(evaluatorId).getFirst().getId();
+
+    mockMvc
+        .perform(delete("/api/v1/evaluators/" + evaluatorId).with(bearer(user)))
+        .andExpect(status().isNoContent());
+
+    mockMvc
+        .perform(get("/api/v1/evaluators/" + evaluatorId).with(bearer(user)))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/v1/evaluators/" + evaluatorId + "/versions").with(bearer(user)))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/v1/evaluator-versions/" + versionId).with(bearer(user)))
+        .andExpect(status().isNotFound());
+
+    var listResult =
+        mockMvc
+            .perform(get("/api/v1/projects/" + projectId + "/evaluators").with(bearer(user)))
+            .andExpect(status().isOk())
+            .andReturn();
+    assertThat(objectMapper.readTree(listResult.getResponse().getContentAsString()).get("items")).isEmpty();
+  }
+
+  @Test
+  void evaluatorVersionListAndDetail_ReturnRuleReadModels() throws Exception {
+    var user = user("evaluator-version-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId());
+    var evaluatorId = createRuleBasedEvaluator(user, projectId, "Version read evaluator");
+
+    var listResult =
+        mockMvc
+            .perform(get("/api/v1/evaluators/" + evaluatorId + "/versions").with(bearer(user)))
+            .andExpect(status().isOk())
+            .andReturn();
+    var versionJson = objectMapper.readTree(listResult.getResponse().getContentAsString()).get("items").get(0);
+    assertThat(versionJson.get("version").asInt()).isEqualTo(1);
+    assertThat(versionJson.get("rules")).hasSize(1);
+
+    var versionId = UUID.fromString(versionJson.get("id").asText());
+    var detailResult =
+        mockMvc
+            .perform(get("/api/v1/evaluator-versions/" + versionId).with(bearer(user)))
+            .andExpect(status().isOk())
+            .andReturn();
+    var detailJson = objectMapper.readTree(detailResult.getResponse().getContentAsString());
+    assertThat(detailJson.get("evaluatorId").asText()).isEqualTo(evaluatorId.toString());
+    assertThat(detailJson.get("rules").get(0).get("fieldSource").asText()).isEqualTo("response.statusCode");
+  }
+
+  @Test
+  void createLlmJudgeEvaluator_WithDisabledProvider_ReturnsBadRequest() throws Exception {
+    var user = user("evaluator-llm-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId());
+    var providerId = provider(workspace.getId(), user.getId(), ProviderStatus.DISABLED).getId();
+
+    mockMvc
+        .perform(
+            post("/api/v1/projects/" + projectId + "/evaluators")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(llmJudgeBody("Disabled judge", providerId))))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createMixedEvaluator_WithIncompleteConfig_ReturnsBadRequest() throws Exception {
+    var user = user("evaluator-mixed-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId());
+
+    var body =
+        Map.of(
+            "name",
+            "Incomplete mixed evaluator",
+            "type",
+            "MIXED",
+            "config",
+            ruleBasedConfig(),
+            "rules",
+            List.of(rule("response.statusCode", "NUMERIC_EQUALS", Map.of("type", "number", "value", 200))));
+
+    mockMvc
+        .perform(
+            post("/api/v1/projects/" + projectId + "/evaluators")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+        .andExpect(status().isBadRequest());
+  }
+
   private UUID createProject(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID workspaceId)
       throws Exception {
     var result =
@@ -229,6 +361,32 @@ class Phase7EvaluatorIntegrationTest extends PostgresIntegrationTestBase {
         ruleBasedConfig(),
         "rules",
         List.of(rule("response.statusCode", "NUMERIC_EQUALS", Map.of("type", "number", "value", 200))));
+  }
+
+  private Map<String, Object> llmJudgeBody(String name, UUID providerId) {
+    return Map.of(
+        "name",
+        name,
+        "type",
+        "LLM_JUDGE",
+        "config",
+        Map.of(
+            "llmJudge",
+            Map.of(
+                "rubric",
+                "Judge answer quality",
+                "threshold",
+                0.7,
+                "passCondition",
+                "SCORE_AT_LEAST_THRESHOLD",
+                "inputTemplate",
+                "Actual: {{extracted.answer}}",
+                "outputSchema",
+                "VFQC_JUDGE_V1",
+                "defaultJudgeProviderId",
+                providerId.toString(),
+                "defaultJudgeModel",
+                "judge-model")));
   }
 
   private Map<String, Object> validateBody(UUID targetId, String fieldSource) {
@@ -295,5 +453,22 @@ class Phase7EvaluatorIntegrationTest extends PostgresIntegrationTestBase {
                 .updatedAt(now)
                 .build())
         .getId();
+  }
+
+  private LlmProvider provider(UUID workspaceId, UUID createdBy, ProviderStatus status) {
+    var now = OffsetDateTime.now();
+    return providerRepository.save(
+        LlmProvider.builder()
+            .scope(ProviderScope.WORKSPACE)
+            .workspaceId(workspaceId)
+            .name("Judge Provider " + UUID.randomUUID())
+            .nameLookup("judge provider " + UUID.randomUUID())
+            .providerType(ProviderType.OPENAI_COMPATIBLE)
+            .defaultModel("judge-model")
+            .status(status)
+            .createdBy(createdBy)
+            .createdAt(now)
+            .updatedAt(now)
+            .build());
   }
 }

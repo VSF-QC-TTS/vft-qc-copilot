@@ -31,6 +31,11 @@ import vn.vinfast.vfqc.api.provider.repository.LlmProviderTestLogRepository;
 import vn.vinfast.vfqc.api.secret.repository.SecretRepository;
 import vn.vinfast.vfqc.api.target.repository.ChatbotTargetExampleRepository;
 import vn.vinfast.vfqc.api.target.repository.ChatbotTargetRepository;
+import vn.vinfast.vfqc.api.testrun.repository.TestCaseResultRepository;
+import vn.vinfast.vfqc.api.testrun.repository.TestCaseResultReviewRepository;
+import vn.vinfast.vfqc.api.testrun.repository.TestRunEvaluatorVersionRepository;
+import vn.vinfast.vfqc.api.testrun.repository.TestRunRepository;
+import vn.vinfast.vfqc.api.testrun.repository.TestRunTargetRepository;
 import vn.vinfast.vfqc.api.user.entity.AppUser;
 import vn.vinfast.vfqc.api.user.enums.SystemRole;
 import vn.vinfast.vfqc.api.user.enums.UserStatus;
@@ -77,6 +82,11 @@ public abstract class PostgresIntegrationTestBase {
   @Autowired protected EvaluatorRuleRepository evaluatorRuleRepository;
   @Autowired protected EvaluatorVersionRepository evaluatorVersionRepository;
   @Autowired protected EvaluatorRepository evaluatorRepository;
+  @Autowired protected TestCaseResultReviewRepository testCaseResultReviewRepository;
+  @Autowired protected TestCaseResultRepository testCaseResultRepository;
+  @Autowired protected TestRunEvaluatorVersionRepository testRunEvaluatorVersionRepository;
+  @Autowired protected TestRunTargetRepository testRunTargetRepository;
+  @Autowired protected TestRunRepository testRunRepository;
   @Autowired protected ProjectRepository projectRepository;
   @Autowired protected ChatbotTargetExampleRepository chatbotTargetExampleRepository;
   @Autowired protected ChatbotTargetRepository chatbotTargetRepository;
@@ -84,6 +94,11 @@ public abstract class PostgresIntegrationTestBase {
 
   @AfterEach
   void cleanDatabase() {
+    testCaseResultReviewRepository.deleteAll();
+    testCaseResultRepository.deleteAll();
+    testRunEvaluatorVersionRepository.deleteAll();
+    testRunTargetRepository.deleteAll();
+    testRunRepository.deleteAll();
     providerTestLogRepository.deleteAll();
     providerRepository.deleteAll();
     secretRepository.deleteAll();
