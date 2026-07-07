@@ -54,6 +54,14 @@ public enum ErrorCode {
       HttpStatus.BAD_REQUEST,
       "Dataset row contains an unknown column",
       "error.dataset.unknownColumn"),
+  DATASET_IMPORT_MAPPING_INVALID(
+      HttpStatus.BAD_REQUEST,
+      "Dataset import mapping is invalid",
+      "error.dataset.import.mappingInvalid"),
+  DATASET_IMPORT_JOB_INVALID_STATE(
+      HttpStatus.CONFLICT,
+      "Dataset import job state does not allow this operation",
+      "error.dataset.import.invalidState"),
   INVALID_STATE(
       HttpStatus.CONFLICT, "Resource state does not allow this operation", "error.state.invalid"),
   SECRET_SCOPE_MISMATCH(

@@ -17,6 +17,7 @@ import vn.vinfast.vfqc.api.auth.repository.AuthEmailTokenRepository;
 import vn.vinfast.vfqc.api.auth.repository.AuthRefreshTokenRepository;
 import vn.vinfast.vfqc.api.auth.service.JwtTokenService;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRepository;
+import vn.vinfast.vfqc.api.dataset.repository.DatasetImportJobRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRowRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetSchemaColumnRepository;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetSchemaRepository;
@@ -66,6 +67,7 @@ public abstract class PostgresIntegrationTestBase {
   @Autowired protected AuthRefreshTokenRepository refreshTokenRepository;
   @Autowired protected DatasetRowRepository datasetRowRepository;
   @Autowired protected DatasetVersionRepository datasetVersionRepository;
+  @Autowired protected DatasetImportJobRepository datasetImportJobRepository;
   @Autowired protected DatasetRepository datasetRepository;
   @Autowired protected DatasetSchemaColumnRepository datasetSchemaColumnRepository;
   @Autowired protected DatasetSchemaRepository datasetSchemaRepository;
@@ -89,6 +91,7 @@ public abstract class PostgresIntegrationTestBase {
     chatbotTargetRepository.deleteAll();
     datasetRowRepository.deleteAll();
     datasetVersionRepository.deleteAll();
+    datasetImportJobRepository.deleteAll();
     datasetRepository.deleteAll();
     datasetSchemaColumnRepository.deleteAll();
     datasetSchemaRepository.deleteAll();

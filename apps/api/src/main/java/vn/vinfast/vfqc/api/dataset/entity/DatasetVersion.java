@@ -48,6 +48,9 @@ public class DatasetVersion {
   @Column(name = "base_version_id")
   private UUID baseVersionId;
 
+  @Column(name = "import_job_id")
+  private UUID importJobId;
+
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "import_mapping_json", columnDefinition = "jsonb")
   private Map<String, Object> importMappingJson;

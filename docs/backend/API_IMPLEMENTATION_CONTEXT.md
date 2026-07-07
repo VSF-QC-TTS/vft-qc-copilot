@@ -1,6 +1,6 @@
 # Backend API Implementation Context
 
-Last checked: 2026-07-07 19:15 Asia/Bangkok.
+Last checked: 2026-07-07 19:31 Asia/Bangkok.
 
 Purpose: this is the short handoff file for the next agent/session. Read this first before re-reading all backend docs. It summarizes `docs/backend/README.md`, `docs/backend/IMPLEMENTATION_ORDER.md`, and the current `apps/api` implementation state.
 
@@ -23,9 +23,9 @@ Command run from `apps/api`:
 rtk bash mvnw test
 ```
 
-Result: build success. Maven compiled the backend and ran 91 tests successfully.
+Result: build success. Maven compiled the backend and ran 95 tests successfully.
 
-Coverage currently includes compile wiring, auth email-token service behavior, auth endpoint integration for register/verify/login/refresh/logout/forgot/reset, personal workspace onboarding, admin user invite service flow, admin API role boundary, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled/deleted-secret provider create/update/test rejection, secret scope lookup rejection, provider config response/persistence sanitization, provider create/update sanitization and scope lookup, provider soft-delete hidden 404 behavior, provider test history limit clamping, provider test log sanitization, provider status updates, workspace provider non-member hidden 404 behavior, workspace viewer mutation denial for secrets/providers, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace/project permission role boundaries, hidden 404 behavior for non-members, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, draft discard lifecycle, duplicate-draft rejection, row-count recalculation/copy behavior, required/unknown cell validation, publish/archive and ACTIVE immutability, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 2/3/4/5/6 endpoint/security/persistence behavior.
+Coverage currently includes compile wiring, auth email-token service behavior, auth endpoint integration for register/verify/login/refresh/logout/forgot/reset, personal workspace onboarding, admin user invite service flow, admin API role boundary, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled/deleted-secret provider create/update/test rejection, secret scope lookup rejection, provider config response/persistence sanitization, provider create/update sanitization and scope lookup, provider soft-delete hidden 404 behavior, provider test history limit clamping, provider test log sanitization, provider status updates, workspace provider non-member hidden 404 behavior, workspace viewer mutation denial for secrets/providers, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace/project permission role boundaries, hidden 404 behavior for non-members, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, draft discard lifecycle, duplicate-draft rejection, row-count recalculation/copy behavior, required/unknown cell validation, publish/archive and ACTIVE immutability, Excel dataset import preview/confirm with schema extension, import permission boundary, import invalid-state and required-column validation, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 2/3/4/5/6 endpoint/security/persistence behavior.
 
 ## Current Source Shape
 
@@ -62,6 +62,9 @@ Current migrations:
   - Source entities/repositories map these tables; Phase 6 backend now uses the existing JSONB fields without an additional migration.
 - `apps/api/src/main/resources/db/migration/V4__personal_workspace_unique_index.sql`
   - Adds a partial unique index that enforces one active PERSONAL workspace per creator.
+- `apps/api/src/main/resources/db/migration/V5__dataset_import_jobs.sql`
+  - Creates `dataset_import_jobs` for Excel import preview/confirm state.
+  - Adds `dataset_versions.import_job_id` for imported dataset version traceability.
 
 ## Phase Status Against IMPLEMENTATION_ORDER.md
 
@@ -160,7 +163,7 @@ Still missing or partial:
 
 ### Phase 4 - Dataset Schema, Dataset Versioning and Source Data
 
-Status: partial MVP manual dataset flow implemented.
+Status: MVP manual dataset flow plus Excel import preview/confirm implemented.
 
 Implemented:
 
@@ -174,18 +177,23 @@ Implemented:
 - Deterministic `dataset_rows.row_hash` population on add/patch and when copying rows into a new draft.
 - Publish draft to active and archive old active.
 - Discard draft.
+- `DatasetImportJob` and synchronous Excel import MVP.
+- `POST /api/v1/projects/{projectId}/dataset-import-jobs` for `.xlsx` preview.
+- `GET /api/v1/dataset-import-jobs/{importJobId}` for preview/job state.
+- `POST /api/v1/dataset-import-jobs/{importJobId}/confirm` to create a PROJECT dataset with ACTIVE version and rows.
+- Import confirm supports mapping to existing columns, ignoring columns, and adding new TEXT columns through a new project schema version.
 - Required/unknown column validation.
 - Integration tests cover create-project default schema bootstrap, row hash add/patch, publish/archive, and ACTIVE immutability.
+- Import integration tests cover preview/confirm, schema extension, viewer denial, invalid confirm state, and required-column rollback.
 - Dataset schema, dataset, and dataset version responses include `createdByUser` where a creator UUID is exposed.
 
 Still missing from Phase 4 docs:
 
-- `DatasetImportJob`.
-- `DatasetImportService`.
 - `DatasetVariableService` as a separate service; variables are currently served by `DatasetSchemaService`.
-- Excel import preview -> mapping -> confirm.
+- Project/workspace/personal dataset clone import source APIs.
+- Async/large-file import handling and persisted uploaded-file storage; current Excel import is synchronous and capped for MVP.
 - Dataset export source-data flow.
-- Tests for discard lifecycle, schema validation edge cases, row count concurrency, import/export, and project setup-status completeness.
+- Tests for row count concurrency, clone import sources, export, and project setup-status completeness.
 
 ### Phase 5 - Secrets and LLM Providers
 
