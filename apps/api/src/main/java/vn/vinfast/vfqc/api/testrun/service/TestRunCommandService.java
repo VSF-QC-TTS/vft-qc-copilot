@@ -14,4 +14,12 @@ public interface TestRunCommandService {
    * @param testRun persisted test run
    */
   void afterRunCreated(TestRun testRun);
+
+  /**
+   * Handles a running-run cancellation boundary by persisting and publishing a durable cancel
+   * command. Queued runs are cancelled locally and must not call this method.
+   *
+   * @param testRun running test run with cancellation already requested
+   */
+  void afterRunCancellationRequested(TestRun testRun);
 }

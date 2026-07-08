@@ -2,6 +2,7 @@ package vn.vinfast.vfqc.api.secret.repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import vn.vinfast.vfqc.api.secret.entity.Secret;
@@ -20,4 +21,6 @@ public interface SecretRepository extends JpaRepository<Secret, UUID> {
   boolean existsByOwnerUserIdAndNameLookupAndDeletedAtIsNull(UUID ownerUserId, String nameLookup);
 
   Optional<Secret> findByIdAndStatusAndDeletedAtIsNull(UUID id, SecretStatus status);
+
+  List<Secret> findByIdInAndStatusAndDeletedAtIsNull(Set<UUID> ids, SecretStatus status);
 }

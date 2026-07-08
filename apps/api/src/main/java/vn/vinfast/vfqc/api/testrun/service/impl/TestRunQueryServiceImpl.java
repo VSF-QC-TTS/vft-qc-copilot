@@ -147,6 +147,9 @@ public class TestRunQueryServiceImpl implements TestRunQueryService {
     run.setStatus(next);
     run.setCancelRequestedAt(now);
     run.setUpdatedAt(now);
+    if (next == TestRunStatus.CANCEL_REQUESTED) {
+      commandService.afterRunCancellationRequested(run);
+    }
     log.info("TestRun cancellation requested: testRunId={} actorId={}", testRunId, user.id());
     return detail(run);
   }
