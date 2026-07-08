@@ -150,6 +150,62 @@ class Phase11ExportJobIntegrationTest extends PostgresIntegrationTestBase {
     }
   }
 
+  @Test
+  void exportDownload_ExpiredCompletedJob_ReturnsNotFound() throws Exception {
+    var user = user("phase11-expired-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Phase 11 Expired Export");
+    var datasetId = createDataset(user, projectId, "Expired Export Dataset");
+    var draft = datasetVersionRepository.findByDatasetIdOrderByVersionDesc(datasetId).getFirst();
+    mockMvc
+        .perform(post("/api/v1/dataset-versions/" + draft.getId() + "/publish").with(bearer(user)))
+        .andExpect(status().isOk());
+    var activeVersion =
+        datasetVersionRepository
+            .findByDatasetIdAndStatus(datasetId, DatasetVersionStatus.ACTIVE)
+            .orElseThrow();
+    var jobId = createDatasetExport(user, activeVersion.getId());
+    var job = awaitCompleted(jobId);
+    job.setExpiresAt(OffsetDateTime.now().minusMinutes(1));
+    exportJobRepository.saveAndFlush(job);
+
+    mockMvc
+        .perform(get("/api/v1/export-jobs/" + jobId + "/download").with(bearer(user)))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void exportDownload_MissingStoredFile_ReturnsNotFound() throws Exception {
+    var user = user("phase11-missing-file-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Phase 11 Missing File Export");
+    var datasetId = createDataset(user, projectId, "Missing File Dataset");
+    var draft = datasetVersionRepository.findByDatasetIdOrderByVersionDesc(datasetId).getFirst();
+    mockMvc
+        .perform(post("/api/v1/dataset-versions/" + draft.getId() + "/publish").with(bearer(user)))
+        .andExpect(status().isOk());
+    var activeVersion =
+        datasetVersionRepository
+            .findByDatasetIdAndStatus(datasetId, DatasetVersionStatus.ACTIVE)
+            .orElseThrow();
+    var jobId = createDatasetExport(user, activeVersion.getId());
+    var job = awaitCompleted(jobId);
+    job.setFilePath("missing/" + jobId + ".xlsx");
+    exportJobRepository.saveAndFlush(job);
+
+    mockMvc
+        .perform(get("/api/v1/export-jobs/" + jobId + "/download").with(bearer(user)))
+        .andExpect(status().isNotFound());
+    var getResponse =
+        mockMvc
+            .perform(get("/api/v1/export-jobs/" + jobId).with(bearer(user)))
+            .andExpect(status().isOk())
+            .andReturn();
+    assertThat(getResponse.getResponse().getContentAsString()).doesNotContain("filePath");
+    assertThat(exportJobRepository.findById(jobId).orElseThrow().getStatus())
+        .isEqualTo(ExportJobStatus.COMPLETED);
+  }
+
   private UUID createProject(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID workspaceId, String name)
       throws Exception {
     var result =

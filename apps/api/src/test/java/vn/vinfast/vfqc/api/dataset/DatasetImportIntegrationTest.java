@@ -107,6 +107,76 @@ class DatasetImportIntegrationTest extends PostgresIntegrationTestBase {
   }
 
   @Test
+  void excelImportPreview_EmptySheet_ReturnsBadRequestAndDoesNotCreateJob() throws Exception {
+    var user = user("dataset-import-empty-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset Import Empty Project");
+
+    mockMvc
+        .perform(
+            multipart("/api/v1/projects/" + projectId + "/dataset-import-jobs")
+                .file(emptyExcel())
+                .param("sourceType", DatasetSourceType.EXCEL.name())
+                .with(bearer(user)))
+        .andExpect(status().isBadRequest());
+
+    assertThat(datasetImportJobRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  void excelImportPreview_DuplicatedHeaders_ReturnsBadRequestAndDoesNotCreateJob()
+      throws Exception {
+    var user = user("dataset-import-duplicate-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset Import Duplicate Project");
+
+    mockMvc
+        .perform(
+            multipart("/api/v1/projects/" + projectId + "/dataset-import-jobs")
+                .file(excel(new String[] {"question", "Question"}, new String[][] {{"Q1", "Q2"}}))
+                .param("sourceType", DatasetSourceType.EXCEL.name())
+                .with(bearer(user)))
+        .andExpect(status().isBadRequest());
+
+    assertThat(datasetImportJobRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  void excelImportPreview_LargeWorkbookWithinLimit_StoresAllRowsAndClampsPreview()
+      throws Exception {
+    var user = user("dataset-import-large-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset Import Large Project");
+
+    var importJobId =
+        createImportJob(
+            user,
+            projectId,
+            excel(new String[] {"question", "expected"}, largeRows(120)),
+            500);
+
+    var job = datasetImportJobRepository.findById(importJobId).orElseThrow();
+    assertThat(job.getPreviewJson().get("totalRows")).isEqualTo(120);
+    assertThat((List<?>) job.getPreviewJson().get("rows")).hasSize(20);
+
+    var datasetId =
+        confirmImport(
+            user,
+            importJobId,
+            "Imported Large Dataset",
+            DatasetImportTargetSchemaMode.USE_CURRENT_SCHEMA,
+            List.of(
+                mapping("question", DatasetImportMappingAction.MAP_TO_EXISTING_COLUMN, "question"),
+                mapping("expected", DatasetImportMappingAction.MAP_TO_EXISTING_COLUMN, "expected")));
+
+    var dataset = datasetRepository.findById(datasetId).orElseThrow();
+    var version = datasetVersionRepository.findById(dataset.getCurrentVersionId()).orElseThrow();
+    assertThat(version.getRowCount()).isEqualTo(120);
+    assertThat(datasetRowRepository.findByDatasetVersionIdOrderByRowIndexAsc(version.getId()))
+        .hasSize(120);
+  }
+
+  @Test
   void confirmImport_WhenJobAlreadyCompleted_ReturnsConflict() throws Exception {
     var user = user("dataset-import-state-owner@vinfast.vn");
     var workspace = workspace(user);
@@ -268,6 +338,27 @@ class DatasetImportIntegrationTest extends PostgresIntegrationTestBase {
         DatasetColumnDataType.TEXT.name(),
         "required",
         false);
+  }
+
+  private String[][] largeRows(int rowCount) {
+    var rows = new String[rowCount][2];
+    for (int index = 0; index < rowCount; index++) {
+      rows[index][0] = "Question " + index;
+      rows[index][1] = "Expected " + index;
+    }
+    return rows;
+  }
+
+  private MockMultipartFile emptyExcel() throws Exception {
+    try (var workbook = new XSSFWorkbook(); var output = new ByteArrayOutputStream()) {
+      workbook.createSheet("Regression");
+      workbook.write(output);
+      return new MockMultipartFile(
+          "file",
+          "empty-dataset.xlsx",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          output.toByteArray());
+    }
   }
 
   private MockMultipartFile excel(String[] headers, String[][] rows) throws Exception {
