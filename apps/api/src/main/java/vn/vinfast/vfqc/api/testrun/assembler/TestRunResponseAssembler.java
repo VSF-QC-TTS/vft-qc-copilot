@@ -1,15 +1,13 @@
 package vn.vinfast.vfqc.api.testrun.assembler;
 
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import vn.vinfast.vfqc.api.common.masking.VfqcSensitiveDataMasker;
 import vn.vinfast.vfqc.api.testrun.dto.TestCaseResultDetailResponse;
 import vn.vinfast.vfqc.api.testrun.dto.TestCaseResultReviewResponse;
 import vn.vinfast.vfqc.api.testrun.dto.TestRunDetailResponse;
-import vn.vinfast.vfqc.api.testrun.dto.TestRunEvaluatorVersionResponse;
-import vn.vinfast.vfqc.api.testrun.dto.TestRunSummaryResponse;
-import vn.vinfast.vfqc.api.testrun.dto.TestRunTargetResponse;
 import vn.vinfast.vfqc.api.testrun.entity.TestCaseResult;
 import vn.vinfast.vfqc.api.testrun.entity.TestCaseResultReview;
 import vn.vinfast.vfqc.api.testrun.entity.TestRun;
@@ -17,30 +15,14 @@ import vn.vinfast.vfqc.api.testrun.entity.TestRunEvaluatorVersion;
 import vn.vinfast.vfqc.api.testrun.entity.TestRunTarget;
 import vn.vinfast.vfqc.api.testrun.enums.ResultMode;
 import vn.vinfast.vfqc.api.testrun.enums.TestCaseResultStatus;
+import vn.vinfast.vfqc.api.testrun.mapper.TestRunMapper;
 
 @Component
 @RequiredArgsConstructor
 public class TestRunResponseAssembler {
 
   private final VfqcSensitiveDataMasker masker;
-
-  public TestRunSummaryResponse toSummary(TestRun run) {
-    return new TestRunSummaryResponse(
-        run.getId(),
-        run.getProjectId(),
-        run.getRunType(),
-        run.getDatasetId(),
-        run.getDatasetVersionId(),
-        run.getStatus(),
-        run.getProgressCompleted(),
-        run.getProgressTotal(),
-        run.getSummaryMetricsJson(),
-        run.getStartedBy(),
-        run.getStartedAt(),
-        run.getFinishedAt(),
-        run.getCreatedAt(),
-        run.getUpdatedAt());
-  }
+  private final TestRunMapper mapper;
 
   public TestRunDetailResponse toDetail(
       TestRun run, List<TestRunTarget> targets, List<TestRunEvaluatorVersion> evaluators) {
@@ -62,38 +44,14 @@ public class TestRunResponseAssembler {
         run.getPromptfooConfigSnapshotJson(),
         run.getDomainConfigHash(),
         run.getPromptfooConfigHash(),
-        targets.stream().map(this::toTarget).toList(),
-        evaluators.stream().map(this::toEvaluator).toList(),
+        targets.stream().map(mapper::toTarget).toList(),
+        evaluators.stream().map(mapper::toEvaluator).toList(),
         run.getStartedBy(),
         run.getStartedAt(),
         run.getFinishedAt(),
         run.getCancelRequestedAt(),
         run.getCreatedAt(),
         run.getUpdatedAt());
-  }
-
-  public TestRunTargetResponse toTarget(TestRunTarget target) {
-    return new TestRunTargetResponse(
-        target.getId(),
-        target.getTargetType(),
-        target.getChatbotTargetId(),
-        target.getProviderId(),
-        target.getModel(),
-        target.getName(),
-        target.getOrderIndex(),
-        target.getConfigJson());
-  }
-
-  public TestRunEvaluatorVersionResponse toEvaluator(TestRunEvaluatorVersion evaluator) {
-    return new TestRunEvaluatorVersionResponse(
-        evaluator.getId(),
-        evaluator.getEvaluatorId(),
-        evaluator.getEvaluatorVersionId(),
-        evaluator.getEvaluatorType(),
-        evaluator.getVersion(),
-        evaluator.getOrderIndex(),
-        evaluator.getConfigJson(),
-        evaluator.getRulesJson());
   }
 
   public TestCaseResultDetailResponse toResult(
@@ -159,7 +117,7 @@ public class TestRunResponseAssembler {
     return result.getPassed();
   }
 
-  private java.util.Map<String, Object> sanitize(java.util.Map<String, Object> value) {
+  private Map<String, Object> sanitize(Map<String, Object> value) {
     return masker.sanitizeMap(value).value();
   }
 }

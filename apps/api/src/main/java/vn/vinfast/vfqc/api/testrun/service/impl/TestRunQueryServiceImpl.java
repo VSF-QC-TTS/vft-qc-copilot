@@ -27,6 +27,7 @@ import vn.vinfast.vfqc.api.testrun.enums.TestRunStatus;
 import vn.vinfast.vfqc.api.testrun.repository.TestRunEvaluatorVersionRepository;
 import vn.vinfast.vfqc.api.testrun.repository.TestRunRepository;
 import vn.vinfast.vfqc.api.testrun.repository.TestRunTargetRepository;
+import vn.vinfast.vfqc.api.testrun.mapper.TestRunMapper;
 import vn.vinfast.vfqc.api.testrun.service.TestRunCommandService;
 import vn.vinfast.vfqc.api.testrun.service.TestRunHashService;
 import vn.vinfast.vfqc.api.testrun.service.TestRunQueryService;
@@ -47,6 +48,7 @@ public class TestRunQueryServiceImpl implements TestRunQueryService {
   private final TestRunCommandService commandService;
   private final TestRunStateMachine stateMachine;
   private final TestRunResponseAssembler assembler;
+  private final TestRunMapper mapper;
   private final Clock clock;
 
   @Override
@@ -56,7 +58,7 @@ public class TestRunQueryServiceImpl implements TestRunQueryService {
     projectPermissionService.requireProject(user, projectId, PermissionAction.VIEW);
     var page = testRunRepository.findByProjectIdOrderByCreatedAtDesc(projectId, pageable);
     return new CollectionResponse<>(
-        page.getContent().stream().map(assembler::toSummary).toList(),
+        page.getContent().stream().map(mapper::toSummary).toList(),
         new PageInfo(page.getSize(), null, page.hasNext()));
   }
 
