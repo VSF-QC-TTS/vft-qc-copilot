@@ -4,12 +4,14 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -280,7 +282,7 @@ public class DatasetImportServiceImpl implements DatasetImportService {
       throw ErrorCode.VALIDATION_ERROR.throwIt("Excel header row is required");
     }
     var headers = new ArrayList<String>();
-    var seen = new java.util.HashSet<String>();
+    var seen = new HashSet<String>();
     for (int cellIndex = 0; cellIndex < headerRow.getLastCellNum(); cellIndex++) {
       var raw = formatter.formatCellValue(headerRow.getCell(cellIndex)).trim();
       if (raw.isBlank()) {
@@ -346,7 +348,7 @@ public class DatasetImportServiceImpl implements DatasetImportService {
                 .createdBy(user.id())
                 .createdAt(now)
                 .build());
-    var nextOrder = new java.util.concurrent.atomic.AtomicInteger(0);
+    var nextOrder = new AtomicInteger(0);
     var copied =
         existingColumns.stream()
             .map(
@@ -423,8 +425,8 @@ public class DatasetImportServiceImpl implements DatasetImportService {
   private List<ImportMapping> validateMappings(
       List<String> sourceColumns, List<DatasetImportMappingDto> requestMappings) {
     var sourceSet = Set.copyOf(sourceColumns);
-    var mappedSources = new java.util.HashSet<String>();
-    var targetColumns = new java.util.HashSet<String>();
+    var mappedSources = new HashSet<String>();
+    var targetColumns = new HashSet<String>();
     var mappings = new ArrayList<ImportMapping>();
     for (var request : requestMappings) {
       var sourceColumn = normalizeColumnName(request.sourceColumn());
