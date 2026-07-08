@@ -1,6 +1,8 @@
 package vn.vinfast.vfqc.api.testrun.sse;
 
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,21 +33,25 @@ class InMemoryTestRunSseEmitterRegistry {
   }
 
   private void sendToAll(UUID testRunId, Set<SseEmitter> emitters, SseEmitter.SseEventBuilder event) {
+    var failedEmitters = new ArrayList<SseEmitter>();
     for (var emitter : emitters) {
       try {
         emitter.send(event);
       } catch (IOException | IllegalStateException exception) {
         log.debug("Removing failed SSE emitter: testRunId={}", testRunId, exception);
-        unregister(testRunId, emitter);
+        failedEmitters.add(emitter);
       }
     }
+    failedEmitters.forEach(emitter -> unregister(testRunId, emitter));
   }
 
   int activeEmitterCount(UUID testRunId) {
     return emittersByRun.getOrDefault(testRunId, Set.of()).size();
   }
 
+  @PreDestroy
   void completeAll() {
+    log.info("Shutting down SSE registry: completing all active emitters");
     emittersByRun.values().forEach(emitters -> emitters.forEach(SseEmitter::complete));
     emittersByRun.clear();
   }

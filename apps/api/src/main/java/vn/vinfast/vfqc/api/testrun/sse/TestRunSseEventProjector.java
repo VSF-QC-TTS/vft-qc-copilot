@@ -3,6 +3,7 @@ package vn.vinfast.vfqc.api.testrun.sse;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import vn.vinfast.vfqc.api.common.masking.VfqcSensitiveDataMasker;
@@ -11,6 +12,15 @@ import vn.vinfast.vfqc.api.runner.entity.RunnerEvent;
 @Component
 @RequiredArgsConstructor
 class TestRunSseEventProjector {
+
+  private static final Set<String> UNSAFE_KEYS =
+      Set.of(
+          "request", "response", "headers", "body", "raw",
+          "rawrequest", "rawresponse", "rawcurl",
+          "runtimesecrets", "secretbundle",
+          "promptfooconfig", "promptfooconfigsnapshot",
+          "domainconfigsnapshot", "artifactcontent",
+          "fulllog", "fulllogs");
 
   private final VfqcSensitiveDataMasker masker;
 
@@ -57,22 +67,6 @@ class TestRunSseEventProjector {
 
   private boolean isUnsafeKey(String key) {
     var normalized = key.toLowerCase().replace("_", "").replace("-", "").replace(" ", "");
-    return normalized.equals("request")
-        || normalized.equals("response")
-        || normalized.equals("headers")
-        || normalized.equals("body")
-        || normalized.equals("raw")
-        || normalized.equals("rawrequest")
-        || normalized.equals("rawresponse")
-        || normalized.equals("rawcurl")
-        || normalized.equals("runtimeSecrets")
-        || normalized.equals("runtimesecrets")
-        || normalized.equals("secretbundle")
-        || normalized.equals("promptfooconfig")
-        || normalized.equals("promptfooconfigsnapshot")
-        || normalized.equals("domainconfigsnapshot")
-        || normalized.equals("artifactcontent")
-        || normalized.equals("fulllog")
-        || normalized.equals("fulllogs");
+    return UNSAFE_KEYS.contains(normalized);
   }
 }
