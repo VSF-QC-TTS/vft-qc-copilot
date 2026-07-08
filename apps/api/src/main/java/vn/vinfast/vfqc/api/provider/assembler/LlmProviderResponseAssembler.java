@@ -1,9 +1,12 @@
 package vn.vinfast.vfqc.api.provider.assembler;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import vn.vinfast.vfqc.api.provider.dto.LlmProviderResponse;
@@ -13,6 +16,7 @@ import vn.vinfast.vfqc.api.secret.dto.SecretSummaryResponse;
 import vn.vinfast.vfqc.api.secret.entity.Secret;
 import vn.vinfast.vfqc.api.secret.mapper.SecretMapper;
 import vn.vinfast.vfqc.api.secret.repository.SecretRepository;
+import vn.vinfast.vfqc.api.user.dto.UserSummaryResponse;
 import vn.vinfast.vfqc.api.user.service.UserSummaryService;
 
 @Component
@@ -33,7 +37,7 @@ public class LlmProviderResponseAssembler {
                 .findById(provider.getSecretId())
                 .orElse(null);
     var userIds =
-        java.util.stream.Stream.of(
+        Stream.of(
                 provider.getOwnerUserId(), secretEntity == null ? null : secretEntity.getOwnerUserId())
             .filter(Objects::nonNull)
             .toList();
@@ -55,7 +59,7 @@ public class LlmProviderResponseAssembler {
         secretRepository.findAllById(secretIds).stream()
             .collect(Collectors.toMap(Secret::getId, Function.identity()));
     var userIds =
-        java.util.stream.Stream.concat(
+        Stream.concat(
                 providers.stream().map(LlmProvider::getOwnerUserId),
                 secretEntitiesById.values().stream().map(Secret::getOwnerUserId))
             .filter(Objects::nonNull)
@@ -77,7 +81,7 @@ public class LlmProviderResponseAssembler {
   }
 
   private SecretSummaryResponse toSecretSummary(
-      Secret secret, java.util.Map<java.util.UUID, vn.vinfast.vfqc.api.user.dto.UserSummaryResponse> usersById) {
+      Secret secret, Map<UUID, UserSummaryResponse> usersById) {
     var summary = secretMapper.toSummary(secret);
     return new SecretSummaryResponse(
         summary.id(),
@@ -89,9 +93,9 @@ public class LlmProviderResponseAssembler {
         summary.status());
   }
 
-  private vn.vinfast.vfqc.api.user.dto.UserSummaryResponse userOrNull(
-      java.util.Map<java.util.UUID, vn.vinfast.vfqc.api.user.dto.UserSummaryResponse> usersById,
-      java.util.UUID userId) {
+  private UserSummaryResponse userOrNull(
+      Map<UUID, UserSummaryResponse> usersById,
+      UUID userId) {
     return userId == null ? null : usersById.get(userId);
   }
 }
