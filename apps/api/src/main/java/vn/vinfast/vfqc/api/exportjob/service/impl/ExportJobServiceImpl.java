@@ -17,6 +17,7 @@ import vn.vinfast.vfqc.api.exportjob.enums.ExportJobStatus;
 import vn.vinfast.vfqc.api.exportjob.enums.ExportJobType;
 import vn.vinfast.vfqc.api.exportjob.enums.ExportResultMode;
 import vn.vinfast.vfqc.api.exportjob.event.ExportJobCreatedEvent;
+import vn.vinfast.vfqc.api.exportjob.mapper.ExportJobMapper;
 import vn.vinfast.vfqc.api.exportjob.repository.ExportJobRepository;
 import vn.vinfast.vfqc.api.exportjob.service.ExportJobService;
 import vn.vinfast.vfqc.api.testrun.service.TestRunExportService;

@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.vinfast.vfqc.api.common.error.ErrorCode;
@@ -11,6 +12,7 @@ import vn.vinfast.vfqc.api.exportjob.entity.ExportJob;
 import vn.vinfast.vfqc.api.exportjob.enums.ExportJobStatus;
 import vn.vinfast.vfqc.api.exportjob.repository.ExportJobRepository;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 class ExportJobStatusService {
@@ -26,6 +28,7 @@ class ExportJobStatusService {
     }
     job.setStatus(ExportJobStatus.RUNNING);
     job.setStartedAt(OffsetDateTime.now(clock));
+    log.info("Export job marked as RUNNING: jobId={}", jobId);
     return job;
   }
 
@@ -43,6 +46,7 @@ class ExportJobStatusService {
     job.setFileSizeBytes(fileSizeBytes);
     job.setFinishedAt(OffsetDateTime.now(clock));
     job.setExpiresAt(expiresAt);
+    log.info("Export job marked as COMPLETED: jobId={}, fileSizeBytes={}", jobId, fileSizeBytes);
   }
 
   @Transactional
@@ -52,5 +56,6 @@ class ExportJobStatusService {
     job.setErrorCode(errorCode);
     job.setErrorMessage(errorMessage);
     job.setFinishedAt(OffsetDateTime.now(clock));
+    log.warn("Export job marked as FAILED: jobId={}, errorCode={}", jobId, errorCode);
   }
 }
