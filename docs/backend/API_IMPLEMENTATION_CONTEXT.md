@@ -1,6 +1,6 @@
 # Backend API Implementation Context
 
-Last checked: 2026-07-07 22:18 Asia/Bangkok.
+Last checked: 2026-07-08 14:15 Asia/Bangkok.
 
 Purpose: this is the short handoff file for the next agent/session. Read this first before re-reading all backend docs. It summarizes `docs/backend/README.md`, `docs/backend/IMPLEMENTATION_ORDER.md`, and the current `apps/api` implementation state.
 
@@ -23,9 +23,33 @@ Command run from `apps/api`:
 rtk bash mvnw test
 ```
 
-Result: build success. Maven compiled the backend and ran 111 tests successfully.
+Result: build success. Maven compiled the backend and ran 124 tests successfully.
 
-Coverage currently includes compile wiring, auth email-token service behavior, auth endpoint integration for register/verify/login/refresh/logout/forgot/reset, personal workspace onboarding, admin user invite service flow, admin API role boundary, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled/deleted-secret provider create/update/test rejection, secret scope lookup rejection, provider config response/persistence sanitization, provider create/update sanitization and scope lookup, provider soft-delete hidden 404 behavior, provider test history limit clamping, provider test log sanitization, provider status updates, workspace provider non-member hidden 404 behavior, workspace viewer mutation denial for secrets/providers, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace/project permission role boundaries, hidden 404 behavior for non-members, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, draft discard lifecycle, duplicate-draft rejection, row-count recalculation/copy behavior, required/unknown cell validation, publish/archive and ACTIVE immutability, Excel dataset import preview/confirm with schema extension, import permission boundary, import invalid-state and required-column validation, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, evaluator create/version/update/validation/setup-status behavior, evaluator viewer boundary, evaluator custom JavaScript rejection, evaluator duplicate-name/soft-delete/version-read/LLM provider invalid-state/MIXED validation hardening, TestRun preflight/create snapshot/state/review/matrix behavior, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 2/3/4/5/6/7/8 endpoint/security/persistence behavior.
+Additional verification after Phase 9 runner work started:
+
+```bash
+rtk bash mvnw -Dtest=Phase9RunnerIntegrationTest test
+```
+
+Result: build success. Maven ran 5 Phase 9 runner integration tests successfully against PostgreSQL and Redis Testcontainers.
+
+Additional verification after Phase 10 SSE work:
+
+```bash
+rtk bash mvnw -Dtest=Phase10SseIntegrationTest,Phase9RunnerIntegrationTest test
+```
+
+Result: build success. Maven ran 11 integration tests successfully against PostgreSQL and Redis Testcontainers.
+
+Additional verification after Phase 11 export job work:
+
+```bash
+rtk bash mvnw -Dtest=Phase9RunnerIntegrationTest,Phase10SseIntegrationTest,Phase11ExportJobIntegrationTest test
+```
+
+Result: build success. Maven ran 13 integration tests successfully against PostgreSQL and Redis Testcontainers.
+
+Coverage currently includes compile wiring, auth email-token service behavior, auth endpoint integration for register/verify/login/refresh/logout/forgot/reset, personal workspace onboarding, admin user invite service flow, admin API role boundary, Auth controller delegation, Secret/Provider controller delegation, request DTO validation, secret encryption, secret preview safety, secret rotate/delete safety, disabled/deleted-secret provider create/update/test rejection, secret scope lookup rejection, provider config response/persistence sanitization, provider create/update sanitization and scope lookup, provider soft-delete hidden 404 behavior, provider test history limit clamping, provider test log sanitization, provider status updates, workspace provider non-member hidden 404 behavior, workspace viewer mutation denial for secrets/providers, request-shape and error/preview contract tests for the three provider clients, `/api/**` vs `/internal/runner/**` security boundary checks, workspace/project permission role boundaries, hidden 404 behavior for non-members, workspace member response user summaries, dataset default-schema bootstrap, dataset row hash add/patch behavior, draft discard lifecycle, duplicate-draft rejection, row-count recalculation/copy behavior, required/unknown cell validation, publish/archive and ACTIVE immutability, Excel dataset import preview/confirm with schema extension, import permission boundary, import invalid-state and required-column validation, cURL sanitization/parsing, target SSRF URL validation, target inspect endpoint behavior, target secret-binding persistence masking, response extraction, target config validation, evaluator create/version/update/validation/setup-status behavior, evaluator viewer boundary, evaluator custom JavaScript rejection, evaluator duplicate-name/soft-delete/version-read/LLM provider invalid-state/MIXED validation hardening, TestRun preflight/create snapshot/state/review/matrix behavior, Phase 9 runner command/config/secret/event/cancel behavior, Phase 10 SSE auth/permission/replay/masking/heartbeat behavior, Phase 11 dataset/TestRun XLSX export job/download/formula-sanitization behavior, and PostgreSQL Testcontainers + `@SpringBootTest` + MockMvc integration coverage for Phase 2/3/4/5/6/7/8/9/10/11 endpoint/security/persistence behavior.
 
 ## Current Source Shape
 
@@ -35,19 +59,15 @@ Implemented Java packages under `apps/api/src/main/java/vn/vinfast/vfqc/api`:
 - `common`
 - `dataset`
 - `evaluator`
+- `exportjob`
 - `provider`
 - `project`
 - `secret`
 - `target`
 - `testrun`
+- `runner`
 - `user`
 - `workspace`
-
-Not found as implemented source packages yet:
-
-- `runner`
-- `sse`
-- `export`
 
 Current migrations:
 
@@ -71,6 +91,12 @@ Current migrations:
 - `apps/api/src/main/resources/db/migration/V7__test_runs.sql`
   - Creates `test_runs`, `test_run_targets`, `test_run_evaluator_versions`, `test_case_results`, and `test_case_result_reviews`.
   - Adds Phase 8 read/query indexes for project run lists, run targets, evaluator snapshots, testcase result lookup, and reviewer lookup.
+- `apps/api/src/main/resources/db/migration/V8__runner_execution.sql`
+  - Creates `runner_instances`, `runner_commands`, and `runner_events` for Phase 9 runner execution plumbing.
+  - Adds indexes for runner heartbeat/status lookup, command status/run lookup, command stream id lookup, event run sequence lookup, event status lookup, and event stream id lookup.
+- `apps/api/src/main/resources/db/migration/V9__export_jobs.sql`
+  - Creates `export_jobs` for Phase 11 shared dataset version and TestRun result export jobs.
+  - Adds indexes for created-by, dataset-version, and TestRun export job lookup.
 
 ## Phase Status Against IMPLEMENTATION_ORDER.md
 
@@ -303,7 +329,7 @@ Implemented:
 - `TestRun`, `TestRunTarget`, `TestRunEvaluatorVersion`, `TestCaseResult`, and `TestCaseResultReview` JPA mappings backed by V7 migration.
 - TestRun preflight endpoint that checks project access, active dataset version/rows, active target readiness, evaluator versions, field-source compatibility, and provider state blockers without mutating state.
 - Create-run flow that locks sanitized domain and Promptfoo snapshots, hashes them, stores target/evaluator version snapshots, and returns run detail.
-- Phase 8 `TestRunCommandService` is intentionally no-op; no `runner_commands` table or Redis publish exists yet.
+- Create-run now delegates to the Phase 9 `TestRunCommandService` implementation, which persists and publishes runner commands after the run snapshot is locked.
 - TestRun list/detail/cancel APIs with documented state-machine enforcement.
 - Result list/detail APIs with FINAL vs MACHINE read models, sanitized response fields, and immutable machine result behavior.
 - QC review upsert API that stores review override separately from machine results.
@@ -315,19 +341,87 @@ Implemented:
 Still missing or partial:
 
 - Fine-grained `RUN_START`, `RUN_CANCEL`, and `RESULT_REVIEW` permission actions are documented but not yet implemented in `PermissionAction`; Phase 8 uses existing `VIEW`/`EDIT`.
-- No runner command persistence, Redis START_RUN publish, runner config fetch, runtime secret bundle, or runner event ingestion yet.
 - No artifact metadata/download API yet.
-- Result machine rows are currently expected to be produced by later runner/internal APIs or tests; frontend cannot create machine results.
+- Result machine rows are now produced by Phase 9 internal runner event ingestion; frontend still cannot create machine results.
 
-### Phase 9+ - Runner, SSE, Export
+### Phase 9 - Runner Internal APIs and Redis Event Consumer
 
-Status: not implemented in source.
+Status: runner core mostly implemented and hardened; artifact metadata is deferred to the dedicated artifact/export scope.
 
-No source packages/controllers/services found for:
+Implemented:
 
-- Runner command/event ingestion
-- SSE realtime projection
-- Export jobs/downloads
+- `runner` entity/repository/controller/service/service impl foundation.
+- `RunnerInstance`, `RunnerCommand`, and `RunnerEvent` JPA mappings backed by V8 migration.
+- Runner instance register and heartbeat endpoints under `/internal/runner/instances`.
+- Locked TestRun config fetch endpoint under `/internal/runner/test-runs/{testRunId}/config`.
+- Runtime secret resolution endpoint under `/internal/runner/test-runs/{testRunId}/runtime-secrets`.
+- Control-state endpoint under `/internal/runner/test-runs/{testRunId}/control-state`.
+- Runner event ingestion endpoint under `/internal/runner/events`.
+- `START_RUN` command persistence and compact Redis stream publish after TestRun creation.
+- Running-run cancellation now publishes durable `CANCEL_RUN` commands; queued-run cancellation stays local.
+- Locked target/evaluator snapshots include runtime-only secret/provider references while keeping plaintext secrets out of persisted snapshots and Redis payloads.
+- Runtime secret endpoint resolves only secrets referenced by the locked TestRun snapshot.
+- Runtime secret resolution bulk-loads requested active secrets to avoid per-secret N+1 lookups.
+- Runner event ingestion is idempotent by event id, rejects mismatched duplicate metadata, and re-checks after locking the TestRun to close concurrent duplicate races.
+- Redis runner event consumer now uses a consumer group, retries pending messages, ACKs only after successful DB ingestion, and sends sanitized poison messages to DLQ after retry exhaustion.
+- `RUN_STARTED`, `TESTCASE_COMPLETED`, `RUN_COMPLETED`, `RUN_FAILED`, duplicate-event rejection, Redis poison-message DLQ, runner token API boundary, and cancellation flow are covered by Phase 9 integration tests.
+- Testcase result ingestion sanitizes request/response/machine summary before persistence.
+
+Still missing or partial:
+
+- Runner artifact metadata ingest/download APIs are not implemented.
+- Runner instance assignment/claiming is minimal; current command publish is compact and does not include full execution config by design.
+- Richer progress/artifact events can be added when the runner contract needs UI-level progress beyond current run/result state.
+
+### Phase 10 - SSE Realtime Projection
+
+Status: implemented for MVP single API instance.
+
+Implemented:
+
+- `GET /api/v1/test-runs/{testRunId}/events` using Spring MVC `SseEmitter`.
+- Project `PermissionAction.VIEW` check via `test_runs.project_id -> projects.workspace_id`.
+- `Last-Event-ID` header has priority over `afterSequenceNo`; no cursor replays from sequence `0` with a 500-event cap.
+- Replay reads persisted `runner_events` ordered by `(testRunId, sequenceNo)` with `PageRequest`, not Redis.
+- SSE event `id` equals `runner_events.sequence_no`; event name equals `RunnerEventType`.
+- Payloads are projected through a dedicated SSE projector that re-sanitizes values and strips unsafe large/raw fields such as request, response, headers, body, raw curl, runtime secrets, promptfoo config, and artifact content.
+- In-memory emitter registry handles completion, timeout, send failure, client disconnect cleanup, and heartbeat fanout.
+- `RunnerEventIngestionServiceImpl` publishes `RunnerEventCommittedEvent`; `TestRunSseEventListener` broadcasts with `@TransactionalEventListener(AFTER_COMMIT)` and `@Async`, so frontend broadcasts do not happen before DB commit.
+- Scheduling is enabled for periodic SSE heartbeat comments; heartbeats are not persisted and do not allocate sequence numbers.
+
+Still missing or partial:
+
+- Multi-instance realtime fanout is not implemented; replay from DB works, but live emitter registry is in-memory per API instance.
+- Connection limit enforcement is not implemented yet.
+
+### Phase 11 - Export Jobs
+
+Status: implemented for MVP local-storage XLSX exports.
+
+Implemented:
+
+- `exportjob` controller/dto/entity/enums/repository/service/service impl foundation.
+- `ExportJob` JPA mapping backed by V9 migration.
+- Shared `ExportJobService`, `ExportJobWorker`, `ExportDownloadService`, `ExportFileWriter`, and `ExportFileNamePolicy`.
+- Local storage abstraction under `common/storage` with path traversal protection and typed `vfqc.export` configuration defaults.
+- `POST /api/v1/dataset-versions/{datasetVersionId}/export-jobs` creates a dataset version XLSX export job.
+- `POST /api/v1/test-runs/{testRunId}/export-jobs` creates a TestRun result XLSX export job; `resultMode` defaults to `FINAL`.
+- `GET /api/v1/export-jobs/{jobId}` returns job status without exposing internal `filePath`.
+- `GET /api/v1/export-jobs/{jobId}/download` re-checks source permission, requires `COMPLETED`, hides inaccessible/expired jobs as 404, and returns an attachment `Resource`.
+- Export creation publishes `ExportJobCreatedEvent`; `ExportJobCreatedEventListener` runs the worker with `@TransactionalEventListener(AFTER_COMMIT)` and `@Async`, so worker reads only committed source/job state.
+- Worker status transitions are isolated in `ExportJobStatusService` instead of wrapping XLSX generation/storage IO in one long transaction.
+- Dataset export loads schema columns once and dataset rows in pages.
+- TestRun export loads result pages and batch-loads reviews/dataset rows/targets per page to avoid per-result N+1 queries.
+- XLSX writer uses Apache POI `SXSSFWorkbook`, re-masks token-like string values through `VfqcSensitiveDataMasker`, and applies `FormulaInjectionSanitizer` to every string cell.
+- Failed export jobs store safe sanitized error code/message, not stack traces.
+- Phase 11 integration tests cover dataset export XLSX content, formula injection sanitization, token masking, hidden internal file path, TestRun FINAL result default, review override export, download permission re-check, and clean-DB Flyway V9 validation.
+
+Still missing or partial:
+
+- Storage is local filesystem MVP; production multi-instance deployments need shared object storage or sticky worker/download routing.
+- No export cleanup/expiry scheduled job yet; jobs get `expiresAt`, but file deletion/EXPIRED transition is deferred.
+- CSV format is not implemented; MVP supports XLSX only.
+- Very large exports still materialize row models before writing; pagination avoids N+1 but a streaming row cursor/writer would be better for high-volume runs.
 
 ## API Surface Currently Present
 
@@ -386,6 +480,7 @@ Dataset:
 - `POST /api/v1/projects/{projectId}/dataset-import-jobs`
 - `GET /api/v1/dataset-import-jobs/{importJobId}`
 - `POST /api/v1/dataset-import-jobs/{importJobId}/confirm`
+- `POST /api/v1/dataset-versions/{datasetVersionId}/export-jobs`
 
 Secrets:
 
@@ -449,6 +544,21 @@ Test Runs:
 - `GET /api/v1/test-case-results/{resultId}`
 - `PUT /api/v1/test-case-results/{resultId}/review`
 - `GET /api/v1/test-runs/{testRunId}/comparison-matrix`
+- `POST /api/v1/test-runs/{testRunId}/export-jobs`
+
+Export Jobs:
+
+- `GET /api/v1/export-jobs/{jobId}`
+- `GET /api/v1/export-jobs/{jobId}/download`
+
+Internal Runner:
+
+- `POST /internal/runner/instances/register`
+- `POST /internal/runner/instances/heartbeat`
+- `GET /internal/runner/test-runs/{testRunId}/config`
+- `POST /internal/runner/test-runs/{testRunId}/runtime-secrets`
+- `GET /internal/runner/test-runs/{testRunId}/control-state`
+- `POST /internal/runner/events`
 
 ## Coding Style And Conventions
 
@@ -479,12 +589,11 @@ Follow the current project style when adding new backend code:
 
 ## Recommended Next Work
 
-1. Add focused tests for what already exists before building later modules:
+1. Add focused tests for what already exists before frontend/deploy work:
    - naming unit tests
-   - dataset import/export edge cases once export is implemented
+   - dataset import/export edge cases for larger workbooks, empty sheets, duplicated headers, and expired exports
 
 2. Close Phase 1 gaps if they are still required:
-   - storage abstraction with path traversal protection
    - Redis stream names/constants
    - common JSON/time helpers only if code actually needs them
 
@@ -498,21 +607,32 @@ Follow the current project style when adding new backend code:
    - add richer outbound target fixtures if product needs redirect-following or provider-like target simulations
    - wire stored target config into later Promptfoo/TestRun runner conversion
 
-5. Continue with Phase 9 runner/internal execution plumbing:
-   - add runner command persistence or queue integration according to the Phase 9 design
-   - publish START_RUN work to Redis once stream naming/config is finalized
-   - expose internal runner config/result ingestion APIs that consume locked Phase 8 snapshots
-   - add result ingestion tests for status transitions, machine result immutability, and sanitized response projection
+5. Finish Phase 9 runner/internal execution plumbing:
+   - add explicit DLQ/retry/pending recovery tests for Redis event consumption
+   - complete `RUN_FAILED` and richer progress-event ingestion behavior
+   - add runner artifact metadata ingestion if Phase 9 scope still requires it before Export
+   - harden runner instance assignment/claiming and command acknowledgement semantics
+   - keep Redis command/event payloads compact and reference-only
 
 6. Harden Phase 8 TestRun after runner integration:
    - add fine-grained `RUN_START`, `RUN_CANCEL`, and `RESULT_REVIEW` permission actions if the product authorization model requires them
    - add pagination/filter edge-case tests for run list and result list endpoints
    - add broader comparison-matrix fixtures once multiple targets/evaluators are populated by runner ingestion
-   - keep `TestRunCommandService` no-op until Phase 9 explicitly introduces dispatch side effects
 
-7. Phase 5 is ready for later phases; add real provider fixtures only if the product needs provider-specific response parsing beyond raw preview behavior.
+7. Harden Phase 11 export jobs for production deployment:
+   - replace local filesystem storage with shared object storage if API instances are horizontally scaled
+   - add cleanup job that marks expired exports and deletes stored files
+   - add CSV only if the API contract/product requires it
+   - stream very large exports instead of materializing all row models in memory
 
-8. Harden auth mail flows before production use:
+8. Phase 10 can be hardened later if deployment needs multiple API instances or connection limits:
+   - add distributed fanout or sticky-session policy
+   - add per-user/per-run SSE connection limits
+   - add explicit replay-unavailable error policy if runner event retention is introduced
+
+9. Phase 5 is ready for later phases; add real provider fixtures only if the product needs provider-specific response parsing beyond raw preview behavior.
+
+10. Harden auth mail flows before production use:
    - add rate limiting for login, forgot password, and token verification attempts
    - add SMTP configuration documentation and delivery failure policy
    - decide final product policy for `ADMIN_ONLY` vs `SELF_VERIFY` registration mode
@@ -520,8 +640,9 @@ Follow the current project style when adding new backend code:
 
 ## Caveats For Next Agent
 
-- Worktree state should be checked with `rtk git status --short`; this file was last updated during Phase 8 TestRun MVP implementation.
+- Worktree state should be checked with `rtk git status --short`; this file was last updated after Phase 11 export job work.
 - `apps/api/target` may exist because `mvnw test` was run.
-- Tests passing now cover 111 backend tests: compile, auth mail/register/forgot/reset service and controller slices, auth endpoint integration, email-token hashing/expiry/consume behavior, personal workspace onboarding, admin invite service flow, admin API role boundary, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, workspace/project role boundaries, hidden 404 behavior, workspace member response user summaries, dataset row hash/publish/default-schema/discard/row-count/schema-validation/import behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, evaluator create/version/update/validation/setup-status/duplicate-name/soft-delete/version-read/invalid-provider/MIXED behavior, TestRun preflight/create locked-snapshot/state/review/comparison-matrix behavior, and Phase 2/3/4/5/6/7/8 Spring MVC/security/PostgreSQL integration coverage.
+- Tests passing now cover 124 backend tests: compile, auth mail/register/forgot/reset service and controller slices, auth endpoint integration, email-token hashing/expiry/consume behavior, personal workspace onboarding, admin invite service flow, admin API role boundary, controller delegation, DTO validation, Spring Crypto encryption round-trip with `spring-crypto:aes-gcm:v1:` payloads, secret create/rotate/delete safety, disabled-secret provider-test rejection, fixed masked preview safety, secret scope rejection, provider config sanitization, provider create/update sanitization, provider client request/error/preview contracts, provider test history clamping, provider test log sanitization, security-chain separation, workspace/project role boundaries, hidden 404 behavior, workspace member response user summaries, dataset row hash/publish/default-schema/discard/row-count/schema-validation/import behavior, cURL sanitization/parsing, target URL SSRF validation, target inspect endpoint behavior, target config validation, response extraction, target create persistence masking, evaluator create/version/update/validation/setup-status/duplicate-name/soft-delete/version-read/invalid-provider/MIXED behavior, TestRun preflight/create locked-snapshot/state/review/comparison-matrix behavior, Phase 9 runner command/config/secret/event/cancel/DLQ behavior, Phase 10 SSE auth/permission/replay/invalid-cursor/masking/heartbeat behavior, Phase 11 dataset/TestRun export job/download/formula-sanitization behavior, and Phase 2/3/4/5/6/7/8/9/10/11 Spring MVC/security/PostgreSQL/Redis integration coverage.
+- Additional targeted Phase 9/10/11 verification passed with 13 integration tests covering compact `START_RUN` publish, locked config fetch, runtime secret resolution, idempotent event ingest, sanitized testcase result persistence, run completion, `RUN_FAILED`, duplicate-event metadata rejection, Redis retry/DLQ sanitization, runner token API isolation, running-run cancel command publishing, SSE subscription auth/permission, replay after cursor, no-cursor replay, invalid cursor validation, stream payload stripping, heartbeat non-persistence, broken emitter cleanup, dataset XLSX export, TestRun FINAL result export, download permission re-check, hidden internal file path, formula injection neutralization, and export token masking.
 - JavaMail usage follows Spring Boot 4.0.7/Spring Framework 7 docs: rely on `JavaMailSender` auto-configuration when `spring.mail.host` is configured; use `MimeMessage`/`MimeMessageHelper`; set SMTP timeouts through `spring.mail.properties[...]`.
 - Mail is now delivered asynchronously via `MailSendEvent` + `MailSendEventListener` after transaction commit. `@EnableAsync` is on the main application class.
