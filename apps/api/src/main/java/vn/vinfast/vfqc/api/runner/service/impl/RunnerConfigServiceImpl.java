@@ -10,9 +10,7 @@ import vn.vinfast.vfqc.api.common.error.ErrorCode;
 import vn.vinfast.vfqc.api.dataset.repository.DatasetRowRepository;
 import vn.vinfast.vfqc.api.runner.dto.RunnerControlStateResponse;
 import vn.vinfast.vfqc.api.runner.dto.RunnerTestRunConfigResponse;
-import vn.vinfast.vfqc.api.runner.dto.RunnerTestRunConfigResponse.DatasetRowSnapshot;
-import vn.vinfast.vfqc.api.runner.dto.RunnerTestRunConfigResponse.EvaluatorSnapshot;
-import vn.vinfast.vfqc.api.runner.dto.RunnerTestRunConfigResponse.TargetSnapshot;
+import vn.vinfast.vfqc.api.runner.mapper.RunnerMapper;
 import vn.vinfast.vfqc.api.runner.service.RunnerConfigService;
 import vn.vinfast.vfqc.api.testrun.enums.TestRunStatus;
 import vn.vinfast.vfqc.api.testrun.repository.TestRunEvaluatorVersionRepository;
@@ -28,6 +26,7 @@ public class RunnerConfigServiceImpl implements RunnerConfigService {
   private final TestRunTargetRepository targetRepository;
   private final TestRunEvaluatorVersionRepository evaluatorRepository;
   private final DatasetRowRepository rowRepository;
+  private final RunnerMapper mapper;
 
   @Override
   @Transactional(readOnly = true)
@@ -36,35 +35,15 @@ public class RunnerConfigServiceImpl implements RunnerConfigService {
     var run = testRunRepository.findById(testRunId).orElseThrow(ErrorCode.RESOURCE_NOT_FOUND::throwIt);
     var rows =
         rowRepository.findByDatasetVersionIdOrderByRowIndexAsc(run.getDatasetVersionId(), pageable).stream()
-            .map(row -> new DatasetRowSnapshot(row.getId(), row.getRowIndex(), row.getCellsJson(), row.getRevision(), row.getRowHash()))
+            .map(mapper::toRowSnapshot)
             .toList();
     var targets =
         targetRepository.findByTestRunIdOrderByOrderIndexAsc(testRunId).stream()
-            .map(
-                target ->
-                    new TargetSnapshot(
-                        target.getId(),
-                        target.getTargetType(),
-                        target.getChatbotTargetId(),
-                        target.getProviderId(),
-                        target.getModel(),
-                        target.getName(),
-                        target.getOrderIndex(),
-                        target.getConfigJson()))
+            .map(mapper::toTargetSnapshot)
             .toList();
     var evaluators =
         evaluatorRepository.findByTestRunIdOrderByOrderIndexAsc(testRunId).stream()
-            .map(
-                evaluator ->
-                    new EvaluatorSnapshot(
-                        evaluator.getId(),
-                        evaluator.getEvaluatorId(),
-                        evaluator.getEvaluatorVersionId(),
-                        evaluator.getEvaluatorType().name(),
-                        evaluator.getVersion(),
-                        evaluator.getOrderIndex(),
-                        evaluator.getConfigJson(),
-                        evaluator.getRulesJson()))
+            .map(mapper::toEvaluatorSnapshot)
             .toList();
     return new RunnerTestRunConfigResponse(
         run.getId(),
@@ -94,3 +73,4 @@ public class RunnerConfigServiceImpl implements RunnerConfigService {
         run.getStatus() == TestRunStatus.CANCEL_REQUESTED || run.getCancelRequestedAt() != null);
   }
 }
+

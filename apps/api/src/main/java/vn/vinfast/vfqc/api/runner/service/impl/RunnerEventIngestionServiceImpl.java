@@ -1,10 +1,12 @@
 package vn.vinfast.vfqc.api.runner.service.impl;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -128,7 +130,7 @@ public class RunnerEventIngestionServiceImpl implements RunnerEventIngestionServ
     metrics.put("passed", passed);
     metrics.put("failed", failed);
     metrics.put("errored", errored);
-    metrics.put("passRate", total == 0 ? BigDecimal.ZERO : BigDecimal.valueOf(passed).divide(BigDecimal.valueOf(total), 4, java.math.RoundingMode.HALF_UP));
+    metrics.put("passRate", total == 0 ? BigDecimal.ZERO : BigDecimal.valueOf(passed).divide(BigDecimal.valueOf(total), 4, RoundingMode.HALF_UP));
     run.setSummaryMetricsJson(metrics);
   }
 
@@ -191,15 +193,15 @@ public class RunnerEventIngestionServiceImpl implements RunnerEventIngestionServ
     return masker.sanitizeMap(payload == null ? Map.of() : payload).value();
   }
 
-  private java.util.Optional<Integer> integer(Map<String, Object> payload, String key) {
+  private Optional<Integer> integer(Map<String, Object> payload, String key) {
     var value = payload.get(key);
     if (value instanceof Number number) {
-      return java.util.Optional.of(number.intValue());
+      return Optional.of(number.intValue());
     }
     if (value instanceof String string && !string.isBlank()) {
-      return java.util.Optional.of(Integer.parseInt(string));
+      return Optional.of(Integer.parseInt(string));
     }
-    return java.util.Optional.empty();
+    return Optional.empty();
   }
 
   private Long longValue(Map<String, Object> payload, String key) {

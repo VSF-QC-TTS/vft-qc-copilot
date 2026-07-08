@@ -3,6 +3,7 @@ package vn.vinfast.vfqc.api.runner.service.impl;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.stream.RecordId;
@@ -85,13 +86,13 @@ public class RunnerTestRunCommandService implements TestRunCommandService {
     publish(command.getId());
   }
 
-  private void publish(java.util.UUID commandId) {
+  private void publish(UUID commandId) {
     var template = new TransactionTemplate(transactionManager);
     template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     template.executeWithoutResult(status -> publishInTransaction(commandId));
   }
 
-  private void publishInTransaction(java.util.UUID commandId) {
+  private void publishInTransaction(UUID commandId) {
     var command = commandRepository.findById(commandId).orElseThrow();
     try {
       var payload =

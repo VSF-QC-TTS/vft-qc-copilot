@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import vn.vinfast.vfqc.api.project.repository.ProjectRepository;
 import vn.vinfast.vfqc.api.runner.dto.RunnerRuntimeSecretsRequest;
 import vn.vinfast.vfqc.api.runner.dto.RunnerRuntimeSecretsResponse;
 import vn.vinfast.vfqc.api.runner.service.RunnerRuntimeSecretService;
+import vn.vinfast.vfqc.api.secret.entity.Secret;
 import vn.vinfast.vfqc.api.secret.enums.SecretStatus;
 import vn.vinfast.vfqc.api.secret.repository.SecretRepository;
 import vn.vinfast.vfqc.api.secret.service.SecretEncryptionService;
@@ -47,7 +49,7 @@ public class RunnerRuntimeSecretServiceImpl implements RunnerRuntimeSecretServic
     }
     var secretsById =
         secretRepository.findByIdInAndStatusAndDeletedAtIsNull(new LinkedHashSet<>(requested), SecretStatus.ACTIVE).stream()
-            .collect(java.util.stream.Collectors.toMap(vn.vinfast.vfqc.api.secret.entity.Secret::getId, secret -> secret));
+            .collect(Collectors.toMap(Secret::getId, secret -> secret));
     var values = new LinkedHashMap<String, String>();
     for (var secretId : requested) {
       var secret = secretsById.get(secretId);

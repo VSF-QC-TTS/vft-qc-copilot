@@ -11,6 +11,7 @@ import vn.vinfast.vfqc.api.runner.dto.RunnerHeartbeatRequest;
 import vn.vinfast.vfqc.api.runner.dto.RunnerInstanceResponse;
 import vn.vinfast.vfqc.api.runner.entity.RunnerInstance;
 import vn.vinfast.vfqc.api.runner.enums.RunnerInstanceStatus;
+import vn.vinfast.vfqc.api.runner.mapper.RunnerMapper;
 import vn.vinfast.vfqc.api.runner.repository.RunnerInstanceRepository;
 import vn.vinfast.vfqc.api.runner.service.RunnerInstanceService;
 
@@ -20,6 +21,7 @@ import vn.vinfast.vfqc.api.runner.service.RunnerInstanceService;
 public class RunnerInstanceServiceImpl implements RunnerInstanceService {
 
   private final RunnerInstanceRepository repository;
+  private final RunnerMapper mapper;
   private final Clock clock;
 
   @Override
@@ -41,7 +43,7 @@ public class RunnerInstanceServiceImpl implements RunnerInstanceService {
     runner.setStatus(RunnerInstanceStatus.IDLE);
     runner.setLastHeartbeatAt(now);
     runner.setUpdatedAt(now);
-    return response(repository.save(runner));
+    return mapper.toResponse(repository.save(runner));
   }
 
   @Override
@@ -64,20 +66,6 @@ public class RunnerInstanceServiceImpl implements RunnerInstanceService {
     runner.setCurrentTestRunId(request.currentTestRunId());
     runner.setLastHeartbeatAt(now);
     runner.setUpdatedAt(now);
-    return response(repository.save(runner));
-  }
-
-  private RunnerInstanceResponse response(RunnerInstance runner) {
-    return new RunnerInstanceResponse(
-        runner.getId(),
-        runner.getRunnerKey(),
-        runner.getHostname(),
-        runner.getVersion(),
-        runner.getStatus(),
-        runner.getCurrentCommandId(),
-        runner.getCurrentTestRunId(),
-        runner.getLastHeartbeatAt(),
-        runner.getRegisteredAt(),
-        runner.getUpdatedAt());
+    return mapper.toResponse(repository.save(runner));
   }
 }
