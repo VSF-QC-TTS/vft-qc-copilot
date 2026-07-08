@@ -3,6 +3,7 @@ package vn.vinfast.vfqc.api.evaluator.service.impl;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.vinfast.vfqc.api.common.error.ErrorCode;
@@ -16,6 +17,7 @@ import vn.vinfast.vfqc.api.evaluator.service.EvaluatorFieldSourceService;
 import vn.vinfast.vfqc.api.target.assembler.ChatbotTargetResponseAssembler;
 import vn.vinfast.vfqc.api.target.repository.ChatbotTargetRepository;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EvaluatorFieldSourceServiceImpl implements EvaluatorFieldSourceService {
@@ -30,6 +32,7 @@ public class EvaluatorFieldSourceServiceImpl implements EvaluatorFieldSourceServ
   @Transactional(readOnly = true)
   public EvaluatorFieldSourceResponse list(CurrentUser user, UUID projectId, UUID chatbotTargetId) {
     projectPermissionService.requireProject(user, projectId, PermissionAction.VIEW);
+    log.info("Listing evaluator field sources: projectId={}, chatbotTargetId={}", projectId, chatbotTargetId);
     var datasetVariables =
         schemaRepository.findTopByProjectIdOrderByVersionDesc(projectId).stream()
             .flatMap(schema -> columnRepository.findBySchemaIdOrderByOrderIndexAsc(schema.getId()).stream())

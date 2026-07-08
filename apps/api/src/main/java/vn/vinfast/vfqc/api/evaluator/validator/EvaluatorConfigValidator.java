@@ -131,7 +131,7 @@ public class EvaluatorConfigValidator {
 
   private boolean isNumericExpectedValue(Map<String, Object> expectedValue) {
     var value = expectedValue.get("value");
-    return value instanceof Number || value instanceof BigDecimal;
+    return value instanceof Number;
   }
 
   private void validateWeight(BigDecimal weight) {

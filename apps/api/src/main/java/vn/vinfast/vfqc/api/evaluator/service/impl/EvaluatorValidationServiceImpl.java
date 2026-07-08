@@ -5,17 +5,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.vinfast.vfqc.api.common.permission.PermissionAction;
 import vn.vinfast.vfqc.api.common.permission.ProjectPermissionService;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
+import vn.vinfast.vfqc.api.evaluator.dto.EvaluatorRuleRequest;
 import vn.vinfast.vfqc.api.evaluator.dto.EvaluatorValidationResponse;
 import vn.vinfast.vfqc.api.evaluator.dto.ValidateEvaluatorRequest;
+import vn.vinfast.vfqc.api.evaluator.enums.EvaluatorType;
 import vn.vinfast.vfqc.api.evaluator.service.EvaluatorFieldSourceService;
 import vn.vinfast.vfqc.api.evaluator.service.EvaluatorValidationService;
 import vn.vinfast.vfqc.api.evaluator.validator.EvaluatorConfigValidator;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EvaluatorValidationServiceImpl implements EvaluatorValidationService {
@@ -30,24 +34,26 @@ public class EvaluatorValidationServiceImpl implements EvaluatorValidationServic
       CurrentUser user, UUID projectId, ValidateEvaluatorRequest request) {
     projectPermissionService.requireProject(user, projectId, PermissionAction.EDIT);
     var sources = availableSources(user, projectId, request.context());
-    var rules = request.rules() == null ? List.<vn.vinfast.vfqc.api.evaluator.dto.EvaluatorRuleRequest>of() : request.rules();
+    var rules = request.rules() == null ? List.<EvaluatorRuleRequest>of() : request.rules();
     validator.validate(user, request.type(), request.config() == null ? Map.of() : request.config(), rules, sources);
     var warnings = new ArrayList<EvaluatorValidationResponse.Warning>();
-    if ((request.type() == vn.vinfast.vfqc.api.evaluator.enums.EvaluatorType.LLM_JUDGE
-            || request.type() == vn.vinfast.vfqc.api.evaluator.enums.EvaluatorType.MIXED)
+    if ((request.type() == EvaluatorType.LLM_JUDGE
+            || request.type() == EvaluatorType.MIXED)
         && !hasDefaultProvider(request.config())) {
       warnings.add(
           new EvaluatorValidationResponse.Warning(
               "LLM_JUDGE_DEFAULT_PROVIDER_NOT_SET",
               "No default judge provider is configured. User must select a judge provider during run setup."));
     }
-    return new EvaluatorValidationResponse(
+    var response = new EvaluatorValidationResponse(
         true,
         warnings,
         Map.of(
             "type", request.type().name(),
             "ruleCount", rules.size(),
             "hasLlmJudge", request.config() != null && request.config().containsKey("llmJudge")));
+    log.info("Evaluator validation passed: projectId={}, type={}, ruleCount={}", projectId, request.type(), rules.size());
+    return response;
   }
 
   private List<String> availableSources(

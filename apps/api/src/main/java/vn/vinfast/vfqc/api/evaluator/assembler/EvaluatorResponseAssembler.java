@@ -4,8 +4,10 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import vn.vinfast.vfqc.api.evaluator.dto.EvaluatorResponse;
@@ -41,7 +43,7 @@ public class EvaluatorResponseAssembler {
                     EvaluatorVersion::getEvaluatorId,
                     Collectors.maxBy(Comparator.comparingInt(EvaluatorVersion::getVersion))));
     var latestVersions =
-        latestByEvaluatorId.values().stream().flatMap(java.util.Optional::stream).toList();
+        latestByEvaluatorId.values().stream().flatMap(Optional::stream).toList();
     var users = userSummaryService.summariesById(userIds(evaluators, latestVersions));
     return evaluators.stream()
         .map(evaluator -> toResponse(evaluator, latestById(latestByEvaluatorId, evaluator.getId()), users))
@@ -131,14 +133,14 @@ public class EvaluatorResponseAssembler {
   }
 
   private EvaluatorVersion latestById(
-      Map<UUID, java.util.Optional<EvaluatorVersion>> latestByEvaluatorId, UUID evaluatorId) {
-    return latestByEvaluatorId.getOrDefault(evaluatorId, java.util.Optional.empty()).orElse(null);
+      Map<UUID, Optional<EvaluatorVersion>> latestByEvaluatorId, UUID evaluatorId) {
+    return latestByEvaluatorId.getOrDefault(evaluatorId, Optional.empty()).orElse(null);
   }
 
   private Collection<UUID> userIds(List<Evaluator> evaluators, List<EvaluatorVersion> versions) {
     var evaluatorUserIds = evaluators.stream().map(Evaluator::getCreatedBy);
     var versionUserIds = versions.stream().map(EvaluatorVersion::getCreatedBy);
-    return java.util.stream.Stream.concat(evaluatorUserIds, versionUserIds).toList();
+    return Stream.concat(evaluatorUserIds, versionUserIds).toList();
   }
 
   private Map<String, Object> safeMap(Map<String, Object> value) {
