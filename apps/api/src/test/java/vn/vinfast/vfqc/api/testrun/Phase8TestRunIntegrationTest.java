@@ -80,7 +80,7 @@ class Phase8TestRunIntegrationTest extends PostgresIntegrationTestBase {
     var json = objectMapper.readTree(result.getResponse().getContentAsString());
     var testRunId = UUID.fromString(json.get("id").asText());
     var run = testRunRepository.findById(testRunId).orElseThrow();
-    assertThat(run.getStatus()).isEqualTo(TestRunStatus.CREATED);
+    assertThat(run.getStatus()).isEqualTo(TestRunStatus.QUEUED);
     assertThat(run.getDatasetId()).isEqualTo(datasetId);
     assertThat(run.getDomainConfigHash()).hasSize(64);
     assertThat(run.getPromptfooConfigHash()).hasSize(64);
@@ -114,7 +114,7 @@ class Phase8TestRunIntegrationTest extends PostgresIntegrationTestBase {
   }
 
   @Test
-  void cancelCreatedTestRun_ReturnsInvalidState() throws Exception {
+  void cancelQueuedTestRun_ReturnsCancelled() throws Exception {
     var user = user("testrun-cancel-owner@vinfast.vn");
     var workspace = workspace(user);
     var projectId = createProject(user, workspace.getId());
@@ -129,7 +129,9 @@ class Phase8TestRunIntegrationTest extends PostgresIntegrationTestBase {
                 .with(bearer(user))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("reason", "No longer needed"))))
-        .andExpect(status().isConflict());
+        .andExpect(status().isOk());
+
+    assertThat(testRunRepository.findById(testRunId).orElseThrow().getStatus()).isEqualTo(TestRunStatus.CANCELLED);
   }
 
   @Test

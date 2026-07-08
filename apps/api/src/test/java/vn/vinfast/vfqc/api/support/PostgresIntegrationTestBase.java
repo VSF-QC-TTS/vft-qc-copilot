@@ -6,13 +6,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 import vn.vinfast.vfqc.api.auth.repository.AuthEmailTokenRepository;
 import vn.vinfast.vfqc.api.auth.repository.AuthRefreshTokenRepository;
 import vn.vinfast.vfqc.api.auth.service.JwtTokenService;
@@ -25,9 +26,13 @@ import vn.vinfast.vfqc.api.dataset.repository.DatasetVersionRepository;
 import vn.vinfast.vfqc.api.evaluator.repository.EvaluatorRepository;
 import vn.vinfast.vfqc.api.evaluator.repository.EvaluatorRuleRepository;
 import vn.vinfast.vfqc.api.evaluator.repository.EvaluatorVersionRepository;
+import vn.vinfast.vfqc.api.exportjob.repository.ExportJobRepository;
 import vn.vinfast.vfqc.api.project.repository.ProjectRepository;
 import vn.vinfast.vfqc.api.provider.repository.LlmProviderRepository;
 import vn.vinfast.vfqc.api.provider.repository.LlmProviderTestLogRepository;
+import vn.vinfast.vfqc.api.runner.repository.RunnerCommandRepository;
+import vn.vinfast.vfqc.api.runner.repository.RunnerEventRepository;
+import vn.vinfast.vfqc.api.runner.repository.RunnerInstanceRepository;
 import vn.vinfast.vfqc.api.secret.repository.SecretRepository;
 import vn.vinfast.vfqc.api.target.repository.ChatbotTargetExampleRepository;
 import vn.vinfast.vfqc.api.target.repository.ChatbotTargetRepository;
@@ -50,12 +55,18 @@ import vn.vinfast.vfqc.api.workspace.repository.WorkspaceRepository;
 
 @SpringBootTest(properties = "spring.profiles.active=test")
 @AutoConfigureMockMvc
-@Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public abstract class PostgresIntegrationTestBase {
 
-  @Container
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+
+  static final GenericContainer<?> REDIS =
+      new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+
+  static {
+    POSTGRES.start();
+    REDIS.start();
+  }
 
   @DynamicPropertySource
   static void postgresProperties(DynamicPropertyRegistry registry) {
@@ -63,6 +74,8 @@ public abstract class PostgresIntegrationTestBase {
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
     registry.add("spring.datasource.driver-class-name", POSTGRES::getDriverClassName);
+    registry.add("spring.data.redis.host", REDIS::getHost);
+    registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
   }
 
   @Autowired protected UserRepository userRepository;
@@ -82,18 +95,35 @@ public abstract class PostgresIntegrationTestBase {
   @Autowired protected EvaluatorRuleRepository evaluatorRuleRepository;
   @Autowired protected EvaluatorVersionRepository evaluatorVersionRepository;
   @Autowired protected EvaluatorRepository evaluatorRepository;
+  @Autowired protected ExportJobRepository exportJobRepository;
   @Autowired protected TestCaseResultReviewRepository testCaseResultReviewRepository;
   @Autowired protected TestCaseResultRepository testCaseResultRepository;
   @Autowired protected TestRunEvaluatorVersionRepository testRunEvaluatorVersionRepository;
   @Autowired protected TestRunTargetRepository testRunTargetRepository;
   @Autowired protected TestRunRepository testRunRepository;
+  @Autowired protected RunnerEventRepository runnerEventRepository;
+  @Autowired protected RunnerCommandRepository runnerCommandRepository;
+  @Autowired protected RunnerInstanceRepository runnerInstanceRepository;
   @Autowired protected ProjectRepository projectRepository;
   @Autowired protected ChatbotTargetExampleRepository chatbotTargetExampleRepository;
   @Autowired protected ChatbotTargetRepository chatbotTargetRepository;
+  @Autowired protected StringRedisTemplate redisTemplate;
   @Autowired private JwtTokenService jwtTokenService;
 
   @AfterEach
   void cleanDatabase() {
+    redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+    var runners = runnerInstanceRepository.findAll();
+    runners.forEach(
+        runner -> {
+          runner.setCurrentCommandId(null);
+          runner.setCurrentTestRunId(null);
+        });
+    runnerInstanceRepository.saveAllAndFlush(runners);
+    runnerEventRepository.deleteAll();
+    runnerCommandRepository.deleteAll();
+    runnerInstanceRepository.deleteAll();
+    exportJobRepository.deleteAll();
     testCaseResultReviewRepository.deleteAll();
     testCaseResultRepository.deleteAll();
     testRunEvaluatorVersionRepository.deleteAll();
