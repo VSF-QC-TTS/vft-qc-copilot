@@ -9,12 +9,13 @@ import vn.vinfast.vfqc.api.testrun.dto.CreateTestRunRequest;
 import vn.vinfast.vfqc.api.testrun.dto.RunPreflightRequest;
 import vn.vinfast.vfqc.api.testrun.dto.RunPreflightResponse;
 import vn.vinfast.vfqc.api.testrun.service.TestRunPreflightService;
+import vn.vinfast.vfqc.api.testrun.service.TestRunSnapshotService;
 
 @Service
 @RequiredArgsConstructor
 public class TestRunPreflightServiceImpl implements TestRunPreflightService {
 
-  private final TestRunSnapshotServiceImpl snapshotService;
+  private final TestRunSnapshotService snapshotService;
 
   @Override
   @Transactional(readOnly = true)

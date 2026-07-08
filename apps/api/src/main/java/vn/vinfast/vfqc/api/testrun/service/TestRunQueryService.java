@@ -3,11 +3,13 @@ package vn.vinfast.vfqc.api.testrun.service;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import vn.vinfast.vfqc.api.common.api.CollectionResponse;
+import vn.vinfast.vfqc.api.common.permission.PermissionAction;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.testrun.dto.CancelTestRunRequest;
 import vn.vinfast.vfqc.api.testrun.dto.CreateTestRunRequest;
 import vn.vinfast.vfqc.api.testrun.dto.TestRunDetailResponse;
 import vn.vinfast.vfqc.api.testrun.dto.TestRunSummaryResponse;
+import vn.vinfast.vfqc.api.testrun.entity.TestRun;
 
 public interface TestRunQueryService {
 
@@ -61,4 +63,14 @@ public interface TestRunQueryService {
    * @return updated run detail
    */
   TestRunDetailResponse cancel(CurrentUser user, UUID testRunId, CancelTestRunRequest request);
+
+  /**
+   * Loads and authorizes a test run, throwing if not found or not permitted.
+   *
+   * @param user current authenticated user
+   * @param testRunId test run identifier
+   * @param action required permission action
+   * @return the authorized test run entity
+   */
+  TestRun requireRun(CurrentUser user, UUID testRunId, PermissionAction action);
 }

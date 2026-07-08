@@ -26,12 +26,13 @@ import vn.vinfast.vfqc.api.testrun.repository.TestCaseResultRepository;
 import vn.vinfast.vfqc.api.testrun.repository.TestCaseResultReviewRepository;
 import vn.vinfast.vfqc.api.testrun.repository.TestRunTargetRepository;
 import vn.vinfast.vfqc.api.testrun.service.TestRunComparisonMatrixService;
+import vn.vinfast.vfqc.api.testrun.service.TestRunQueryService;
 
 @Service
 @RequiredArgsConstructor
 public class TestRunComparisonMatrixServiceImpl implements TestRunComparisonMatrixService {
 
-  private final TestRunQueryServiceImpl queryService;
+  private final TestRunQueryService queryService;
   private final TestRunTargetRepository targetRepository;
   private final TestCaseResultRepository resultRepository;
   private final TestCaseResultReviewRepository reviewRepository;

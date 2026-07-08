@@ -1,5 +1,6 @@
 package vn.vinfast.vfqc.api.testrun.service.impl;
 
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -13,9 +14,12 @@ import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.testrun.assembler.TestRunResponseAssembler;
 import vn.vinfast.vfqc.api.testrun.dto.TestCaseResultDetailResponse;
 import vn.vinfast.vfqc.api.testrun.dto.TestRunResultPageResponse;
+import vn.vinfast.vfqc.api.testrun.entity.TestCaseResult;
+import vn.vinfast.vfqc.api.testrun.entity.TestCaseResultReview;
 import vn.vinfast.vfqc.api.testrun.enums.ResultMode;
 import vn.vinfast.vfqc.api.testrun.repository.TestCaseResultRepository;
 import vn.vinfast.vfqc.api.testrun.repository.TestCaseResultReviewRepository;
+import vn.vinfast.vfqc.api.testrun.service.TestRunQueryService;
 import vn.vinfast.vfqc.api.testrun.service.TestRunResultService;
 
 @Service
@@ -24,19 +28,19 @@ public class TestRunResultServiceImpl implements TestRunResultService {
 
   private final TestCaseResultRepository resultRepository;
   private final TestCaseResultReviewRepository reviewRepository;
-  private final TestRunQueryServiceImpl queryService;
+  private final TestRunQueryService queryService;
   private final TestRunResponseAssembler assembler;
 
   @Override
   @Transactional(readOnly = true)
   public TestRunResultPageResponse list(
-      CurrentUser user, java.util.UUID testRunId, ResultMode mode, Pageable pageable) {
+      CurrentUser user, UUID testRunId, ResultMode mode, Pageable pageable) {
     queryService.requireRun(user, testRunId, PermissionAction.VIEW);
     var page = resultRepository.findByTestRunIdOrderByIdAsc(testRunId, pageable);
-    var resultIds = page.getContent().stream().map(vn.vinfast.vfqc.api.testrun.entity.TestCaseResult::getId).toList();
+    var resultIds = page.getContent().stream().map(TestCaseResult::getId).toList();
     var reviews =
         reviewRepository.findByTestCaseResultIdIn(resultIds).stream()
-            .collect(Collectors.toMap(vn.vinfast.vfqc.api.testrun.entity.TestCaseResultReview::getTestCaseResultId, Function.identity()));
+            .collect(Collectors.toMap(TestCaseResultReview::getTestCaseResultId, Function.identity()));
     var safeMode = mode == null ? ResultMode.FINAL : mode;
     return new TestRunResultPageResponse(
         page.getContent().stream()

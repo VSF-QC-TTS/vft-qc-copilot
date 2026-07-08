@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -87,6 +88,7 @@ public class TestRunSnapshotServiceImpl implements TestRunSnapshotService {
     return inspection.lockedConfig();
   }
 
+  @Override
   @Transactional(readOnly = true)
   public Inspection inspect(CurrentUser user, UUID projectId, CreateTestRunRequest request) {
     projectPermissionService.requireProject(user, projectId, PermissionAction.VIEW);
@@ -646,7 +648,7 @@ public class TestRunSnapshotServiceImpl implements TestRunSnapshotService {
 
     return bindings.stream()
         .map(binding -> binding instanceof Map<?, ?> map ? runtimeBinding(map) : null)
-        .filter(java.util.Objects::nonNull)
+        .filter(Objects::nonNull)
         .toList();
   }
 

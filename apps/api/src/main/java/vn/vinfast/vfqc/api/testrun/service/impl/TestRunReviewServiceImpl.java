@@ -15,6 +15,7 @@ import vn.vinfast.vfqc.api.testrun.dto.UpsertTestCaseResultReviewRequest;
 import vn.vinfast.vfqc.api.testrun.entity.TestCaseResultReview;
 import vn.vinfast.vfqc.api.testrun.repository.TestCaseResultRepository;
 import vn.vinfast.vfqc.api.testrun.repository.TestCaseResultReviewRepository;
+import vn.vinfast.vfqc.api.testrun.service.TestRunQueryService;
 import vn.vinfast.vfqc.api.testrun.service.TestRunReviewService;
 
 @Service
@@ -23,7 +24,7 @@ public class TestRunReviewServiceImpl implements TestRunReviewService {
 
   private final TestCaseResultRepository resultRepository;
   private final TestCaseResultReviewRepository reviewRepository;
-  private final TestRunQueryServiceImpl queryService;
+  private final TestRunQueryService queryService;
   private final TestRunResponseAssembler assembler;
   private final VfqcSensitiveDataMasker masker;
   private final Clock clock;

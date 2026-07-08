@@ -2,6 +2,7 @@ package vn.vinfast.vfqc.api.testrun.service.impl;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -79,7 +80,7 @@ public class TestRunQueryServiceImpl implements TestRunQueryService {
                 .status(TestRunStatus.CREATED)
                 .progressCompleted(0)
                 .progressTotal(locked.rowCount() * Math.max(1, locked.targets().size()))
-                .summaryMetricsJson(java.util.Map.of())
+                .summaryMetricsJson(Map.of())
                 .domainConfigSnapshotJson(locked.domainSnapshot())
                 .promptfooConfigSnapshotJson(locked.promptfooSnapshot())
                 .domainConfigHash(hashService.hash(locked.domainSnapshot()))
@@ -154,7 +155,8 @@ public class TestRunQueryServiceImpl implements TestRunQueryService {
     return detail(run);
   }
 
-  TestRun requireRun(CurrentUser user, UUID testRunId, PermissionAction action) {
+  @Override
+  public TestRun requireRun(CurrentUser user, UUID testRunId, PermissionAction action) {
     var run = testRunRepository.findById(testRunId).orElseThrow(ErrorCode.RESOURCE_NOT_FOUND::throwIt);
     projectPermissionService.requireProject(user, run.getProjectId(), action);
     return run;
