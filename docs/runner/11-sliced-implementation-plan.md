@@ -160,6 +160,18 @@ Stop after slice and show diff.
 
 ## Slice 2 — Redis Command Intake
 
+Status:
+
+```text
+Completed in apps/runner:
+1. Runner command messages are validated with Zod and parse raw Redis field arrays.
+2. Redis command stream wrapper exposes connect/disconnect, XGROUP CREATE, XREADGROUP, and XACK.
+3. RedisCommandConsumer creates the consumer group with MKSTREAM and reads one new command with STREAMS >.
+4. XACK remains explicit and is not called automatically after read.
+5. Pending recovery is a no-op boundary; full stale pending claim handling is intentionally left for a later slice.
+6. Slice tests pass under npm run check and npm run build.
+```
+
 Purpose:
 
 ```text
