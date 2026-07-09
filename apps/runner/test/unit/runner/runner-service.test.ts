@@ -13,6 +13,7 @@ import type {
   RunnerTestRunConfigResponse,
   TestRunStatus,
 } from '../../../src/backend/dto/runner-api.dto.js';
+import { RunnerError } from '../../../src/errors/runner-error.js';
 import { DefaultRunnerEventFactory } from '../../../src/events/runner-event-factory.js';
 import type { RunnerEventSink, RunnerEventSinkResult } from '../../../src/events/runner-event-sink.js';
 import { DefaultMaskingPolicy } from '../../../src/masking/masking-policy.js';
@@ -23,8 +24,13 @@ import type { PromptfooExecutor } from '../../../src/promptfoo/promptfoo-executo
 import { DefaultPromptfooResultNormalizer } from '../../../src/promptfoo/promptfoo-result-normalizer.js';
 import type { CommandConsumer } from '../../../src/redis/command-consumer.js';
 import type { RunnerCommandDelivery, RunnerCommandMessage } from '../../../src/redis/command-message.js';
-import { DefaultRunnerService } from '../../../src/runner/runner-service.js';
-import { promptfooFakeSecret, singleChatbotInput, successfulRawResult } from '../../fixtures/promptfoo/promptfoo-fixtures.js';
+import { DefaultRunnerService, type DefaultRunnerServiceOptions } from '../../../src/runner/runner-service.js';
+import {
+  promptfooFakeSecret,
+  singleChatbotInput,
+  successfulRawResult,
+  targetTimeoutRawResult,
+} from '../../fixtures/promptfoo/promptfoo-fixtures.js';
 
 const command: RunnerCommandMessage = {
   commandId: '6c0f4306-883b-43b6-94fd-826d14c33074',
@@ -65,7 +71,7 @@ describe('DefaultRunnerService', () => {
 
     await harness.service.start();
 
-    await expect(harness.service.runOnce()).rejects.toThrow('final event failed');
+    await expect(harness.service.runOnce()).rejects.toThrow('Runner event delivery failed');
     expect(harness.sink.events.map((event) => event.eventType)).toEqual([
       'RUN_STARTED',
       'TESTCASE_COMPLETED',
@@ -110,11 +116,174 @@ describe('DefaultRunnerService', () => {
       'evt-3:RUN_COMPLETED',
     ]);
   });
+
+  it('sends RUN_CANCELLED when cancellation is already requested before execution', async () => {
+    const harness = createHarness({
+      controlStates: [{ testRunId: command.testRunId, status: 'CANCEL_REQUESTED', cancellationRequested: true }],
+    });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.backend.configCalls).toEqual([]);
+    expect(harness.executor.executedConfigs).toEqual([]);
+    expect(harness.sink.events.map((event) => event.eventType)).toEqual(['RUN_CANCELLED']);
+    expect(harness.consumer.ackedIds).toEqual(['1700000000000-0']);
+  });
+
+  it('stops before the next testcase when cancellation is observed during result emission', async () => {
+    const harness = createHarness({
+      controlStates: [
+        { testRunId: command.testRunId, status: 'RUNNING', cancellationRequested: false },
+        { testRunId: command.testRunId, status: 'CANCEL_REQUESTED', cancellationRequested: true },
+      ],
+      rawResult: twoSuccessfulRawResults(),
+    });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.sink.events.map((event) => event.eventType)).toEqual([
+      'RUN_STARTED',
+      'TESTCASE_COMPLETED',
+      'RUN_CANCELLED',
+    ]);
+    expect(harness.consumer.ackedIds).toEqual(['1700000000000-0']);
+  });
+
+  it('allows completion when cancellation is only observable after all testcase work is finished', async () => {
+    const harness = createHarness({
+      controlStates: [
+        { testRunId: command.testRunId, status: 'RUNNING', cancellationRequested: false },
+        { testRunId: command.testRunId, status: 'CANCEL_REQUESTED', cancellationRequested: true },
+      ],
+    });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.sink.events.map((event) => event.eventType)).toEqual([
+      'RUN_STARTED',
+      'TESTCASE_COMPLETED',
+      'RUN_COMPLETED',
+    ]);
+  });
+
+  it('retries event delivery with the same eventId', async () => {
+    const harness = createHarness({
+      sinkFailures: [
+        {
+          eventType: 'RUN_STARTED',
+          failures: 1,
+          error: new RunnerError('backend temporarily unavailable', {
+            category: 'backend.http',
+            retryable: true,
+            status: 503,
+          }),
+        },
+      ],
+    });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.sink.events.map((event) => `${event.eventId}:${event.eventType}`)).toEqual([
+      'evt-1:RUN_STARTED',
+      'evt-1:RUN_STARTED',
+      'evt-2:TESTCASE_COMPLETED',
+      'evt-3:RUN_COMPLETED',
+    ]);
+  });
+
+  it('reports retry budget exhaustion safely without acknowledging the command', async () => {
+    const harness = createHarness({
+      eventRetryMaxAttempts: 2,
+      sinkFailures: [
+        {
+          eventType: 'RUN_STARTED',
+          failures: 2,
+          error: new RunnerError(`backend unavailable Authorization: Bearer ${promptfooFakeSecret}`, {
+            category: 'backend.http',
+            retryable: true,
+            status: 503,
+          }),
+        },
+      ],
+    });
+
+    await harness.service.start();
+
+    await expect(harness.service.runOnce()).rejects.toThrow('Runner event delivery failed');
+    expect(harness.sink.events.map((event) => `${event.eventId}:${event.eventType}`)).toEqual([
+      'evt-1:RUN_STARTED',
+      'evt-1:RUN_STARTED',
+    ]);
+    expect(harness.consumer.ackedIds).toEqual([]);
+  });
+
+  it('does not retry non-retryable 401 event failures', async () => {
+    const harness = createHarness({
+      eventRetryMaxAttempts: 3,
+      sinkFailures: [
+        {
+          eventType: 'RUN_STARTED',
+          failures: 3,
+          error: new RunnerError('backend auth failed', {
+            category: 'backend.http',
+            retryable: false,
+            status: 401,
+          }),
+        },
+      ],
+    });
+
+    await harness.service.start();
+
+    await expect(harness.service.runOnce()).rejects.toThrow('Runner event delivery failed');
+    expect(harness.sink.events.map((event) => event.eventType)).toEqual(['RUN_STARTED']);
+    expect(harness.consumer.ackedIds).toEqual([]);
+  });
+
+  it('maps run timeout to RUN_FAILED', async () => {
+    const harness = createHarness({
+      runTimeoutMs: 1,
+      executorMode: 'never-resolve',
+    });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.sink.events.map((event) => event.eventType)).toEqual(['RUN_STARTED', 'RUN_FAILED']);
+    expect(harness.sink.events.at(-1)?.payload).toEqual({
+      error: 'Run execution timed out after 1ms',
+      errorCategory: 'RUN_TIMEOUT',
+    });
+    expect(harness.consumer.ackedIds).toEqual(['1700000000000-0']);
+  });
+
+  it('maps target timeout to testcase-level error instead of run-level failure', async () => {
+    const harness = createHarness({ rawResult: targetTimeoutRawResult() });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.sink.events.map((event) => event.eventType)).toEqual([
+      'RUN_STARTED',
+      'TESTCASE_ERROR',
+      'RUN_COMPLETED',
+    ]);
+  });
 });
 
 interface HarnessOptions {
   readonly controlStatus?: TestRunStatus;
+  readonly controlStates?: readonly RunnerControlStateResponse[];
   readonly failFinalEvent?: boolean;
+  readonly sinkFailures?: readonly EventFailureRule[];
+  readonly rawResult?: unknown;
+  readonly executorMode?: 'normal' | 'never-resolve';
+  readonly eventRetryMaxAttempts?: number;
+  readonly runTimeoutMs?: number;
 }
 
 interface Harness {
@@ -126,10 +295,10 @@ interface Harness {
 }
 
 function createHarness(options: HarnessOptions = {}): Harness {
-  const backend = new FakeBackendClient(options.controlStatus ?? 'QUEUED');
+  const backend = new FakeBackendClient(options.controlStatus ?? 'QUEUED', options.controlStates ?? []);
   const consumer = new FakeCommandConsumer([{ streamMessageId: '1700000000000-0', message: command }]);
-  const sink = new FakeRunnerEventSink(options.failFinalEvent === true);
-  const executor = new FakePromptfooExecutor();
+  const sink = new FakeRunnerEventSink(options.failFinalEvent === true, options.sinkFailures ?? []);
+  const executor = new FakePromptfooExecutor(options.rawResult ?? successfulRawResult(), options.executorMode ?? 'normal');
   let eventIndex = 0;
   const eventFactory = new DefaultRunnerEventFactory({
     eventIdGenerator: () => {
@@ -139,7 +308,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
     now: () => '2026-07-09T10:00:00.000Z',
   });
 
-  const service = new DefaultRunnerService({
+  let serviceOptions: DefaultRunnerServiceOptions = {
     runnerKey: 'runner-local',
     hostname: 'runner-host',
     version: '0.0.0-test',
@@ -153,7 +322,13 @@ function createHarness(options: HarnessOptions = {}): Harness {
     promptfooExecutor: executor,
     resultNormalizer: new DefaultPromptfooResultNormalizer(),
     configPageSize: 100,
-  });
+    eventRetryMaxAttempts: options.eventRetryMaxAttempts ?? (options.failFinalEvent === true ? 1 : 3),
+  };
+  if (options.runTimeoutMs !== undefined) {
+    serviceOptions = { ...serviceOptions, runTimeoutMs: options.runTimeoutMs };
+  }
+
+  const service = new DefaultRunnerService(serviceOptions);
 
   return { service, backend, consumer, sink, executor };
 }
@@ -166,8 +341,14 @@ class FakeBackendClient implements BackendClient {
     readonly testRunId: string;
     readonly request: RunnerRuntimeSecretsRequest;
   }> = [];
+  private readonly controlStates: RunnerControlStateResponse[];
 
-  public constructor(private readonly controlStatus: TestRunStatus) {}
+  public constructor(
+    private readonly controlStatus: TestRunStatus,
+    controlStates: readonly RunnerControlStateResponse[],
+  ) {
+    this.controlStates = [...controlStates];
+  }
 
   public async registerInstance(request: RegisterRunnerInstanceRequest): Promise<RunnerInstanceResponse> {
     this.registerRequests.push(request);
@@ -193,6 +374,10 @@ class FakeBackendClient implements BackendClient {
   }
 
   public async getControlState(testRunId: string): Promise<RunnerControlStateResponse> {
+    const nextState = this.controlStates.shift();
+    if (nextState !== undefined) {
+      return nextState;
+    }
     return { testRunId, status: this.controlStatus, cancellationRequested: false };
   }
 
@@ -220,15 +405,38 @@ class FakeCommandConsumer implements CommandConsumer {
   }
 }
 
+interface EventFailureRule {
+  readonly eventType: RunnerEventRequest['eventType'];
+  readonly failures: number;
+  readonly error: Error;
+}
+
 class FakeRunnerEventSink implements RunnerEventSink {
   public readonly events: RunnerEventRequest[] = [];
+  private readonly failuresByEventType = new Map<RunnerEventRequest['eventType'], EventFailureRule>();
+  private readonly attemptsByEventType = new Map<RunnerEventRequest['eventType'], number>();
 
-  public constructor(private readonly failFinalEvent: boolean) {}
+  public constructor(
+    private readonly failFinalEvent: boolean,
+    failureRules: readonly EventFailureRule[],
+  ) {
+    for (const rule of failureRules) {
+      this.failuresByEventType.set(rule.eventType, rule);
+    }
+  }
 
   public async send(event: RunnerEventRequest): Promise<RunnerEventSinkResult> {
     this.events.push(event);
     if (this.failFinalEvent && event.eventType === 'RUN_COMPLETED') {
       throw new Error('final event failed');
+    }
+    const rule = this.failuresByEventType.get(event.eventType);
+    if (rule !== undefined) {
+      const attempts = (this.attemptsByEventType.get(event.eventType) ?? 0) + 1;
+      this.attemptsByEventType.set(event.eventType, attempts);
+      if (attempts <= rule.failures) {
+        throw rule.error;
+      }
     }
 
     return {
@@ -246,9 +454,17 @@ class FakeRunnerEventSink implements RunnerEventSink {
 class FakePromptfooExecutor implements PromptfooExecutor {
   public readonly executedConfigs: PromptfooConfigObject[] = [];
 
+  public constructor(
+    private readonly rawResult: unknown,
+    private readonly mode: 'normal' | 'never-resolve',
+  ) {}
+
   public async execute(config: PromptfooConfigObject | Record<string, unknown>): Promise<unknown> {
     this.executedConfigs.push(config as PromptfooConfigObject);
-    return successfulRawResult();
+    if (this.mode === 'never-resolve') {
+      return new Promise(() => {});
+    }
+    return this.rawResult;
   }
 }
 
@@ -285,4 +501,34 @@ function testRunConfigResponse(): RunnerTestRunConfigResponse {
     evaluators: [...input.evaluators],
     rows: [...input.rows],
   };
+}
+
+function twoSuccessfulRawResults(): unknown {
+  const rawResult = successfulRawResult();
+  if (!isRawResultRecord(rawResult)) {
+    return rawResult;
+  }
+  const first = rawResult.results[0];
+  if (!isRecord(first)) {
+    return rawResult;
+  }
+  return {
+    results: [
+      first,
+      {
+        ...first,
+        datasetRowId: 102,
+        request: { body: { question: 'Second question?' } },
+        response: { body: { answer: 'Second answer' } },
+      },
+    ],
+  };
+}
+
+function isRawResultRecord(value: unknown): value is { readonly results: readonly unknown[] } {
+  return isRecord(value) && Array.isArray(value.results);
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null;
 }

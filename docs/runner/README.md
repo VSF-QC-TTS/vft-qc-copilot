@@ -107,12 +107,13 @@ Done:
 7. Slice 4 recursive masking, sanitized JSON artifacts, sanitized-byte hashing, and artifact metadata are implemented.
 8. Slice 5 Promptfoo config builder fixtures, evaluator mapping, result normalizer, and executor boundary are implemented.
 9. Slice 6 RunnerService lifecycle orchestration is implemented for one START_RUN with register, heartbeat, config/secrets, ordered events, and XACK-after-final-event behavior.
+10. Slice 7 cancellation polling, event/backend retry, safe retry exhaustion, non-retryable auth fail-fast, and run timeout mapping are implemented.
 
 Not done yet:
 1. Long-running runner loop wiring in main.ts.
 2. Full Redis event stream publisher implementation behind RedisRunnerEventSink.
 3. Full Redis pending recovery/claim loop beyond the no-op boundary.
-4. Slice 7 cancellation polling, retry, timeout, and idempotency hardening.
+4. Slice 8 smoke test plan.
 ```
 
 ## Documentation Files

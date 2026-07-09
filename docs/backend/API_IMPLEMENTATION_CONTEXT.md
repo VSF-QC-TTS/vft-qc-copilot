@@ -164,6 +164,7 @@ Runner Redis event polling:
 - The worker is enabled by default with `VFQC_RUNNER_REDIS_EVENTS_ENABLED=true`; tests disable it in `application-test.yaml` when they call the consumer manually.
 - Keep `POST /internal/runner/events` as a fallback/dev ingestion path, but prefer Redis event transport for runner-to-backend execution events.
 - Standalone runner Slice 6 now has a mocked/fake-executor lifecycle service that registers, heartbeats, fetches config/secrets, emits ordered events, and only acknowledges Redis commands after the final event succeeds.
+- Standalone runner Slice 7 adds control-state cancellation polling, safe event/backend retry behavior, and run timeout -> RUN_FAILED mapping without changing backend contracts.
 
 ## Recommended Next Work
 

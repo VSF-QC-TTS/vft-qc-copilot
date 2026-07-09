@@ -510,6 +510,18 @@ Stop after slice and show diff.
 
 ## Slice 7 — Cancellation, Retry, Timeout, Idempotency
 
+Status:
+
+```text
+Completed in apps/runner:
+1. DefaultRunnerService checks backend control state before execution and between testcase events.
+2. CANCEL_RUN commands can mark the active run for best-effort local cancellation.
+3. Event delivery retries preserve the original eventId and wrap exhausted/non-retryable failures in a safe runner error.
+4. Backend calls use retry classification with configurable retry budget and delay.
+5. Run timeout maps to RUN_FAILED; Promptfoo target timeout remains testcase-level TESTCASE_ERROR.
+6. Slice tests pass under npm run check and npm run build.
+```
+
 Purpose:
 
 ```text

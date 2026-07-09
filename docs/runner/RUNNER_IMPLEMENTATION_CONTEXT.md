@@ -1,6 +1,6 @@
 # Runner Implementation Handoff Context
 
-Last checked: 2026-07-09 19:28 Asia/Bangkok.
+Last checked: 2026-07-09 19:42 Asia/Bangkok.
 
 Read this first in a new runner session. It is intentionally short; detailed specs remain in `docs/runner/README.md`, `docs/runner/00..11-*.md`, and `docs/runner/AI_RUNNER_DTO_HANDOFF.md`.
 
@@ -27,7 +27,7 @@ rtk npm run build
 Current verified baseline:
 
 ```text
-rtk npm run check: 27 test files / 107 tests passed.
+rtk npm run check: 28 test files / 120 tests passed.
 rtk npm run build: TypeScript build passed.
 ```
 
@@ -83,6 +83,9 @@ Implemented module areas:
   - `DefaultRunnerService` boot registration and IDLE/BUSY/IDLE heartbeat flow
   - one-active-run guard for local runner instance
   - START_RUN orchestration across backend config/secrets, Promptfoo config/executor, normalized events, and explicit command XACK after final event success
+  - cancellation polling before execution and between testcase events
+  - retry budget for backend/event operations, preserving event IDs on retry
+  - run timeout mapping to `RUN_FAILED`
 - Other folders are still mostly scaffold/boundaries for later slices.
 
 ## Current Slice Status
@@ -96,7 +99,7 @@ Implemented module areas:
 | 4 Sensitive Data Masking And Artifact Utilities | Done | Recursive masking, sanitized JSON writer, sanitized-byte hash, metadata builder. |
 | 5 Promptfoo Adapter Fixtures | Done | Config builder, deterministic fixtures, evaluator mapping, result normalizer, executor boundary. |
 | 6 Runner Lifecycle Orchestration | Done | Register/heartbeat, config+secret resolution, Promptfoo fake executor boundary, ordered events, XACK-after-final-event tests. |
-| 7 Cancellation, Retry, Timeout | Not started | Next recommended slice. |
+| 7 Cancellation, Retry, Timeout | Done | Control polling, best-effort CANCEL_RUN flag, event/backend retry, safe retry exhaustion, non-retryable auth fail-fast, run timeout -> RUN_FAILED. |
 | 8 Local Smoke Test | Not started | Final local integration/smoke slice. |
 
 ## Current Coverage Highlights
@@ -116,6 +119,7 @@ The runner suite currently covers:
 - Promptfoo config generation for chatbot, baseline comparison, rule-based evaluator, LLM judge evaluator, mixed evaluator, secret masking, and sanitized config artifacts.
 - Promptfoo result normalization for success, target timeout, judge parse error, and stable VFQC testcase result schema.
 - Runner lifecycle orchestration for one START_RUN, including register, heartbeat IDLE/BUSY/IDLE, locked config fetch, runtime secret resolution, ordered RUN_STARTED/testcase/RUN_COMPLETED events, terminal duplicate skip, and XACK only after final event success.
+- Runner cancellation/retry/timeout hardening, including pre-execution cancellation, during-loop cancellation before the next testcase, completion after finished work, same-eventId retry, safe retry exhaustion, non-retryable 401 fail-fast, run timeout -> RUN_FAILED, and target timeout -> testcase-level error.
 
 ## Important Implementation Conventions
 
@@ -162,12 +166,9 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 
 ## Recommended Next Work
 
-1. Do Slice 7: Cancellation, Retry, Timeout.
-   - Add control-state polling during execution.
-   - Add CANCEL_RUN best-effort handling.
-   - Add run-level failure mapping and retry behavior.
-
-2. Then do Slice 8: Local Smoke Test.
+1. Do Slice 8: Local Smoke Test.
+   - Prefer documented manual smoke unless backend seeding path is stable.
+   - Keep smoke out of `npm run check` if it needs backend/Redis.
 
 ## Caveats
 
@@ -176,5 +177,6 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 - `RedisRunnerEventSink` currently depends on a `RunnerEventPublisher` boundary; full Redis event stream publisher implementation is still not done.
 - Pending command recovery is currently a no-op boundary; stale pending claim handling is still not done.
 - `DefaultRunnerService` currently orchestrates one command at a time, but no long-running loop is wired in `main.ts` yet.
+- Backend/event retry currently uses immediate retries unless `retryDelayMs` is configured.
 - Artifact events are metadata-only; there is no complete backend artifact upload/download contract yet.
 - Always check worktree state with `rtk git status --short` before editing or committing.

@@ -1,13 +1,21 @@
 import type { BackendClient } from '../backend/backend-client.js';
 import type { RunnerTestRunConfigResponse, TestRunStatus } from '../backend/dto/runner-api.dto.js';
+import { isRetryableBackendError } from '../errors/error-classifier.js';
+import { RunnerError } from '../errors/runner-error.js';
 import type { RunnerEventFactory } from '../events/runner-event-factory.js';
-import type { RunnerEventSink } from '../events/runner-event-sink.js';
-import type { PromptfooAdapterInput, PromptfooCaseResult, PromptfooGeneratedConfig } from '../promptfoo/promptfoo-adapter.js';
+import { sendEventWithRetry, type RunnerEventSink } from '../events/runner-event-sink.js';
+import type {
+  PromptfooAdapterInput,
+  PromptfooCaseResult,
+  PromptfooConfigObject,
+  PromptfooGeneratedConfig,
+} from '../promptfoo/promptfoo-adapter.js';
 import type { PromptfooConfigBuilder } from '../promptfoo/promptfoo-config-builder.js';
 import type { PromptfooExecutor } from '../promptfoo/promptfoo-executor.js';
 import type { PromptfooResultNormalizer } from '../promptfoo/promptfoo-result-normalizer.js';
 import type { CommandConsumer } from '../redis/command-consumer.js';
 import type { RunnerCommandDelivery, RunnerCommandMessage } from '../redis/command-message.js';
+import { sleep, withTimeout } from '../utils/sleep.js';
 
 export interface RunnerService {
   start(): Promise<void>;
@@ -27,6 +35,10 @@ export interface DefaultRunnerServiceOptions {
   readonly promptfooExecutor: PromptfooExecutor;
   readonly resultNormalizer: PromptfooResultNormalizer;
   readonly configPageSize?: number;
+  readonly backendRetryMaxAttempts?: number;
+  readonly eventRetryMaxAttempts?: number;
+  readonly retryDelayMs?: number;
+  readonly runTimeoutMs?: number;
 }
 
 const SECRET_REF_PATTERN = /\$\{secret:([0-9a-fA-F-]{36})\}/gu;
@@ -34,11 +46,20 @@ const TERMINAL_STATUSES = new Set<TestRunStatus>(['COMPLETED', 'FAILED', 'CANCEL
 
 export class DefaultRunnerService implements RunnerService {
   private readonly configPageSize: number;
+  private readonly backendRetryMaxAttempts: number;
+  private readonly eventRetryMaxAttempts: number;
+  private readonly retryDelayMs: number;
+  private readonly runTimeoutMs: number | undefined;
   private registered = false;
   private activeTestRunId: string | undefined;
+  private localCancellationRequested = false;
 
   public constructor(private readonly options: DefaultRunnerServiceOptions) {
     this.configPageSize = options.configPageSize ?? 100;
+    this.backendRetryMaxAttempts = normalizeAttempts(options.backendRetryMaxAttempts ?? 3);
+    this.eventRetryMaxAttempts = normalizeAttempts(options.eventRetryMaxAttempts ?? 3);
+    this.retryDelayMs = options.retryDelayMs ?? 0;
+    this.runTimeoutMs = options.runTimeoutMs;
   }
 
   public async start(): Promise<void> {
@@ -46,11 +67,11 @@ export class DefaultRunnerService implements RunnerService {
       return;
     }
 
-    await this.options.backendClient.registerInstance({
+    await this.callBackend(() => this.options.backendClient.registerInstance({
       runnerKey: this.options.runnerKey,
       hostname: this.options.hostname,
       version: this.options.version,
-    });
+    }));
     this.registered = true;
     await this.sendIdleHeartbeat();
   }
@@ -80,7 +101,10 @@ export class DefaultRunnerService implements RunnerService {
   }
 
   private async executeCommand(command: RunnerCommandMessage): Promise<void> {
-    if (command.commandType !== 'START_RUN') {
+    if (command.commandType === 'CANCEL_RUN') {
+      if (this.activeTestRunId === command.testRunId) {
+        this.localCancellationRequested = true;
+      }
       return;
     }
     if (this.activeTestRunId !== undefined) {
@@ -88,48 +112,59 @@ export class DefaultRunnerService implements RunnerService {
     }
 
     this.activeTestRunId = command.testRunId;
+    this.localCancellationRequested = false;
     await this.sendBusyHeartbeat(command);
     try {
-      const controlState = await this.options.backendClient.getControlState(command.testRunId);
+      const controlState = await this.getControlState(command.testRunId);
       if (TERMINAL_STATUSES.has(controlState.status)) {
         return;
       }
       if (controlState.cancellationRequested || controlState.status === 'CANCEL_REQUESTED') {
-        await this.options.eventSink.send(
-          this.options.eventFactory.createRunCancelled({
-            testRunId: command.testRunId,
-            commandId: command.commandId,
-            reason: 'cancellation requested before runner execution',
-          }),
-        );
+        await this.sendRunCancelled(command, 'cancellation requested before runner execution');
         return;
       }
 
-      const configResponse = await this.options.backendClient.getTestRunConfig(command.testRunId, 0, this.configPageSize);
+      const configResponse = await this.callBackend(() =>
+        this.options.backendClient.getTestRunConfig(command.testRunId, 0, this.configPageSize),
+      );
       const generatedConfig = await this.buildPromptfooConfig(configResponse);
 
-      await this.options.eventSink.send(
+      await this.emitEvent(
         this.options.eventFactory.createRunStarted({
           testRunId: command.testRunId,
           commandId: command.commandId,
         }),
       );
 
-      const rawResult = await this.options.promptfooExecutor.execute(generatedConfig.configObject);
+      const rawResult = await this.executePromptfoo(generatedConfig.configObject);
       const results = this.options.resultNormalizer.normalize(rawResult);
-      for (const result of results) {
+      for (let index = 0; index < results.length; index += 1) {
+        const result = results[index];
+        if (result === undefined) {
+          continue;
+        }
         await this.sendTestcaseEvent(command, result);
+        if (index < results.length - 1 && (await this.isCancellationRequested(command.testRunId))) {
+          await this.sendRunCancelled(command, 'cancellation requested during runner execution');
+          return;
+        }
       }
 
-      await this.options.eventSink.send(
+      await this.emitEvent(
         this.options.eventFactory.createRunCompleted({
           testRunId: command.testRunId,
           commandId: command.commandId,
           summary: summarizeResults(results),
         }),
       );
+    } catch (error) {
+      if (isEventDeliveryError(error)) {
+        throw error;
+      }
+      await this.sendRunFailed(command, error);
     } finally {
       this.activeTestRunId = undefined;
+      this.localCancellationRequested = false;
       await this.sendIdleHeartbeat();
     }
   }
@@ -140,12 +175,97 @@ export class DefaultRunnerService implements RunnerService {
       secretIds.length === 0
         ? {}
         : (
-            await this.options.backendClient.resolveRuntimeSecrets(configResponse.testRunId, {
-              secretIds,
-            })
+            await this.callBackend(() =>
+              this.options.backendClient.resolveRuntimeSecrets(configResponse.testRunId, {
+                secretIds,
+              }),
+            )
           ).secrets;
 
     return this.options.configBuilder.build(toPromptfooInput(configResponse, runtimeSecretsById));
+  }
+
+  private async executePromptfoo(configObject: PromptfooConfigObject): Promise<unknown> {
+    const execution = this.options.promptfooExecutor.execute(configObject);
+    if (this.runTimeoutMs === undefined) {
+      return execution;
+    }
+
+    return withTimeout(execution, {
+      ms: this.runTimeoutMs,
+      message: `Run execution timed out after ${this.runTimeoutMs}ms`,
+      category: 'runner.timeout',
+    });
+  }
+
+  private async getControlState(testRunId: string): Promise<Awaited<ReturnType<BackendClient['getControlState']>>> {
+    return this.callBackend(() => this.options.backendClient.getControlState(testRunId));
+  }
+
+  private async isCancellationRequested(testRunId: string): Promise<boolean> {
+    if (this.localCancellationRequested) {
+      return true;
+    }
+
+    const controlState = await this.getControlState(testRunId);
+    return controlState.cancellationRequested || controlState.status === 'CANCEL_REQUESTED';
+  }
+
+  private async sendRunCancelled(command: RunnerCommandMessage, reason: string): Promise<void> {
+    await this.emitEvent(
+      this.options.eventFactory.createRunCancelled({
+        testRunId: command.testRunId,
+        commandId: command.commandId,
+        reason,
+      }),
+    );
+  }
+
+  private async sendRunFailed(command: RunnerCommandMessage, error: unknown): Promise<void> {
+    await this.emitEvent(
+      this.options.eventFactory.createRunFailed({
+        testRunId: command.testRunId,
+        commandId: command.commandId,
+        error: runFailureMessage(error),
+        errorCategory: runFailureCategory(error),
+      }),
+    );
+  }
+
+  private async emitEvent(event: Parameters<RunnerEventSink['send']>[0]): Promise<void> {
+    try {
+      await sendEventWithRetry(this.options.eventSink, event, { maxAttempts: this.eventRetryMaxAttempts });
+    } catch (error) {
+      const status = error instanceof RunnerError ? error.status : undefined;
+      throw new RunnerError('Runner event delivery failed', {
+        category: 'runner.event.delivery',
+        retryable: isRetryableBackendError(error),
+        cause: error,
+        ...(status === undefined ? {} : { status }),
+      });
+    }
+  }
+
+  private async callBackend<TValue>(operation: () => Promise<TValue>): Promise<TValue> {
+    let attempt = 0;
+    while (attempt < this.backendRetryMaxAttempts) {
+      attempt += 1;
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt >= this.backendRetryMaxAttempts || !isRetryableBackendError(error)) {
+          throw error;
+        }
+        if (this.retryDelayMs > 0) {
+          await sleep(this.retryDelayMs);
+        }
+      }
+    }
+
+    throw new RunnerError('Runner backend retry attempts exhausted', {
+      category: 'runner.backend.retry_exhausted',
+      retryable: false,
+    });
   }
 
   private async sendTestcaseEvent(command: RunnerCommandMessage, result: PromptfooCaseResult): Promise<void> {
@@ -156,29 +276,29 @@ export class DefaultRunnerService implements RunnerService {
     };
 
     if (isErrorStatus(result.status)) {
-      await this.options.eventSink.send(this.options.eventFactory.createTestcaseError(eventInput));
+      await this.emitEvent(this.options.eventFactory.createTestcaseError(eventInput));
       return;
     }
 
-    await this.options.eventSink.send(this.options.eventFactory.createTestcaseCompleted(eventInput));
+    await this.emitEvent(this.options.eventFactory.createTestcaseCompleted(eventInput));
   }
 
   private async sendBusyHeartbeat(command: RunnerCommandMessage): Promise<void> {
-    await this.options.backendClient.heartbeat({
+    await this.callBackend(() => this.options.backendClient.heartbeat({
       runnerKey: this.options.runnerKey,
       status: 'BUSY',
       currentCommandId: command.commandId,
       currentTestRunId: command.testRunId,
-    });
+    }));
   }
 
   private async sendIdleHeartbeat(): Promise<void> {
-    await this.options.backendClient.heartbeat({
+    await this.callBackend(() => this.options.backendClient.heartbeat({
       runnerKey: this.options.runnerKey,
       status: 'IDLE',
       currentCommandId: null,
       currentTestRunId: null,
-    });
+    }));
   }
 }
 
@@ -253,6 +373,34 @@ function summarizeResults(results: readonly PromptfooCaseResult[]): Record<strin
 
 function isErrorStatus(status: PromptfooCaseResult['status']): boolean {
   return status === 'ERROR' || status === 'JUDGE_ERROR' || status === 'TIMEOUT';
+}
+
+function isEventDeliveryError(error: unknown): boolean {
+  return error instanceof RunnerError && error.category === 'runner.event.delivery';
+}
+
+function runFailureMessage(error: unknown): string {
+  if (error instanceof RunnerError && error.category === 'runner.timeout') {
+    return error.message;
+  }
+  return 'Runner execution failed';
+}
+
+function runFailureCategory(error: unknown): string {
+  if (error instanceof RunnerError && error.category === 'runner.timeout') {
+    return 'RUN_TIMEOUT';
+  }
+  if (error instanceof RunnerError && error.category === 'runner.backend.retry_exhausted') {
+    return 'BACKEND_RETRY_EXHAUSTED';
+  }
+  return 'RUNNER_EXECUTION_FAILED';
+}
+
+function normalizeAttempts(value: number): number {
+  if (!Number.isFinite(value) || value < 1) {
+    return 1;
+  }
+  return Math.floor(value);
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
