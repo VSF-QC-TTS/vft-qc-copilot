@@ -106,11 +106,13 @@ Done:
 6. Slice 3 event factories, Redis/HTTP event sinks, and retry helper are implemented.
 7. Slice 4 recursive masking, sanitized JSON artifacts, sanitized-byte hashing, and artifact metadata are implemented.
 8. Slice 5 Promptfoo config builder fixtures, evaluator mapping, result normalizer, and executor boundary are implemented.
+9. Slice 6 RunnerService lifecycle orchestration is implemented for one START_RUN with register, heartbeat, config/secrets, ordered events, and XACK-after-final-event behavior.
 
 Not done yet:
-1. Runner orchestration lifecycle.
+1. Long-running runner loop wiring in main.ts.
 2. Full Redis event stream publisher implementation behind RedisRunnerEventSink.
 3. Full Redis pending recovery/claim loop beyond the no-op boundary.
+4. Slice 7 cancellation polling, retry, timeout, and idempotency hardening.
 ```
 
 ## Documentation Files
@@ -172,7 +174,7 @@ Preserve these as gaps, not as implemented behavior:
 ```text
 1. No dedicated backend artifact upload/metadata endpoint is currently implemented.
 2. No explicit command acknowledgement endpoint is currently implemented.
-3. Redis command consumer for the standalone runner is not implemented in this repository yet.
+3. Full Redis pending recovery/claim loop is not implemented beyond the no-op boundary.
 4. Exact Promptfoo adapter schema is not finalized.
 5. Large dataset row paging may need a more explicit runner row-page contract.
 6. HTTP event output is fallback/dev; Redis event output is the runner v1 default.

@@ -444,6 +444,18 @@ Stop after slice and show diff.
 
 ## Slice 6 — Runner Lifecycle Orchestration
 
+Status:
+
+```text
+Completed in apps/runner:
+1. DefaultRunnerService registers on boot and sends IDLE/BUSY/IDLE heartbeats.
+2. START_RUN orchestration fetches backend control state, locked config, referenced runtime secrets, and builds Promptfoo config.
+3. Promptfoo execution remains behind the injected executor boundary for mocked/fake tests.
+4. Runner emits RUN_STARTED, testcase result events, and RUN_COMPLETED in stable order through RunnerEventSink.
+5. XACK is called only after the final event succeeds; terminal duplicate delivery is acknowledged without rerunning.
+6. Slice tests pass under npm run check and npm run build.
+```
+
 Purpose:
 
 ```text
