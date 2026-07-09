@@ -103,11 +103,12 @@ Done:
 3. BackendClient injects the runner bearer token and validates backend responses with Zod.
 4. Backend HTTP failures are sanitized and classified for retry behavior.
 5. Slice 2 Redis command parser, Redis client wrapper, consumer group read, and explicit XACK boundary are implemented.
+6. Slice 3 event factories, Redis/HTTP event sinks, and retry helper are implemented.
 
 Not done yet:
 1. Promptfoo adapter implementation.
 2. Runner orchestration lifecycle.
-3. Concrete Redis/HTTP event sink implementations beyond current interfaces/placeholders.
+3. Full Redis event stream publisher implementation behind RedisRunnerEventSink.
 4. Full Redis pending recovery/claim loop beyond the no-op boundary.
 ```
 

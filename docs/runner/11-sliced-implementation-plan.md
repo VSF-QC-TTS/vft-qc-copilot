@@ -236,6 +236,18 @@ Stop after slice and show diff.
 
 ## Slice 3 — Event Sink And Event Factories
 
+Status:
+
+```text
+Completed in apps/runner:
+1. Runner event payload schemas cover RUN_STARTED, RUN_PROGRESS, TESTCASE_COMPLETED, TESTCASE_ERROR, RUN_COMPLETED, RUN_FAILED, RUN_CANCELLED, RUN_LOG, and ARTIFACT_CREATED.
+2. DefaultRunnerEventFactory creates typed RunnerEventRequest values and minimally sanitizes run-level error/log text.
+3. RedisRunnerEventSink is the default async transport boundary and returns a Redis stream publish acknowledgement.
+4. HttpRunnerEventSink remains the fallback/dev strategy and returns backend ingestion responses.
+5. sendEventWithRetry preserves eventId across retries and does not retry INVALID_STATE responses.
+6. Slice tests pass under npm run check and npm run build.
+```
+
 Purpose:
 
 ```text

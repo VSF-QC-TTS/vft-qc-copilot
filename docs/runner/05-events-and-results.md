@@ -16,8 +16,12 @@ Runner core must depend on an interface:
 
 ```ts
 export interface RunnerEventSink {
-  send(event: RunnerEventRequest): Promise<RunnerEventIngestionResponse>;
+  send(event: RunnerEventRequest): Promise<RunnerEventSinkResult>;
 }
+
+export type RunnerEventSinkResult =
+  | { transport: "http"; response: RunnerEventIngestionResponse }
+  | { transport: "redis"; eventId: string; testRunId: string; streamMessageId: string };
 ```
 
 Implementations:
@@ -37,6 +41,14 @@ Reason:
 
 ```text
 Redis event transport gives backend-side buffering and uses the same backend ingestion service through RunnerRedisEventWorker.
+```
+
+Implementation note:
+
+```text
+RedisRunnerEventSink cannot know the backend-assigned sequenceNo synchronously.
+It returns the Redis stream message id as publish acknowledgement. HttpRunnerEventSink
+returns the backend RunnerEventIngestionResponse.
 ```
 
 ## RunnerEventRequest
