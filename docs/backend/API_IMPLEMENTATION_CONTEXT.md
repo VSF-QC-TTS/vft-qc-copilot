@@ -110,14 +110,27 @@ The backend suite currently covers:
 
 - Package by feature: `feature/controller`, `dto`, `entity`, `enums`, `mapper`, `repository`, `service`, `service/impl`.
 - Controllers stay thin; business rules live in services/validators.
-- Service contracts are interfaces; implementations are under `service/impl`.
+- Controllers and request/response contracts should include Swagger/OpenAPI annotations such as `@Tag`, `@Operation`, useful `@ApiResponse`, and `@Schema` descriptions.
+- Service contracts are interfaces in `feature/service`; implementations live under `feature/service/impl`, are named `XxxServiceImpl`, and interface methods should have Javadoc for intent, permissions, transaction expectations, and important side effects.
 - Keep JPA entities out of API responses.
 - Use DTO records where practical.
-- Use Jakarta validation and Swagger/OpenAPI annotations on request/response contracts.
+- Keep UUID reference fields in responses for compatibility; add compact summary objects beside them when the frontend needs display data.
+- Batch-load response summaries in assemblers/services; do not load summaries inside mappers or loops.
+- Use Jakarta validation on request DTO fields.
+- Use Lombok for accepted boilerplate: `@RequiredArgsConstructor`, `@Slf4j`, `@Getter`, `@Setter`, `@Builder`, `@AllArgsConstructor`, `@NoArgsConstructor` for entities. Entities use standard non-chaining setters; do not use `@Accessors(chain = true)`.
+- Use MapStruct for simple entity-to-DTO mapping. Use assemblers only when a response is an aggregate/read model and MapStruct would hide orchestration.
+- Do not use inline fully-qualified class names in code; add imports and use simple type names.
+- Prefer immutable DTO/value objects, final injected dependencies, constructor injection, focused classes, guard clauses, and code to interfaces such as `List`/`Map`.
+- Avoid hardcoded magic values and god services.
 - Use `ProblemDetail` through the global error handler.
 - Use `@ConfigurationProperties`; avoid `@Value` field injection.
+- Follow Spring Boot built-ins first: Spring Security, Spring Data JPA, `RestClient`, `SseEmitter`, `ProblemDetail`, and `@ConfigurationProperties`.
 - Use service-layer transactions; `@Transactional(readOnly = true)` for reads.
+- Use `@Modifying @Query` bulk updates for token revocation instead of find-then-loop patterns.
 - Use `ApplicationEventPublisher` plus `@TransactionalEventListener(AFTER_COMMIT)` plus `@Async` for side effects such as mail/export workers.
+- Service implementations should use `@Slf4j`; log state changes with structured `log.info(...)` and handled failures with `log.warn(...)`. Read-only queries do not need logging unless useful for debugging.
+- Use `AuthLinkBuilder` for email URL construction and `AuthLinkBuilder.normalizeEmail()` for auth/user email normalization.
+- Use `DatasetCellValidator` for dataset row schema validation; keep dataset operations split across `DatasetService`, `DatasetDraftService`, and `DatasetRowService`.
 - Never log passwords, plaintext secrets, raw external payloads, unsanitized cURL, runtime secrets, or business-sensitive raw result bodies.
 - Avoid N+1 queries in read models; use focused repository methods or batch summary services.
 - Integration test config lives in `src/test/resources/application-test.yaml`; do not hardcode properties in `@SpringBootTest`.
@@ -175,7 +188,7 @@ Internal runner API:
 ## Caveats
 
 - `apps/api/target` may exist because tests were run.
-- Worktree may contain uncommitted Phase 12 and edge-case test changes; always check `rtk git status --short`.
+- Always check worktree state with `rtk git status --short` before editing or committing.
 - Mail delivery is disabled in tests/local dry runs with `vfqc.mail.enabled=false`.
 - Local export storage is MVP and not safe for multi-instance production unless storage/routing is handled.
 - SSE live fanout is in-memory per API instance; DB replay works, multi-instance broadcast does not.
