@@ -104,6 +104,7 @@ Done:
 4. Backend HTTP failures are sanitized and classified for retry behavior.
 5. Slice 2 Redis command parser, Redis client wrapper, consumer group read, and explicit XACK boundary are implemented.
 6. Slice 3 event factories, Redis/HTTP event sinks, and retry helper are implemented.
+7. Slice 4 recursive masking, sanitized JSON artifacts, sanitized-byte hashing, and artifact metadata are implemented.
 
 Not done yet:
 1. Promptfoo adapter implementation.

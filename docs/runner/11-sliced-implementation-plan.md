@@ -308,6 +308,18 @@ Stop after slice and show diff.
 
 ## Slice 4 — Sensitive Data Masking And Artifact Utilities
 
+Status:
+
+```text
+Completed in apps/runner:
+1. RecursiveSensitiveDataMasker masks sensitive fields, known secrets, token-like text, and raw cURL Authorization headers.
+2. DefaultMaskingPolicy includes backend-documented sensitive keys and known-secret support.
+3. SanitizedJsonArtifactWriter writes only sanitized JSON bytes.
+4. Sha256HashUtil hashes the sanitized bytes written to disk.
+5. Artifact metadata is local metadata only and does not include public download URLs.
+6. Slice tests pass under npm run check and npm run build.
+```
+
 Purpose:
 
 ```text

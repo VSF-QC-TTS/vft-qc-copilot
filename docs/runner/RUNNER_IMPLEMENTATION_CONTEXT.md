@@ -1,6 +1,6 @@
 # Runner Implementation Handoff Context
 
-Last checked: 2026-07-09 19:15 Asia/Bangkok.
+Last checked: 2026-07-09 19:20 Asia/Bangkok.
 
 Read this first in a new runner session. It is intentionally short; detailed specs remain in `docs/runner/README.md`, `docs/runner/00..11-*.md`, and `docs/runner/AI_RUNNER_DTO_HANDOFF.md`.
 
@@ -27,7 +27,7 @@ rtk npm run build
 Current verified baseline:
 
 ```text
-rtk npm run check: 16 test files / 55 tests passed.
+rtk npm run check: 20 test files / 74 tests passed.
 rtk npm run build: TypeScript build passed.
 ```
 
@@ -65,6 +65,14 @@ Implemented module areas:
   - `RedisRunnerEventSink`
   - `HttpRunnerEventSink`
   - event retry helper preserving `eventId`
+- `masking`
+  - recursive sensitive data masker
+  - masking policy for sensitive fields, known secrets, and token-like values
+- `artifacts`
+  - sanitized JSON artifact writer
+  - SHA-256 hash utility
+  - local artifact path builder
+  - metadata builder without public URLs
 - Other folders are still mostly scaffold/boundaries for later slices.
 
 ## Current Slice Status
@@ -75,8 +83,8 @@ Implemented module areas:
 | 1 Backend DTO Validators And BackendClient | Done | Zod DTO validators, HTTP backend client, sanitized errors, retry classification. |
 | 2 Redis Command Intake | Done | START_RUN/CANCEL_RUN parser, Redis wrapper, XGROUP CREATE, XREADGROUP, explicit XACK. |
 | 3 Event Sink And Event Factories | Done | Event payload schemas, factories, Redis/HTTP sinks, retry helper. |
-| 4 Sensitive Data Masking And Artifact Utilities | Not started | Next recommended slice. |
-| 5 Promptfoo Adapter Fixtures | Not started | Do after masking/artifact utilities. |
+| 4 Sensitive Data Masking And Artifact Utilities | Done | Recursive masking, sanitized JSON writer, sanitized-byte hash, metadata builder. |
+| 5 Promptfoo Adapter Fixtures | Not started | Next recommended slice. |
 | 6 Runner Lifecycle Orchestration | Not started | Do only after Promptfoo boundary exists. |
 | 7 Cancellation, Retry, Timeout | Not started | Needs orchestration first. |
 | 8 Local Smoke Test | Not started | Final local integration/smoke slice. |
@@ -93,6 +101,8 @@ The runner suite currently covers:
 - Event factory payloads for `RUN_STARTED`, testcase events, `RUN_COMPLETED`, `RUN_FAILED`, `RUN_CANCELLED`, and `ARTIFACT_CREATED`.
 - Redis event sink publish acknowledgement.
 - HTTP event sink retry behavior, idempotent replay success, and non-looping `INVALID_STATE` behavior.
+- Recursive masking for sensitive fields, known fake secrets, token-like values, raw cURL authorization, and accidental Promptfoo secrets.
+- Sanitized JSON artifact writing, sanitized-byte hashing, metadata-only artifact records, and metadata-only `ARTIFACT_CREATED` behavior.
 
 ## Important Implementation Conventions
 
@@ -139,19 +149,11 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 
 ## Recommended Next Work
 
-1. Do Slice 4: Sensitive Data Masking And Artifact Utilities.
-   - Implement recursive `SensitiveDataMasker`.
-   - Implement `MaskingPolicy`.
-   - Implement sanitized JSON writer.
-   - Implement sanitized hash utility.
-   - Implement artifact metadata builder.
-   - Keep backend artifact upload out of scope.
-
-2. Then do Slice 5: Promptfoo Adapter Fixtures.
+1. Do Slice 5: Promptfoo Adapter Fixtures.
    - Build Promptfoo boundary with deterministic fixtures.
    - Do not wire full runner orchestration yet.
 
-3. Then do Slice 6: Runner Lifecycle Orchestration.
+2. Then do Slice 6: Runner Lifecycle Orchestration.
    - Use mocked Promptfoo executor first.
    - Wire command consume, backend config/secrets/control, event sink, and XACK carefully.
 
@@ -161,6 +163,5 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 - `apps/runner/node_modules` may exist locally; it is ignored.
 - `RedisRunnerEventSink` currently depends on a `RunnerEventPublisher` boundary; full Redis event stream publisher implementation is still not done.
 - Pending command recovery is currently a no-op boundary; stale pending claim handling is still not done.
-- Masking in Slice 3 is only minimal run-level text masking. Full recursive masking belongs to Slice 4.
 - Artifact events are metadata-only; there is no complete backend artifact upload/download contract yet.
 - Always check worktree state with `rtk git status --short` before editing or committing.
