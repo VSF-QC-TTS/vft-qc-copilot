@@ -35,6 +35,11 @@ vfqc:
   mail:
     enabled: false
     from: no-reply@test.localhost
+  runner:
+    redis-events:
+      enabled: false
+      idle-sleep-ms: 10
+      error-sleep-ms: 10
   security:
     access-expiration: 15
     refresh-expiration: 10080

@@ -81,7 +81,7 @@ Migration note: the squash is acceptable only because no real backend deployment
 | 6 Chatbot Target | Backend MVP done | cURL inspect, CRUD, test connection, examples, extraction, readiness, SSRF checks. |
 | 7 Evaluator | Backend MVP done | CRUD, immutable versions, rule validation, LLM judge validation, setup status. |
 | 8 TestRun Core | Backend MVP done | Preflight, create snapshot, list/detail/cancel, results, review, matrix. |
-| 9 Runner Internal APIs | Mostly done | Runner register/heartbeat/config/secrets/control/events, Redis command/event plumbing, DLQ, Redis event polling scheduler opt-in. |
+| 9 Runner Internal APIs | Mostly done | Runner register/heartbeat/config/secrets/control/events, Redis command/event plumbing, DLQ, Redis event worker. |
 | 10 SSE | MVP done | TestRun event stream with auth, replay, masking, heartbeat, in-memory fanout. |
 | 11 Export Jobs | MVP done | Async local-storage XLSX export jobs and safe downloads. |
 | 12 Hardening | Backend pass done | OpenAPI generation, naming tests, dataset import/export edge tests, full suite green after migration squash. |
@@ -160,9 +160,9 @@ Internal runner API:
 
 Runner Redis event polling:
 
-- Backend can consume `vfqc:runs:events` through `RunnerRedisEventConsumerScheduler`.
-- It is disabled by default with `VFQC_RUNNER_REDIS_EVENTS_ENABLED=false`.
-- Enable only when a runner is deliberately configured to publish events through Redis instead of the default HTTP event ingestion path.
+- Backend consumes `vfqc:runs:events` through `RunnerRedisEventWorker`.
+- The worker is enabled by default with `VFQC_RUNNER_REDIS_EVENTS_ENABLED=true`; tests disable it in `application-test.yaml` when they call the consumer manually.
+- Keep `POST /internal/runner/events` as a fallback/dev ingestion path, but prefer Redis event transport for runner-to-backend execution events.
 
 ## Recommended Next Work
 

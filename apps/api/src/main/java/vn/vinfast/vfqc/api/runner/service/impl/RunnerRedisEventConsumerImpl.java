@@ -2,6 +2,7 @@ package vn.vinfast.vfqc.api.runner.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -13,11 +14,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.RedisSystemException;
 import org.springframework.data.redis.connection.stream.Consumer;
+import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.connection.stream.StreamReadOptions;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StreamOperations;
-import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import vn.vinfast.vfqc.api.runner.config.RunnerRedisStreams;
@@ -86,12 +88,27 @@ public class RunnerRedisEventConsumerImpl implements RunnerRedisEventConsumer {
 
   private void ensureGroup() {
     try {
-      redisTemplate.opsForStream().createGroup(RunnerRedisStreams.EVENTS, ReadOffset.from("0-0"), CONSUMER_GROUP);
+      redisTemplate.execute(
+          (RedisCallback<Void>)
+              connection -> {
+                connection.execute(
+                    "XGROUP",
+                    bytes("CREATE"),
+                    bytes(RunnerRedisStreams.EVENTS),
+                    bytes(CONSUMER_GROUP),
+                    bytes("0-0"),
+                    bytes("MKSTREAM"));
+                return null;
+              });
     } catch (RedisSystemException exception) {
       if (!hasCauseMessage(exception, "BUSYGROUP")) {
         throw exception;
       }
     }
+  }
+
+  private byte[] bytes(String value) {
+    return value.getBytes(StandardCharsets.UTF_8);
   }
 
   private boolean hasCauseMessage(Throwable throwable, String expected) {

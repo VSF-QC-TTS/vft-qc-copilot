@@ -233,8 +233,8 @@ Implement:
 
 ```text
 1. RunnerEventSink interface.
-2. HttpRunnerEventSink as default.
-3. RedisRunnerEventSink as placeholder or optional strategy behind config.
+2. RedisRunnerEventSink as default.
+3. HttpRunnerEventSink as fallback/dev strategy behind config.
 4. Event factory for all backend-supported event types.
 5. Idempotency retry helper preserving eventId.
 ```
@@ -242,10 +242,10 @@ Implement:
 Default:
 
 ```text
-VFQC_EVENT_TRANSPORT=http
+VFQC_EVENT_TRANSPORT=redis
 ```
 
-Do not enable Redis event output unless backend Redis event polling is explicitly enabled.
+Use HTTP event output only as an explicit fallback/dev path.
 
 Tests:
 
@@ -550,12 +550,12 @@ Runner MVP implementation is ready only when:
 3. npm run build succeeds.
 4. Backend contract tests pass.
 5. Redis command intake tests pass.
-6. HTTP event sink tests pass.
+6. Redis event sink tests pass.
 7. Masking leak tests pass.
 8. Promptfoo adapter fixtures pass.
 9. Runner lifecycle tests pass.
 10. Cancellation/retry/timeout tests pass.
 11. Local smoke plan exists.
 12. No real secret appears in fixtures, logs, events, or artifacts.
-13. Event transport remains HTTP by default unless backend Redis event polling is explicitly enabled.
+13. Event transport remains Redis by default with HTTP fallback available.
 ```

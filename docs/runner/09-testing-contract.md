@@ -73,7 +73,7 @@ Slice 2 Redis command intake:
   Optional Redis integration tests if local Redis/Testcontainers is available.
 
 Slice 3 event sink:
-  HTTP event sink tests, event idempotency retry tests, and Redis event sink placeholder tests.
+  Redis event sink tests, event idempotency retry tests, and HTTP fallback sink tests.
 
 Slice 4 masking/artifacts:
   Mandatory leak tests using known fake secret strings.
@@ -517,6 +517,6 @@ Runner implementation is not MVP-ready until:
 6. Cancellation tests pass.
 7. Timeout tests pass.
 8. Redis command consume tests pass.
-9. HTTP event sink tests pass.
+9. Redis event sink tests pass.
 10. Local smoke test plan is documented, even if not automated yet.
 ```

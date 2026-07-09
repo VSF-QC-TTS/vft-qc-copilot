@@ -2,13 +2,13 @@
 
 This document defines how the runner should emit execution events and testcase results.
 
-The current MVP default is HTTP event ingestion:
+The current MVP default is Redis event ingestion:
 
 ```text
-POST /internal/runner/events
+Runner -> vfqc:runs:events -> Backend RunnerRedisEventWorker
 ```
 
-Redis event output may be added behind `RedisRunnerEventSink` when backend Redis event polling is explicitly enabled.
+HTTP event output remains available behind `HttpRunnerEventSink` as a fallback/dev path.
 
 ## Event Sink Boundary
 
@@ -23,20 +23,20 @@ export interface RunnerEventSink {
 Implementations:
 
 ```text
-HttpRunnerEventSink
 RedisRunnerEventSink
+HttpRunnerEventSink
 ```
 
 Default:
 
 ```text
-HttpRunnerEventSink
+RedisRunnerEventSink
 ```
 
 Reason:
 
 ```text
-The current backend handoff gives a concrete HTTP event ingestion DTO and idempotency contract.
+Redis event transport gives backend-side buffering and uses the same backend ingestion service through RunnerRedisEventWorker.
 ```
 
 ## RunnerEventRequest

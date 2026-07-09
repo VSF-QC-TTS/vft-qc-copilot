@@ -75,10 +75,10 @@ Implementation note checked against backend code on 2026-07-09:
 ```text
 RunnerRedisEventConsumerImpl reads vfqc:runs:events with consumer group vfqc-api
 and consumer name api-runner-events. It maps Redis fields to RunnerEventRequest
-and has retry/DLQ behavior. RunnerRedisEventConsumerScheduler can poll it in
-production when vfqc.runner.redis-events.enabled=true. This scheduler is disabled
-by default, so keep HTTP event ingestion as the standalone runner default unless
-Redis event output is explicitly enabled and operated.
+and has retry/DLQ behavior. RunnerRedisEventWorker runs as a long-running backend
+worker when vfqc.runner.redis-events.enabled=true, which is the default outside
+tests. Use Redis event output as the standalone runner default and keep HTTP
+event ingestion as fallback/dev.
 ```
 
 DLQ streams:
@@ -633,6 +633,7 @@ Document these as known gaps, not as implemented behavior:
 - Redis command consumer for the standalone runner is not implemented in this repository yet.
 - Exact Promptfoo adapter schema is not finalized. Backend stores `promptfooSnapshot`, but runner must still map locked VFQC domain snapshots to executable Promptfoo config.
 - Large dataset row paging may need a more explicit runner row-page contract if a run exceeds one config page.
+- HTTP event ingestion remains implemented but should be treated as fallback/dev now that backend has a long-running Redis event worker.
 
 ## Expected Documentation Output From The Next AI
 

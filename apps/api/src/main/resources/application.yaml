@@ -35,8 +35,9 @@ vfqc:
     enabled: ${VFQC_MAIL_ENABLED:true}
   runner:
     redis-events:
-      enabled: ${VFQC_RUNNER_REDIS_EVENTS_ENABLED:false}
-      poll-interval-ms: ${VFQC_RUNNER_REDIS_EVENTS_POLL_INTERVAL_MS:1000}
+      enabled: ${VFQC_RUNNER_REDIS_EVENTS_ENABLED:true}
+      idle-sleep-ms: ${VFQC_RUNNER_REDIS_EVENTS_IDLE_SLEEP_MS:100}
+      error-sleep-ms: ${VFQC_RUNNER_REDIS_EVENTS_ERROR_SLEEP_MS:1000}
 
 logging:
   pattern:

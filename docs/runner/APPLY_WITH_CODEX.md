@@ -17,7 +17,7 @@ Do not change the package manager.
 Do not add NestJS/Express/Fastify.
 Do not add direct DB access.
 Do not log runtime secrets or raw external payloads.
-Do not use Redis event output unless backend Redis event polling is explicitly enabled.
+Use Redis event output by default; use HTTP event output only as an explicit fallback.
 After each implementation slice, run the required checks and stop if they fail.
 ```
 

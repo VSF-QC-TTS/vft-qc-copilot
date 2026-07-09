@@ -639,7 +639,7 @@ Default:
 http
 ```
 
-Reason: the backend currently exposes a concrete `/internal/runner/events` ingestion contract. Redis event output should be enabled only after verifying backend support.
+Reason: the backend now has `RunnerRedisEventWorker` for `vfqc:runs:events`. HTTP event ingestion remains a fallback/dev path.
 
 ## Event Transport Standard
 
@@ -654,14 +654,14 @@ export interface RunnerEventSink {
 Implementations:
 
 ```text
-HttpRunnerEventSink
 RedisRunnerEventSink
+HttpRunnerEventSink
 ```
 
 Default MVP:
 
 ```text
-HttpRunnerEventSink
+RedisRunnerEventSink
 ```
 
 The runner service must not directly call `BackendClient.sendEvent(...)` or `redis.xAdd(...)` from business logic. Use the sink interface so the transport can change without rewriting execution logic.

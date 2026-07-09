@@ -77,10 +77,9 @@ Implementation note checked against backend code on 2026-07-09:
 ```text
 RunnerRedisEventConsumerImpl reads vfqc:runs:events with consumer group vfqc-api
 and consumer name api-runner-events. It maps Redis fields to RunnerEventRequest
-and has retry/DLQ behavior. RunnerRedisEventConsumerScheduler can poll it in
-production when vfqc.runner.redis-events.enabled=true. This scheduler is disabled
-by default, so keep HTTP event ingestion as the runner default unless the Redis
-event path is explicitly enabled and operated.
+and has retry/DLQ behavior. RunnerRedisEventWorker runs as a long-running backend
+worker when vfqc.runner.redis-events.enabled=true, which is the default outside
+tests. Keep HTTP event ingestion as a fallback/dev path.
 ```
 
 DLQ streams:
@@ -94,8 +93,8 @@ Current runner v1 recommendation:
 
 ```text
 Consume commands from Redis.
-Send events through POST /internal/runner/events by default.
-Only use vfqc:runs:events when backend Redis event polling is explicitly enabled.
+Send events through vfqc:runs:events by default.
+Use POST /internal/runner/events only as an explicit fallback/dev path.
 ```
 
 ## RunnerCommandMessage
@@ -876,7 +875,7 @@ Current known gaps:
 3. Redis command consumer for the standalone runner is not implemented in this repository yet.
 4. Exact Promptfoo adapter schema is not finalized.
 5. Large dataset row paging may need a more explicit runner row-page contract.
-6. Redis event output is opt-in and disabled by default; HTTP remains the runner v1 default.
+6. HTTP event output is fallback/dev; Redis event output is the runner v1 default.
 ```
 
 When implementing runner code, do not fill these gaps by inventing backend APIs.

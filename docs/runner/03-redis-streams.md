@@ -36,7 +36,7 @@ Runner v1 must consume:
 vfqc:runs:commands
 ```
 
-Runner v1 should not publish to `vfqc:runs:events` unless backend Redis event polling is explicitly enabled.
+Runner v1 should publish to `vfqc:runs:events` by default. Use HTTP event ingestion only as an explicit fallback/dev path.
 
 ## What XADD Means
 
@@ -294,13 +294,12 @@ Current backend verification note, 2026-07-09:
 ```text
 RunnerRedisEventConsumerImpl exists and reads vfqc:runs:events using group vfqc-api
 and consumer api-runner-events. It maps Redis fields into RunnerEventRequest and
-ACKs after ingestion or DLQ after retry exhaustion. RunnerRedisEventConsumerScheduler
-can poll it in production when vfqc.runner.redis-events.enabled=true. The scheduler
-is disabled by default, so HTTP event ingestion remains the standalone runner
-default unless Redis event output is explicitly enabled and operated.
+ACKs after ingestion or DLQ after retry exhaustion. RunnerRedisEventWorker runs
+as a long-running backend worker when vfqc.runner.redis-events.enabled=true,
+which is the default outside tests.
 ```
 
-If any item is missing, keep HTTP event ingestion as default:
+If Redis event transport is deliberately disabled, use HTTP fallback:
 
 ```text
 POST /internal/runner/events

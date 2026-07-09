@@ -72,24 +72,24 @@ Command intake:
   Backend -> Redis Stream vfqc:runs:commands -> Runner
 
 Event/result output:
-  Runner -> POST /internal/runner/events -> Backend -> DB/SSE
+  Runner -> Redis Stream vfqc:runs:events -> Backend worker -> DB/SSE
 ```
 
 Reason:
 
 ```text
 1. Redis command stream is explicitly listed as the backend-published command channel.
-2. POST /internal/runner/events has a concrete DTO and idempotency contract.
-3. A dedicated command acknowledgement endpoint is not currently implemented.
-4. Redis event delivery is now backend opt-in and should not become the default runner output path without explicit operational enablement.
+2. Redis event stream gives backend-side buffering and backpressure for high-volume testcase events.
+3. RunnerRedisEventWorker consumes vfqc:runs:events and persists through the same ingestion service as HTTP.
+4. POST /internal/runner/events remains useful as a fallback/dev path.
 ```
 
 The runner code must keep event output swappable:
 
 ```text
 RunnerEventSink
-  ├── HttpRunnerEventSink        # default MVP path
-  └── RedisRunnerEventSink       # opt-in only when backend Redis event polling is enabled
+  ├── RedisRunnerEventSink       # default MVP path
+  └── HttpRunnerEventSink        # fallback/dev path
 ```
 
 ## Documentation Files
@@ -129,7 +129,7 @@ Do not invent DTO fields or endpoints.
 Do not implement product scope outside the runner docs.
 Do not use promptfoo@latest in package.json.
 Do not log plaintext secrets or raw external payloads.
-Do not use Redis event output unless backend Redis event polling is explicitly enabled.
+Use Redis event output by default; use HTTP event output only as an explicit fallback.
 Prefer actual backend code over this doc if they conflict.
 ```
 
@@ -154,15 +154,15 @@ Preserve these as gaps, not as implemented behavior:
 3. Redis command consumer for the standalone runner is not implemented in this repository yet.
 4. Exact Promptfoo adapter schema is not finalized.
 5. Large dataset row paging may need a more explicit runner row-page contract.
-6. Redis event output is opt-in and disabled by default; HTTP remains the runner v1 default.
+6. HTTP event output is fallback/dev; Redis event output is the runner v1 default.
 ```
 
 Implementation note checked against backend code on 2026-07-09:
 
 ```text
 RunnerRedisEventConsumerImpl exists for vfqc:runs:events with consumer group
-vfqc-api and consumer api-runner-events. RunnerRedisEventConsumerScheduler can
-poll it in production when VFQC_RUNNER_REDIS_EVENTS_ENABLED=true. Keep
-POST /internal/runner/events as the default runner event transport unless Redis
-event output is explicitly enabled and operated.
+vfqc-api and consumer api-runner-events. RunnerRedisEventWorker runs as a
+long-running backend worker when VFQC_RUNNER_REDIS_EVENTS_ENABLED=true, which is
+the default outside tests. POST /internal/runner/events remains available as a
+fallback/dev event transport.
 ```

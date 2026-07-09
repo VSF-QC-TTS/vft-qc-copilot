@@ -115,16 +115,16 @@ artifacts
 Default runner v1 event transport:
 
 ```text
-Runner -> POST /internal/runner/events -> Backend
+Runner -> Redis Stream vfqc:runs:events -> Backend worker
 ```
 
 Reason:
 
 ```text
-1. The backend currently exposes a clear HTTP event ingestion contract.
-2. HTTP ingestion returns backend-assigned sequenceNo.
+1. Redis gives backend-side buffering and backpressure for high-volume testcase events.
+2. RunnerRedisEventWorker reads vfqc:runs:events and uses RunnerEventIngestionService.
 3. Backend persists RunnerEvent before SSE broadcast.
-4. Full Redis event output has to be verified against actual backend event consumer code first.
+4. HTTP event ingestion remains a fallback/dev path.
 ```
 
 ### Redis Event Transport Readiness
@@ -135,19 +135,19 @@ The PRD target architecture includes:
 Runner -> Redis Stream vfqc:runs:events -> Backend event consumer
 ```
 
-Do not assume this is fully supported for the standalone runner.
+This is the preferred standalone runner event path.
 
 Implementation note checked against backend code on 2026-07-09:
 
 ```text
 RunnerRedisEventConsumerImpl exists for vfqc:runs:events using consumer group
 vfqc-api and consumer api-runner-events. It maps Redis fields into
-RunnerEventRequest and has retry/DLQ behavior. RunnerRedisEventConsumerScheduler
-can poll it in production when vfqc.runner.redis-events.enabled=true. This is
-disabled by default, so Redis event output should remain opt-in for runner v1.
+RunnerEventRequest and has retry/DLQ behavior. RunnerRedisEventWorker runs as a
+long-running backend worker when vfqc.runner.redis-events.enabled=true, which is
+the default outside tests.
 ```
 
-Before enabling Redis event output, inspect backend code for:
+Redis event output depends on:
 
 ```text
 1. A Redis event consumer reading vfqc:runs:events.

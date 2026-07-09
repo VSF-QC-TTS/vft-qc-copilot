@@ -286,12 +286,13 @@ VFQC_REDIS_COMMAND_GROUP=vfqc-runners
 VFQC_REDIS_CONSUMER_NAME=runner-local-01
 VFQC_REDIS_EVENTS_STREAM=vfqc:runs:events
 
-# Use http by default. Redis event output requires backend polling to be enabled too.
-VFQC_EVENT_TRANSPORT=http
+# Use redis by default for runner-to-backend execution events.
+VFQC_EVENT_TRANSPORT=redis
 
-# Backend-side Redis event polling, only needed when VFQC_EVENT_TRANSPORT=redis.
-VFQC_RUNNER_REDIS_EVENTS_ENABLED=false
-VFQC_RUNNER_REDIS_EVENTS_POLL_INTERVAL_MS=1000
+# Backend-side Redis event worker.
+VFQC_RUNNER_REDIS_EVENTS_ENABLED=true
+VFQC_RUNNER_REDIS_EVENTS_IDLE_SLEEP_MS=100
+VFQC_RUNNER_REDIS_EVENTS_ERROR_SLEEP_MS=1000
 
 VFQC_WORK_DIR=./.runner-work
 VFQC_ARTIFACTS_DIR=./storage/artifacts/test-runs
@@ -403,13 +404,13 @@ Do not use manual Redis commands against shared/staging environments unless expl
 Default:
 
 ```text
-VFQC_EVENT_TRANSPORT=http
+VFQC_EVENT_TRANSPORT=redis
 ```
 
-Before using:
+Fallback:
 
 ```text
-VFQC_EVENT_TRANSPORT=redis
+VFQC_EVENT_TRANSPORT=http
 ```
 
 verify backend supports:
@@ -425,7 +426,7 @@ verify backend supports:
 8. Tests for the Redis event path.
 ```
 
-If not verified, keep HTTP event ingestion.
+Use HTTP only when explicitly debugging or when Redis event transport is deliberately disabled.
 
 ## Development Commands
 
@@ -549,7 +550,7 @@ VFQC_EVENT_TRANSPORT=http
 VFQC_RUNNER_REDIS_EVENTS_ENABLED=false
 ```
 
-Then verify both sides before retrying Redis event transport: runner `VFQC_EVENT_TRANSPORT=redis`
+Then retry Redis event transport with runner `VFQC_EVENT_TRANSPORT=redis`
 and backend `VFQC_RUNNER_REDIS_EVENTS_ENABLED=true`.
 
 ## Pre-Implementation Checklist
