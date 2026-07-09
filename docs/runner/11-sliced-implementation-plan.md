@@ -87,6 +87,17 @@ Stop for human review after this slice.
 
 ## Slice 1 — Backend DTO Validators And BackendClient
 
+Status:
+
+```text
+Completed in apps/runner:
+1. Zod runtime validators now live beside the runner API DTO types.
+2. HttpBackendClient implements the internal runner HTTP contract.
+3. Runner bearer token injection is covered by tests.
+4. Backend validation, HTTP, and network errors are sanitized and retry-classified.
+5. Slice tests pass under npm run check and npm run build.
+```
+
 Purpose:
 
 ```text
