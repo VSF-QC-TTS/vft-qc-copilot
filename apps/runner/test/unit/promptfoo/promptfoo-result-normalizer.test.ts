@@ -63,6 +63,50 @@ describe('DefaultPromptfooResultNormalizer', () => {
     ]);
   });
 
+  it('normalizes Promptfoo EvaluateSummary results', () => {
+    const normalizer = new DefaultPromptfooResultNormalizer();
+
+    const results = normalizer.normalize({
+      version: 3,
+      results: [
+        {
+          provider: { id: 'vfqc-chatbot:c1350b87-c35c-40b2-bbb1-b6f8815720fd' },
+          testCase: {
+            metadata: {
+              datasetRowId: 101,
+            },
+          },
+          success: false,
+          score: 0.2,
+          error: 'Target request failed',
+          response: {
+            output: { answer: 'not ok' },
+            tokenUsage: { total: 11 },
+          },
+          gradingResult: { reason: 'Expected ok' },
+          latencyMs: 123,
+        },
+      ],
+      stats: { successes: 0, failures: 1, errors: 0 },
+    });
+
+    expect(results).toEqual([
+      {
+        testRunTargetId: 'c1350b87-c35c-40b2-bbb1-b6f8815720fd',
+        datasetRowId: 101,
+        status: 'ERROR',
+        score: 0.2,
+        passed: false,
+        errorCategory: 'PROMPTFOO_ERROR',
+        response: { output: { answer: 'not ok' }, tokenUsage: { total: 11 } },
+        gradingResult: { reason: 'Expected ok' },
+        tokenUsage: { total: 11 },
+        latencyMs: 123,
+        machineSummary: 'Target request failed',
+      },
+    ]);
+  });
+
   it('keeps PromptfooExecutor as a mocked boundary for this slice', async () => {
     const executor = new FakePromptfooExecutor(successfulRawResult());
 

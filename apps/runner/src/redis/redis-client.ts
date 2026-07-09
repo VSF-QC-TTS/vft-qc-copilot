@@ -38,9 +38,13 @@ export interface RedisCommandStreamClient extends RedisLifecycle {
   xAck(stream: string, group: string, id: string): Promise<number>;
 }
 
+export interface RedisEventStreamClient extends RedisLifecycle {
+  xAdd(stream: string, id: string, fields: Record<string, string>): Promise<string>;
+}
+
 type NodeRedisClient = ReturnType<typeof createClient>;
 
-export class NodeRedisCommandStreamClient implements RedisCommandStreamClient {
+export class NodeRedisStreamClient implements RedisCommandStreamClient, RedisEventStreamClient {
   private readonly client: NodeRedisClient;
 
   public constructor(redisUrl: string) {
@@ -84,10 +88,22 @@ export class NodeRedisCommandStreamClient implements RedisCommandStreamClient {
   public async xAck(stream: string, group: string, id: string): Promise<number> {
     return Number(await this.client.xAck(stream, group, id));
   }
+
+  public async xAdd(stream: string, id: string, fields: Record<string, string>): Promise<string> {
+    const streamMessageId = await this.client.xAdd(stream, id, fields);
+    if (streamMessageId === null) {
+      throw new Error('Redis XADD did not return a stream message id');
+    }
+    return streamMessageId;
+  }
 }
 
 export function createRedisCommandStreamClient(redisUrl: string): RedisCommandStreamClient {
-  return new NodeRedisCommandStreamClient(redisUrl);
+  return new NodeRedisStreamClient(redisUrl);
+}
+
+export function createRedisEventStreamClient(redisUrl: string): RedisEventStreamClient {
+  return new NodeRedisStreamClient(redisUrl);
 }
 
 function normalizeRedisStreamReadResult(result: unknown): readonly RedisStreamReadResult[] | null {

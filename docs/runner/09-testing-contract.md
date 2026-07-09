@@ -90,6 +90,7 @@ Slice 7 cancel/retry/timeout:
 
 Slice 8 smoke plan:
   Document local smoke steps in docs/runner/12-local-smoke-test.md.
+  Keep RunnerSmokeSeedFixtureIntegrationTest green for backend seed shape.
   Automate only if local backend/Redis fixtures are stable.
 ```
 

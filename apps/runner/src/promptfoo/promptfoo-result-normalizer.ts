@@ -12,6 +12,10 @@ export class DefaultPromptfooResultNormalizer implements PromptfooResultNormaliz
 }
 
 function normalizeCaseResult(raw: Readonly<Record<string, unknown>>): PromptfooCaseResult {
+  if (isPromptfooEvaluateResult(raw)) {
+    return normalizeEvaluateResult(raw);
+  }
+
   const result: PromptfooCaseResult = {
     testRunTargetId: readRequiredString(raw, 'testRunTargetId'),
     datasetRowId: readRequiredNumber(raw, 'datasetRowId'),
@@ -29,6 +33,25 @@ function normalizeCaseResult(raw: Readonly<Record<string, unknown>>): PromptfooC
   addOptional(result, 'tokenUsage', readRecord(raw, 'tokenUsage'));
   addOptional(result, 'latencyMs', readNumber(raw, 'latencyMs'));
   addOptional(result, 'machineSummary', readString(raw, 'machineSummary') ?? readString(raw, 'error'));
+  return result;
+}
+
+function normalizeEvaluateResult(raw: Readonly<Record<string, unknown>>): PromptfooCaseResult {
+  const response = readRecord(raw, 'response');
+  const result: PromptfooCaseResult = {
+    testRunTargetId: readTestRunTargetId(raw),
+    datasetRowId: readDatasetRowId(raw),
+    status: readBoolean(raw, 'success') === true ? 'PASSED' : evaluateFailureStatus(raw),
+  };
+
+  addOptional(result, 'score', readNumber(raw, 'score'));
+  addOptional(result, 'passed', readBoolean(raw, 'success'));
+  addOptional(result, 'errorCategory', evaluateErrorCategory(raw));
+  addOptional(result, 'response', response);
+  addOptional(result, 'gradingResult', readRecord(raw, 'gradingResult'));
+  addOptional(result, 'tokenUsage', readRecord(response ?? {}, 'tokenUsage') ?? readRecord(raw, 'tokenUsage'));
+  addOptional(result, 'latencyMs', readNumber(raw, 'latencyMs'));
+  addOptional(result, 'machineSummary', readString(raw, 'error') ?? readString(readRecord(raw, 'gradingResult') ?? {}, 'reason'));
   return result;
 }
 
@@ -69,6 +92,40 @@ function getRawResults(rawResult: unknown): readonly Readonly<Record<string, unk
     throw new Error('Promptfoo raw result missing results array');
   }
   return results;
+}
+
+function isPromptfooEvaluateResult(raw: Readonly<Record<string, unknown>>): boolean {
+  return isRecord(raw.provider) && isRecord(raw.testCase) && typeof raw.success === 'boolean';
+}
+
+function readTestRunTargetId(raw: Readonly<Record<string, unknown>>): string {
+  const provider = readRecord(raw, 'provider') ?? {};
+  const providerId = readString(provider, 'id') ?? readString(provider, 'label');
+  if (providerId !== undefined && providerId.startsWith('vfqc-chatbot:')) {
+    return providerId.slice('vfqc-chatbot:'.length);
+  }
+  if (providerId !== undefined && providerId.startsWith('vfqc-target:')) {
+    return providerId.slice('vfqc-target:'.length);
+  }
+  throw new Error('Promptfoo result missing VFQC provider target id');
+}
+
+function readDatasetRowId(raw: Readonly<Record<string, unknown>>): number {
+  const testCase = readRecord(raw, 'testCase') ?? {};
+  const metadata = readRecord(testCase, 'metadata') ?? {};
+  const datasetRowId = readNumber(metadata, 'datasetRowId');
+  if (datasetRowId === undefined) {
+    throw new Error('Promptfoo result missing datasetRowId metadata');
+  }
+  return datasetRowId;
+}
+
+function evaluateFailureStatus(raw: Readonly<Record<string, unknown>>): PromptfooCaseResult['status'] {
+  return readString(raw, 'error') === undefined ? 'FAILED' : 'ERROR';
+}
+
+function evaluateErrorCategory(raw: Readonly<Record<string, unknown>>): string | undefined {
+  return readString(raw, 'error') === undefined ? undefined : 'PROMPTFOO_ERROR';
 }
 
 function readRequiredString(record: Readonly<Record<string, unknown>>, key: string): string {

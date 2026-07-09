@@ -1,6 +1,6 @@
 # Runner Implementation Handoff Context
 
-Last checked: 2026-07-09 19:45 Asia/Bangkok.
+Last checked: 2026-07-09 21:02 Asia/Bangkok.
 
 Read this first in a new runner session. It is intentionally short; detailed specs remain in `docs/runner/README.md`, `docs/runner/00..11-*.md`, and `docs/runner/AI_RUNNER_DTO_HANDOFF.md`.
 
@@ -27,7 +27,7 @@ rtk npm run build
 Current verified baseline:
 
 ```text
-rtk npm run check: 28 test files / 128 tests passed.
+rtk npm run check: 30 test files / 143 tests passed.
 rtk npm run build: TypeScript build passed.
 ```
 
@@ -57,6 +57,7 @@ Implemented module areas:
   - command message parser
   - Redis command stream wrapper
   - `RedisCommandConsumer`
+  - `RedisEventStreamPublisher` for `XADD` to `vfqc:runs:events`
   - explicit XACK boundary
   - no-op pending recovery boundary
 - `events`
@@ -78,7 +79,8 @@ Implemented module areas:
   - deterministic config builder for locked backend snapshots
   - dataset variable, target, evaluator, and secret-reference mapping
   - result normalizer for fixture/raw result shapes
-  - executor interface kept mocked for this slice
+  - result normalizer also accepts Promptfoo `EvaluateSummary` results
+  - library executor wraps `promptfoo.evaluate()` lazily and returns `toEvaluateSummary()` when available
 - `runner`
   - `DefaultRunnerService` boot registration and IDLE/BUSY/IDLE heartbeat flow
   - one-active-run guard for local runner instance
@@ -86,6 +88,9 @@ Implemented module areas:
   - cancellation polling before execution and between testcase events
   - retry budget for backend/event operations, preserving event IDs on retry
   - run timeout mapping to `RUN_FAILED`
+- `main.ts`
+  - runtime dependency composition for backend client, Redis command consumer, Redis/HTTP event sink, Promptfoo executor, and `DefaultRunnerService`
+  - long-running loop with SIGINT/SIGTERM shutdown handling
 - Other folders are still mostly scaffold/boundaries for later slices.
 
 ## Current Slice Status
@@ -100,7 +105,7 @@ Implemented module areas:
 | 5 Promptfoo Adapter Fixtures | Done | Config builder, deterministic fixtures, evaluator mapping, result normalizer, executor boundary. |
 | 6 Runner Lifecycle Orchestration | Done | Register/heartbeat, config+secret resolution, Promptfoo fake executor boundary, ordered events, XACK-after-final-event tests. |
 | 7 Cancellation, Retry, Timeout | Done | Control polling, best-effort CANCEL_RUN flag, event/backend retry, safe retry exhaustion, non-retryable auth fail-fast, run timeout -> RUN_FAILED. |
-| 8 Local Smoke Test | Done | Manual smoke plan documented in `docs/runner/12-local-smoke-test.md`; not automated until runtime loop, Redis publisher, and backend seed path are stable. |
+| 8 Local Smoke Test | Partial | Manual smoke plan documented; runtime loop, Redis publisher, and backend Testcontainers seed fixture are implemented. Full manual local smoke was not run because backend/Redis local services were not running and no non-test seed command exists yet. |
 
 ## Current Coverage Highlights
 
@@ -113,11 +118,13 @@ The runner suite currently covers:
 - Redis command consumer group creation, `XREADGROUP`, no-message return, and explicit XACK.
 - Event factory payloads for `RUN_STARTED`, testcase events, `RUN_COMPLETED`, `RUN_FAILED`, `RUN_CANCELLED`, and `ARTIFACT_CREATED`.
 - Redis event sink publish acknowledgement.
+- Redis event stream publisher `XADD` field mapping, optional field omission, sanitized payload handling, and publish failure propagation.
 - HTTP event sink retry behavior, idempotent replay success, and non-looping `INVALID_STATE` behavior.
 - Recursive masking for sensitive fields, known fake secrets, token-like values, raw cURL authorization, and accidental Promptfoo secrets.
 - Sanitized JSON artifact writing, sanitized-byte hashing, metadata-only artifact records, and metadata-only `ARTIFACT_CREATED` behavior.
 - Promptfoo config generation for chatbot, baseline comparison, rule-based evaluator, LLM judge evaluator, mixed evaluator, secret masking, and sanitized config artifacts.
 - Promptfoo result normalization for success, target timeout, judge parse error, and stable VFQC testcase result schema.
+- Promptfoo `EvaluateSummary` normalization for library executor output.
 - Runner lifecycle orchestration for one START_RUN, including register, heartbeat IDLE/BUSY/IDLE, locked config fetch, runtime secret resolution, ordered RUN_STARTED/testcase/RUN_COMPLETED events, terminal duplicate skip, and XACK only after final event success.
 - Runner cancellation/retry/timeout hardening, including pre-execution cancellation, during-loop cancellation before the next testcase, completion after finished work, same-eventId retry, safe retry exhaustion, non-retryable 401 fail-fast, run timeout -> RUN_FAILED, and target timeout -> testcase-level error.
 
@@ -128,6 +135,10 @@ Smoke documentation now covers:
 - Expected Redis command/event stream shapes.
 - Backend Redis worker persistence and SSE replay checks.
 - Secret leak pass/fail criteria.
+
+Backend smoke seed coverage now includes:
+
+- `RunnerSmokeSeedFixtureIntegrationTest`, which creates one queued TestRun, one dataset row, a fake local chatbot target, a rule-based evaluator, and verifies backend publishes a compact `START_RUN` command without leaking the fake secret or target URL.
 
 ## Important Implementation Conventions
 
@@ -174,22 +185,21 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 
 ## Recommended Next Work
 
-1. Wire runtime runner loop in `main.ts`.
-   - Construct backend client, Redis command consumer, event sink, Promptfoo executor, and `DefaultRunnerService`.
-   - Keep loop shutdown and signal handling explicit.
+1. Add a local non-test seed command or documented dev-only seed flow for manual smoke.
 
-2. Implement full Redis event stream publisher behind `RedisRunnerEventSink`.
+2. Run full manual smoke with local backend/PostgreSQL/Redis:
+   - Verify `START_RUN` in Redis.
+   - Verify runner emits `RUN_STARTED -> TESTCASE_* -> RUN_COMPLETED`.
+   - Verify backend worker persists events and SSE replay returns the sequence.
 
-3. Stabilize a backend seed fixture path before adding `npm run test:smoke`.
+3. Only then add `npm run test:smoke`.
 
 ## Caveats
 
 - `apps/runner/dist` may exist after `npm run build`; it is ignored.
 - `apps/runner/node_modules` may exist locally; it is ignored.
-- `RedisRunnerEventSink` currently depends on a `RunnerEventPublisher` boundary; full Redis event stream publisher implementation is still not done.
 - Pending command recovery is currently a no-op boundary; stale pending claim handling is still not done.
-- `DefaultRunnerService` currently orchestrates one command at a time, but no long-running loop is wired in `main.ts` yet.
-- `docs/runner/12-local-smoke-test.md` is a manual smoke plan only; do not treat it as a completed executable smoke test.
+- `docs/runner/12-local-smoke-test.md` is a manual smoke plan only; local smoke was not completed in this session because `localhost:8080` was not running and `redis-cli` was unavailable.
 - Backend/event retry currently uses immediate retries unless `retryDelayMs` is configured.
 - Artifact events are metadata-only; there is no complete backend artifact upload/download contract yet.
 - Always check worktree state with `rtk git status --short` before editing or committing.

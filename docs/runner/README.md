@@ -109,11 +109,12 @@ Done:
 9. Slice 6 RunnerService lifecycle orchestration is implemented for one START_RUN with register, heartbeat, config/secrets, ordered events, and XACK-after-final-event behavior.
 10. Slice 7 cancellation polling, event/backend retry, safe retry exhaustion, non-retryable auth fail-fast, and run timeout mapping are implemented.
 11. Slice 8 local smoke test plan is documented in `12-local-smoke-test.md`.
+12. Runtime loop, Redis event stream publisher, lazy Promptfoo library executor, and backend Testcontainers smoke seed fixture are implemented.
 
 Not done yet:
-1. Long-running runner loop wiring in main.ts.
-2. Full Redis event stream publisher implementation behind RedisRunnerEventSink.
-3. Full Redis pending recovery/claim loop beyond the no-op boundary.
+1. Full Redis pending recovery/claim loop beyond the no-op boundary.
+2. Non-test local seed command or documented dev seed flow for manual smoke.
+3. Completed manual local smoke run.
 4. Automated smoke test command.
 ```
 
@@ -150,7 +151,7 @@ Use `12-local-smoke-test.md` as the current smoke path.
 Current status:
 
 ```text
-Manual plan only. Do not add it to npm run check until the runner long-running loop, Redis event publisher, and backend seed fixture path are stable.
+Manual plan only. Runtime loop, Redis event publisher, and backend Testcontainers seed fixture exist, but do not add it to npm run check until a local non-test seed flow and manual smoke are stable.
 ```
 
 ## AI/Codex Guardrails

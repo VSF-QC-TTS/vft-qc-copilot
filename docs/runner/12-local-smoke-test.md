@@ -2,7 +2,7 @@
 
 This document defines the local end-to-end smoke path for the standalone runner.
 
-It is intentionally a manual plan for now. Do not add it to `npm run check` until the backend seed path, runner long-running loop, and Redis event publisher are stable.
+It is intentionally a manual plan for now. Do not add it to `npm run check` until the local backend/Redis smoke environment and a non-test seed command are stable.
 
 ## Scope
 
@@ -31,16 +31,15 @@ The smoke path must not require:
 Current status:
 
 ```text
-Manual plan only.
+Manual plan only. Runner runtime loop, Redis event publisher, and backend Testcontainers seed fixture are implemented, but this is not yet an automated local smoke command.
 ```
 
 Known blockers before automation:
 
 ```text
-1. apps/runner/src/main.ts still only bootstraps config/logger.
-2. RedisRunnerEventSink has a publisher boundary, but no full Redis stream publisher implementation is wired for runtime.
-3. A stable backend seed command for creating a no-real-secret TestRun fixture is not documented yet.
-4. Promptfoo execution is still tested through fakes in runner lifecycle tests.
+1. A stable non-test seed command or dev-only seed flow for local backend is not implemented yet.
+2. Local smoke still requires a running backend, PostgreSQL, Redis, and a Redis inspection tool.
+3. Promptfoo execution is wired through the library executor; keep the smoke fixture deterministic and allow TESTCASE_ERROR for closed local targets.
 ```
 
 Because of these blockers, do not add `npm run test:smoke` yet.
@@ -135,7 +134,7 @@ Expected:
 
 4. Create or seed one minimal TestRun through an existing backend-supported path.
 
-Use the frontend/API flow available at the time of the smoke. The result must publish one `START_RUN` command to `vfqc:runs:commands`.
+Use the frontend/API flow available at the time of the smoke. The backend test fixture `RunnerSmokeSeedFixture` verifies the required shape under Testcontainers, but it is not a local HTTP seed endpoint. The result must publish one `START_RUN` command to `vfqc:runs:commands`.
 
 5. Inspect Redis command stream.
 

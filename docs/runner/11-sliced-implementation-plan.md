@@ -577,11 +577,13 @@ Stop after slice and show diff.
 Status:
 
 ```text
-Completed in docs/runner:
+Partially completed:
 1. Local smoke path is documented in docs/runner/12-local-smoke-test.md.
-2. Smoke is intentionally manual because runtime main loop, Redis event publisher wiring, and stable backend seed fixture path are not ready.
-3. Smoke plan covers backend, Redis command stream, runner config, Redis event stream, backend worker persistence, SSE replay, and secret leak checks.
-4. The smoke path is not part of npm run check.
+2. Runner runtime loop and Redis event publisher wiring are implemented.
+3. Backend Testcontainers seed fixture is implemented and verifies compact START_RUN publishing.
+4. Smoke plan covers backend, Redis command stream, runner config, Redis event stream, backend worker persistence, SSE replay, and secret leak checks.
+5. Full manual local smoke still needs running local backend/PostgreSQL/Redis and a non-test seed command or documented dev seed flow.
+6. The smoke path is not part of npm run check.
 ```
 
 Purpose:
