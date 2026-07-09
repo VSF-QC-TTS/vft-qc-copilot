@@ -33,6 +33,10 @@ vfqc:
       display-name: ${VFQC_ADMIN_DISPLAY_NAME:Administrator}
   mail:
     enabled: ${VFQC_MAIL_ENABLED:true}
+  runner:
+    redis-events:
+      enabled: ${VFQC_RUNNER_REDIS_EVENTS_ENABLED:false}
+      poll-interval-ms: ${VFQC_RUNNER_REDIS_EVENTS_POLL_INTERVAL_MS:1000}
 
 logging:
   pattern:
