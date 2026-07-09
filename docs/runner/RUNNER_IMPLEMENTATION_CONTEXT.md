@@ -1,6 +1,6 @@
 # Runner Implementation Handoff Context
 
-Last checked: 2026-07-09 19:20 Asia/Bangkok.
+Last checked: 2026-07-09 19:21 Asia/Bangkok.
 
 Read this first in a new runner session. It is intentionally short; detailed specs remain in `docs/runner/README.md`, `docs/runner/00..11-*.md`, and `docs/runner/AI_RUNNER_DTO_HANDOFF.md`.
 
@@ -27,7 +27,7 @@ rtk npm run build
 Current verified baseline:
 
 ```text
-rtk npm run check: 20 test files / 74 tests passed.
+rtk npm run check: 24 test files / 92 tests passed.
 rtk npm run build: TypeScript build passed.
 ```
 
@@ -73,6 +73,12 @@ Implemented module areas:
   - SHA-256 hash utility
   - local artifact path builder
   - metadata builder without public URLs
+- `promptfoo`
+  - Promptfoo adapter input/generated-config/case-result contracts
+  - deterministic config builder for locked backend snapshots
+  - dataset variable, target, evaluator, and secret-reference mapping
+  - result normalizer for fixture/raw result shapes
+  - executor interface kept mocked for this slice
 - Other folders are still mostly scaffold/boundaries for later slices.
 
 ## Current Slice Status
@@ -84,8 +90,8 @@ Implemented module areas:
 | 2 Redis Command Intake | Done | START_RUN/CANCEL_RUN parser, Redis wrapper, XGROUP CREATE, XREADGROUP, explicit XACK. |
 | 3 Event Sink And Event Factories | Done | Event payload schemas, factories, Redis/HTTP sinks, retry helper. |
 | 4 Sensitive Data Masking And Artifact Utilities | Done | Recursive masking, sanitized JSON writer, sanitized-byte hash, metadata builder. |
-| 5 Promptfoo Adapter Fixtures | Not started | Next recommended slice. |
-| 6 Runner Lifecycle Orchestration | Not started | Do only after Promptfoo boundary exists. |
+| 5 Promptfoo Adapter Fixtures | Done | Config builder, deterministic fixtures, evaluator mapping, result normalizer, executor boundary. |
+| 6 Runner Lifecycle Orchestration | Not started | Next recommended slice. |
 | 7 Cancellation, Retry, Timeout | Not started | Needs orchestration first. |
 | 8 Local Smoke Test | Not started | Final local integration/smoke slice. |
 
@@ -103,6 +109,8 @@ The runner suite currently covers:
 - HTTP event sink retry behavior, idempotent replay success, and non-looping `INVALID_STATE` behavior.
 - Recursive masking for sensitive fields, known fake secrets, token-like values, raw cURL authorization, and accidental Promptfoo secrets.
 - Sanitized JSON artifact writing, sanitized-byte hashing, metadata-only artifact records, and metadata-only `ARTIFACT_CREATED` behavior.
+- Promptfoo config generation for chatbot, baseline comparison, rule-based evaluator, LLM judge evaluator, mixed evaluator, secret masking, and sanitized config artifacts.
+- Promptfoo result normalization for success, target timeout, judge parse error, and stable VFQC testcase result schema.
 
 ## Important Implementation Conventions
 
@@ -149,13 +157,11 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 
 ## Recommended Next Work
 
-1. Do Slice 5: Promptfoo Adapter Fixtures.
-   - Build Promptfoo boundary with deterministic fixtures.
-   - Do not wire full runner orchestration yet.
-
-2. Then do Slice 6: Runner Lifecycle Orchestration.
+1. Do Slice 6: Runner Lifecycle Orchestration.
    - Use mocked Promptfoo executor first.
    - Wire command consume, backend config/secrets/control, event sink, and XACK carefully.
+
+2. Then do Slice 7: Cancellation, Retry, Timeout.
 
 ## Caveats
 

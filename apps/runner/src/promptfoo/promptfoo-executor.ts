@@ -1,3 +1,5 @@
+import type { PromptfooConfigObject } from './promptfoo-adapter.js';
+
 export interface PromptfooExecutor {
-  execute(config: Record<string, unknown>): AsyncIterable<unknown>;
+  execute(config: PromptfooConfigObject | Record<string, unknown>): Promise<unknown>;
 }

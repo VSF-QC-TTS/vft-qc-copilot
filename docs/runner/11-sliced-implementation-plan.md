@@ -374,6 +374,20 @@ Stop after slice and show diff.
 
 ## Slice 5 — Promptfoo Adapter Fixtures
 
+Status:
+
+```text
+Completed in apps/runner:
+1. Promptfoo adapter contracts include generated config, provider, assertion, case result, and summary shapes.
+2. DefaultPromptfooConfigBuilder maps locked backend snapshots into deterministic Promptfoo config objects.
+3. Dataset variables map from $dataset.field to {{field}}.
+4. CHATBOT_TARGET and LLM_BASELINE targets map at config-boundary level.
+5. RULE_BASED, LLM_JUDGE, and MIXED evaluators are covered by fixtures.
+6. DefaultPromptfooResultNormalizer maps fixture/raw results into stable PromptfooCaseResult values.
+7. PromptfooExecutor remains an interface/mocked boundary; no real external endpoints are called.
+8. Slice tests pass under npm run check and npm run build.
+```
+
 Purpose:
 
 ```text

@@ -105,12 +105,12 @@ Done:
 5. Slice 2 Redis command parser, Redis client wrapper, consumer group read, and explicit XACK boundary are implemented.
 6. Slice 3 event factories, Redis/HTTP event sinks, and retry helper are implemented.
 7. Slice 4 recursive masking, sanitized JSON artifacts, sanitized-byte hashing, and artifact metadata are implemented.
+8. Slice 5 Promptfoo config builder fixtures, evaluator mapping, result normalizer, and executor boundary are implemented.
 
 Not done yet:
-1. Promptfoo adapter implementation.
-2. Runner orchestration lifecycle.
-3. Full Redis event stream publisher implementation behind RedisRunnerEventSink.
-4. Full Redis pending recovery/claim loop beyond the no-op boundary.
+1. Runner orchestration lifecycle.
+2. Full Redis event stream publisher implementation behind RedisRunnerEventSink.
+3. Full Redis pending recovery/claim loop beyond the no-op boundary.
 ```
 
 ## Documentation Files
