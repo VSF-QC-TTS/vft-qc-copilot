@@ -574,6 +574,16 @@ Stop after slice and show diff.
 
 ## Slice 8 — Smoke Test Plan
 
+Status:
+
+```text
+Completed in docs/runner:
+1. Local smoke path is documented in docs/runner/12-local-smoke-test.md.
+2. Smoke is intentionally manual because runtime main loop, Redis event publisher wiring, and stable backend seed fixture path are not ready.
+3. Smoke plan covers backend, Redis command stream, runner config, Redis event stream, backend worker persistence, SSE replay, and secret leak checks.
+4. The smoke path is not part of npm run check.
+```
+
 Purpose:
 
 ```text

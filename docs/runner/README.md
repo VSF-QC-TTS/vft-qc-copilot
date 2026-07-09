@@ -108,12 +108,13 @@ Done:
 8. Slice 5 Promptfoo config builder fixtures, evaluator mapping, result normalizer, and executor boundary are implemented.
 9. Slice 6 RunnerService lifecycle orchestration is implemented for one START_RUN with register, heartbeat, config/secrets, ordered events, and XACK-after-final-event behavior.
 10. Slice 7 cancellation polling, event/backend retry, safe retry exhaustion, non-retryable auth fail-fast, and run timeout mapping are implemented.
+11. Slice 8 local smoke test plan is documented in `12-local-smoke-test.md`.
 
 Not done yet:
 1. Long-running runner loop wiring in main.ts.
 2. Full Redis event stream publisher implementation behind RedisRunnerEventSink.
 3. Full Redis pending recovery/claim loop beyond the no-op boundary.
-4. Slice 8 smoke test plan.
+4. Automated smoke test command.
 ```
 
 ## Documentation Files
@@ -139,7 +140,17 @@ Recommended later docs:
 09-testing-contract.md
 10-scaffold-package-versions.md
 11-sliced-implementation-plan.md
-10-scaffold-package-versions.md
+12-local-smoke-test.md
+```
+
+## Local Smoke Test
+
+Use `12-local-smoke-test.md` as the current smoke path.
+
+Current status:
+
+```text
+Manual plan only. Do not add it to npm run check until the runner long-running loop, Redis event publisher, and backend seed fixture path are stable.
 ```
 
 ## AI/Codex Guardrails

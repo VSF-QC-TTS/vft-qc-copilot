@@ -1,6 +1,6 @@
 # Runner Implementation Handoff Context
 
-Last checked: 2026-07-09 19:42 Asia/Bangkok.
+Last checked: 2026-07-09 19:45 Asia/Bangkok.
 
 Read this first in a new runner session. It is intentionally short; detailed specs remain in `docs/runner/README.md`, `docs/runner/00..11-*.md`, and `docs/runner/AI_RUNNER_DTO_HANDOFF.md`.
 
@@ -27,7 +27,7 @@ rtk npm run build
 Current verified baseline:
 
 ```text
-rtk npm run check: 28 test files / 120 tests passed.
+rtk npm run check: 28 test files / 128 tests passed.
 rtk npm run build: TypeScript build passed.
 ```
 
@@ -100,7 +100,7 @@ Implemented module areas:
 | 5 Promptfoo Adapter Fixtures | Done | Config builder, deterministic fixtures, evaluator mapping, result normalizer, executor boundary. |
 | 6 Runner Lifecycle Orchestration | Done | Register/heartbeat, config+secret resolution, Promptfoo fake executor boundary, ordered events, XACK-after-final-event tests. |
 | 7 Cancellation, Retry, Timeout | Done | Control polling, best-effort CANCEL_RUN flag, event/backend retry, safe retry exhaustion, non-retryable auth fail-fast, run timeout -> RUN_FAILED. |
-| 8 Local Smoke Test | Not started | Final local integration/smoke slice. |
+| 8 Local Smoke Test | Done | Manual smoke plan documented in `docs/runner/12-local-smoke-test.md`; not automated until runtime loop, Redis publisher, and backend seed path are stable. |
 
 ## Current Coverage Highlights
 
@@ -120,6 +120,14 @@ The runner suite currently covers:
 - Promptfoo result normalization for success, target timeout, judge parse error, and stable VFQC testcase result schema.
 - Runner lifecycle orchestration for one START_RUN, including register, heartbeat IDLE/BUSY/IDLE, locked config fetch, runtime secret resolution, ordered RUN_STARTED/testcase/RUN_COMPLETED events, terminal duplicate skip, and XACK only after final event success.
 - Runner cancellation/retry/timeout hardening, including pre-execution cancellation, during-loop cancellation before the next testcase, completion after finished work, same-eventId retry, safe retry exhaustion, non-retryable 401 fail-fast, run timeout -> RUN_FAILED, and target timeout -> testcase-level error.
+
+Smoke documentation now covers:
+
+- Local backend/Redis prerequisites.
+- Minimal no-real-secret TestRun fixture requirements.
+- Expected Redis command/event stream shapes.
+- Backend Redis worker persistence and SSE replay checks.
+- Secret leak pass/fail criteria.
 
 ## Important Implementation Conventions
 
@@ -166,9 +174,13 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 
 ## Recommended Next Work
 
-1. Do Slice 8: Local Smoke Test.
-   - Prefer documented manual smoke unless backend seeding path is stable.
-   - Keep smoke out of `npm run check` if it needs backend/Redis.
+1. Wire runtime runner loop in `main.ts`.
+   - Construct backend client, Redis command consumer, event sink, Promptfoo executor, and `DefaultRunnerService`.
+   - Keep loop shutdown and signal handling explicit.
+
+2. Implement full Redis event stream publisher behind `RedisRunnerEventSink`.
+
+3. Stabilize a backend seed fixture path before adding `npm run test:smoke`.
 
 ## Caveats
 
@@ -177,6 +189,7 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 - `RedisRunnerEventSink` currently depends on a `RunnerEventPublisher` boundary; full Redis event stream publisher implementation is still not done.
 - Pending command recovery is currently a no-op boundary; stale pending claim handling is still not done.
 - `DefaultRunnerService` currently orchestrates one command at a time, but no long-running loop is wired in `main.ts` yet.
+- `docs/runner/12-local-smoke-test.md` is a manual smoke plan only; do not treat it as a completed executable smoke test.
 - Backend/event retry currently uses immediate retries unless `retryDelayMs` is configured.
 - Artifact events are metadata-only; there is no complete backend artifact upload/download contract yet.
 - Always check worktree state with `rtk git status --short` before editing or committing.

@@ -107,6 +107,14 @@ After scaffold, Codex may implement:
 7. Tests based on docs/runner/09-testing-contract.md.
 ```
 
+The local smoke path is documented separately in:
+
+```text
+docs/runner/12-local-smoke-test.md
+```
+
+Keep it manual until backend seeding and runner runtime wiring are stable.
+
 Codex must not:
 
 ```text

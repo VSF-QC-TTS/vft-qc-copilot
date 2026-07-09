@@ -89,7 +89,8 @@ Slice 7 cancel/retry/timeout:
   Tests for cancellation wins, completion after cancellation request, retry budget, same eventId on retry, and run timeout mapping.
 
 Slice 8 smoke plan:
-  Document local smoke steps. Automate only if local backend/Redis fixtures are stable.
+  Document local smoke steps in docs/runner/12-local-smoke-test.md.
+  Automate only if local backend/Redis fixtures are stable.
 ```
 
 After each slice, run:
