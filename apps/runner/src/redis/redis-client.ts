@@ -26,6 +26,11 @@ export interface RedisReadGroupOptions {
   readonly blockMs: number;
 }
 
+export interface RedisAutoClaimResult {
+  readonly nextId: string;
+  readonly messages: readonly RedisStreamMessage[];
+}
+
 export interface RedisCommandStreamClient extends RedisLifecycle {
   xGroupCreate(stream: string, group: string, id: string, options: RedisGroupCreateOptions): Promise<void>;
   xReadGroup(
@@ -36,6 +41,14 @@ export interface RedisCommandStreamClient extends RedisLifecycle {
     options: RedisReadGroupOptions,
   ): Promise<readonly RedisStreamReadResult[] | null>;
   xAck(stream: string, group: string, id: string): Promise<number>;
+  xAutoClaim(
+    stream: string,
+    group: string,
+    consumer: string,
+    minIdleTimeMs: number,
+    start: string,
+    options: { readonly count: number },
+  ): Promise<RedisAutoClaimResult>;
 }
 
 export interface RedisEventStreamClient extends RedisLifecycle {
@@ -87,6 +100,23 @@ export class NodeRedisStreamClient implements RedisCommandStreamClient, RedisEve
 
   public async xAck(stream: string, group: string, id: string): Promise<number> {
     return Number(await this.client.xAck(stream, group, id));
+  }
+
+  public async xAutoClaim(
+    stream: string,
+    group: string,
+    consumer: string,
+    minIdleTimeMs: number,
+    start: string,
+    options: { readonly count: number },
+  ): Promise<RedisAutoClaimResult> {
+    const result = await this.client.xAutoClaim(stream, group, consumer, minIdleTimeMs, start, {
+      COUNT: options.count,
+    });
+    return {
+      nextId: result.nextId,
+      messages: result.messages.filter((message) => message !== null).map((message) => normalizeStreamMessage(message)),
+    };
   }
 
   public async xAdd(stream: string, id: string, fields: Record<string, string>): Promise<string> {

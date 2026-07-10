@@ -3,6 +3,7 @@ import type { RunnerTestRunConfigResponse, TestRunStatus } from '../backend/dto/
 import { isRetryableBackendError } from '../errors/error-classifier.js';
 import { RunnerError } from '../errors/runner-error.js';
 import type { RunnerEventFactory } from '../events/runner-event-factory.js';
+import type { RunnerEventSanitizer } from '../events/runner-event-sanitizer.js';
 import { sendEventWithRetry, type RunnerEventSink } from '../events/runner-event-sink.js';
 import type {
   PromptfooAdapterInput,
@@ -31,6 +32,7 @@ export interface DefaultRunnerServiceOptions {
   readonly commandConsumer: CommandConsumer;
   readonly eventSink: RunnerEventSink;
   readonly eventFactory: RunnerEventFactory;
+  readonly eventSanitizer: RunnerEventSanitizer;
   readonly configBuilder: PromptfooConfigBuilder;
   readonly promptfooExecutor: PromptfooExecutor;
   readonly resultNormalizer: PromptfooResultNormalizer;
@@ -39,6 +41,7 @@ export interface DefaultRunnerServiceOptions {
   readonly eventRetryMaxAttempts?: number;
   readonly retryDelayMs?: number;
   readonly runTimeoutMs?: number;
+  readonly controlPollIntervalMs?: number;
 }
 
 const SECRET_REF_PATTERN = /\$\{secret:([0-9a-fA-F-]{36})\}/gu;
@@ -50,9 +53,11 @@ export class DefaultRunnerService implements RunnerService {
   private readonly eventRetryMaxAttempts: number;
   private readonly retryDelayMs: number;
   private readonly runTimeoutMs: number | undefined;
+  private readonly controlPollIntervalMs: number;
   private registered = false;
   private activeTestRunId: string | undefined;
   private localCancellationRequested = false;
+  private activeKnownSecrets: readonly string[] = [];
 
   public constructor(private readonly options: DefaultRunnerServiceOptions) {
     this.configPageSize = options.configPageSize ?? 100;
@@ -60,6 +65,7 @@ export class DefaultRunnerService implements RunnerService {
     this.eventRetryMaxAttempts = normalizeAttempts(options.eventRetryMaxAttempts ?? 3);
     this.retryDelayMs = options.retryDelayMs ?? 0;
     this.runTimeoutMs = options.runTimeoutMs;
+    this.controlPollIntervalMs = options.controlPollIntervalMs ?? 1_000;
   }
 
   public async start(): Promise<void> {
@@ -124,9 +130,7 @@ export class DefaultRunnerService implements RunnerService {
         return;
       }
 
-      const configResponse = await this.callBackend(() =>
-        this.options.backendClient.getTestRunConfig(command.testRunId, 0, this.configPageSize),
-      );
+      const configResponse = await this.getFullTestRunConfig(command.testRunId);
       const generatedConfig = await this.buildPromptfooConfig(configResponse);
 
       await this.emitEvent(
@@ -136,7 +140,7 @@ export class DefaultRunnerService implements RunnerService {
         }),
       );
 
-      const rawResult = await this.executePromptfoo(generatedConfig.configObject);
+      const rawResult = await this.executePromptfoo(generatedConfig.configObject, command);
       const results = this.options.resultNormalizer.normalize(rawResult);
       for (let index = 0; index < results.length; index += 1) {
         const result = results[index];
@@ -161,10 +165,15 @@ export class DefaultRunnerService implements RunnerService {
       if (isEventDeliveryError(error)) {
         throw error;
       }
+      if (isCancellationError(error)) {
+        await this.sendRunCancelled(command, 'cancellation requested during runner execution');
+        return;
+      }
       await this.sendRunFailed(command, error);
     } finally {
       this.activeTestRunId = undefined;
       this.localCancellationRequested = false;
+      this.activeKnownSecrets = [];
       await this.sendIdleHeartbeat();
     }
   }
@@ -182,20 +191,108 @@ export class DefaultRunnerService implements RunnerService {
             )
           ).secrets;
 
+    this.activeKnownSecrets = Object.values(runtimeSecretsById);
+
     return this.options.configBuilder.build(toPromptfooInput(configResponse, runtimeSecretsById));
   }
 
-  private async executePromptfoo(configObject: PromptfooConfigObject): Promise<unknown> {
-    const execution = this.options.promptfooExecutor.execute(configObject);
-    if (this.runTimeoutMs === undefined) {
-      return execution;
+  private async getFullTestRunConfig(testRunId: string): Promise<RunnerTestRunConfigResponse> {
+    const firstPage = await this.callBackend(() =>
+      this.options.backendClient.getTestRunConfig(testRunId, 0, this.configPageSize),
+    );
+    const rows = [...firstPage.rows];
+    let currentPage = firstPage;
+    while (currentPage.hasNext) {
+      const nextPageNumber = currentPage.page + 1;
+      const nextPage = await this.callBackend(() =>
+        this.options.backendClient.getTestRunConfig(testRunId, nextPageNumber, this.configPageSize),
+      );
+      if (nextPage.page !== nextPageNumber || nextPage.rows.length === 0) {
+        throw new RunnerError('Backend config pagination did not advance', {
+          category: 'backend.pagination',
+          retryable: false,
+        });
+      }
+      rows.push(...nextPage.rows);
+      currentPage = nextPage;
     }
+    return { ...firstPage, rows, hasNext: false };
+  }
 
-    return withTimeout(execution, {
-      ms: this.runTimeoutMs,
-      message: `Run execution timed out after ${this.runTimeoutMs}ms`,
-      category: 'runner.timeout',
+  private async executePromptfoo(
+    configObject: PromptfooConfigObject,
+    command: RunnerCommandMessage,
+  ): Promise<unknown> {
+    const executionController = new AbortController();
+    const monitorStopController = new AbortController();
+    let cancellationObserved = false;
+    let progressDelivery = Promise.resolve();
+    const monitor = this.monitorCancellation(command.testRunId, executionController, monitorStopController.signal).then(
+      (observed) => {
+        cancellationObserved = observed;
+      },
+    );
+    const execution = this.options.promptfooExecutor.execute(configObject, {
+      signal: executionController.signal,
+      onProgress: (completed, total) => {
+        progressDelivery = progressDelivery.then(() =>
+          this.emitEvent(
+            this.options.eventFactory.createRunProgress({
+              testRunId: command.testRunId,
+              commandId: command.commandId,
+              completed,
+              total,
+            }),
+          ),
+        );
+      },
     });
+
+    try {
+      const result =
+        this.runTimeoutMs === undefined
+          ? await execution
+          : await withTimeout(execution, {
+              ms: this.runTimeoutMs,
+              message: `Run execution timed out after ${this.runTimeoutMs}ms`,
+              category: 'runner.timeout',
+            });
+      await progressDelivery;
+      if (cancellationObserved) {
+        throw cancellationError();
+      }
+      return result;
+    } catch (error) {
+      if (cancellationObserved) {
+        throw cancellationError();
+      }
+      if (error instanceof RunnerError && error.category === 'runner.timeout') {
+        executionController.abort();
+      }
+      throw error;
+    } finally {
+      monitorStopController.abort();
+      await monitor;
+      await progressDelivery;
+    }
+  }
+
+  private async monitorCancellation(
+    testRunId: string,
+    executionController: AbortController,
+    stopSignal: AbortSignal,
+  ): Promise<boolean> {
+    while (!stopSignal.aborted) {
+      await sleep(this.controlPollIntervalMs, stopSignal);
+      if (stopSignal.aborted) {
+        return false;
+      }
+      if (await this.isCancellationRequested(testRunId)) {
+        executionController.abort();
+        return true;
+      }
+    }
+    return false;
   }
 
   private async getControlState(testRunId: string): Promise<Awaited<ReturnType<BackendClient['getControlState']>>> {
@@ -233,8 +330,9 @@ export class DefaultRunnerService implements RunnerService {
   }
 
   private async emitEvent(event: Parameters<RunnerEventSink['send']>[0]): Promise<void> {
+    const sanitizedEvent = this.options.eventSanitizer.sanitize(event, this.activeKnownSecrets);
     try {
-      await sendEventWithRetry(this.options.eventSink, event, { maxAttempts: this.eventRetryMaxAttempts });
+      await sendEventWithRetry(this.options.eventSink, sanitizedEvent, { maxAttempts: this.eventRetryMaxAttempts });
     } catch (error) {
       const status = error instanceof RunnerError ? error.status : undefined;
       throw new RunnerError('Runner event delivery failed', {
@@ -377,6 +475,17 @@ function isErrorStatus(status: PromptfooCaseResult['status']): boolean {
 
 function isEventDeliveryError(error: unknown): boolean {
   return error instanceof RunnerError && error.category === 'runner.event.delivery';
+}
+
+function cancellationError(): RunnerError {
+  return new RunnerError('Runner execution cancelled', {
+    category: 'runner.cancelled',
+    retryable: false,
+  });
+}
+
+function isCancellationError(error: unknown): boolean {
+  return error instanceof RunnerError && error.category === 'runner.cancelled';
 }
 
 function runFailureMessage(error: unknown): string {

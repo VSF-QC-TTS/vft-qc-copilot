@@ -6,6 +6,7 @@ import type { RunnerConfig } from './config/runner-config.js';
 import { loadRunnerConfig } from './config/runner-config.js';
 import { HttpRunnerEventSink } from './events/http-runner-event-sink.js';
 import { DefaultRunnerEventFactory } from './events/runner-event-factory.js';
+import { DefaultRunnerEventSanitizer } from './events/runner-event-sanitizer.js';
 import { RedisRunnerEventSink } from './events/redis-runner-event-sink.js';
 import type { RunnerEventSink } from './events/runner-event-sink.js';
 import { createLogger } from './logging/logger.js';
@@ -119,6 +120,8 @@ export function createRunnerRuntime(config: RunnerConfig, logger: Logger): Runne
     group: config.commandGroup,
     consumerName: config.consumerName,
     blockMs: config.commandBlockMs,
+    pendingIdleThresholdMs: config.pendingIdleThresholdMs,
+    recoveryIntervalMs: config.recoveryIntervalMs,
   });
   const eventClient = config.eventTransport === 'redis' ? createRedisEventStreamClient(config.redisUrl) : undefined;
   const eventSink = createRunnerEventSink(config, backendClient, eventClient);
@@ -134,6 +137,7 @@ export function createRunnerRuntime(config: RunnerConfig, logger: Logger): Runne
     commandConsumer,
     eventSink,
     eventFactory,
+    eventSanitizer: new DefaultRunnerEventSanitizer(),
     configBuilder,
     promptfooExecutor: new PromptfooLibraryExecutor(),
     resultNormalizer: new DefaultPromptfooResultNormalizer(),
@@ -141,6 +145,7 @@ export function createRunnerRuntime(config: RunnerConfig, logger: Logger): Runne
     backendRetryMaxAttempts: config.commandMaxAttempts,
     eventRetryMaxAttempts: config.commandMaxAttempts,
     runTimeoutMs: config.runTimeoutMs,
+    controlPollIntervalMs: config.controlPollIntervalMs,
   });
   const resources = eventClient === undefined ? [commandClient] : [commandClient, eventClient];
   return new DefaultRunnerRuntime({ service, resources, logger });
