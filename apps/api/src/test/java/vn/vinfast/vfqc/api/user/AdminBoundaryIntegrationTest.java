@@ -1,6 +1,7 @@
 package vn.vinfast.vfqc.api.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,6 +32,7 @@ class AdminBoundaryIntegrationTest extends PostgresIntegrationTestBase {
     mockMvc
         .perform(
             post("/api/v1/admin/users")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(request))
         .andExpect(status().isUnauthorized());

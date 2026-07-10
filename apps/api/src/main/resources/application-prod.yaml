@@ -139,8 +139,8 @@ vfqc:
     enabled: ${VFQC_MAIL_ENABLED:false}
     from: ${MAIL_FROM}
   security:
-    access-expiration: 15
-    refresh-expiration: 10080
+    access-expiration-minutes: 15
+    refresh-expiration-minutes: 10080
     jwt:
       secret-key: ${JWT_SECRET_KEY}
     encryption-key: ${ENCRYPTION_KEY}

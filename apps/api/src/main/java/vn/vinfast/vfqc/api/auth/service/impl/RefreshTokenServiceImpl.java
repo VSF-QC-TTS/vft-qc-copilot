@@ -47,11 +47,14 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     if (rawToken == null || rawToken.isBlank()) {
       throw ErrorCode.REFRESH_TOKEN_MISSING.throwIt();
     }
+
     var now = OffsetDateTime.now(clock);
+
     var existing =
         repository
             .findForUpdateByTokenHash(hash(rawToken))
             .orElseThrow(ErrorCode.REFRESH_TOKEN_INVALID::throwIt);
+
     if (existing.getStatus() != AuthRefreshTokenStatus.ACTIVE) {
       if (existing.getRotatedAt() != null) {
         compromiseService.revokeFamily(existing.getFamilyId());
@@ -64,13 +67,12 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
       }
       throw ErrorCode.REFRESH_TOKEN_INVALID.throwIt();
     }
+
     if (!existing.getExpiresAt().isAfter(now)) {
       existing.setStatus(AuthRefreshTokenStatus.EXPIRED);
       throw ErrorCode.REFRESH_TOKEN_EXPIRED.throwIt();
     }
-    existing.setStatus(AuthRefreshTokenStatus.REVOKED);
-    existing.setRotatedAt(now);
-    existing.setRevokedAt(now);
+
     var user =
         userRepository
             .findById(existing.getUserId())
@@ -78,6 +80,11 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     if (!user.active()) {
       throw ErrorCode.USER_DISABLED.throwIt();
     }
+
+    existing.setStatus(AuthRefreshTokenStatus.REVOKED);
+    existing.setRotatedAt(now);
+    existing.setRevokedAt(now);
+
     return new RefreshRotation(user, existing.getFamilyId());
   }
 
@@ -123,7 +130,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
   public RefreshTokenIssue issue(AppUser user, UUID familyId, String ip, String userAgent) {
     var rawToken = randomToken();
     var now = OffsetDateTime.now(clock);
-    var maxAge = properties.refreshExpiration() * 60;
+    var maxAge = properties.refreshExpirationMinutes() * 60;
     var refreshToken =
         repository.save(
             AuthRefreshToken.builder()

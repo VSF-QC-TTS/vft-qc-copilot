@@ -52,6 +52,7 @@ class AuthEmailTokenServiceImplTest {
   void issue_UserAndPurpose_StoresHashOnly() {
     var user = AppUser.builder().id(UUID.randomUUID()).build();
     var captor = ArgumentCaptor.forClass(AuthEmailToken.class);
+    when(userRepository.findForUpdateById(user.getId())).thenReturn(Optional.of(user));
 
     var result =
         service.issue(
@@ -101,7 +102,7 @@ class AuthEmailTokenServiceImplTest {
             .expiresAt(OffsetDateTime.now(CLOCK).plusMinutes(15))
             .build();
     when(repository.findForUpdateByTokenHashAndStatus(any(), any())).thenReturn(Optional.of(token));
-    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+    when(userRepository.findByIdAndDeletedAtIsNull(userId)).thenReturn(Optional.of(user));
 
     var result = service.consume("raw", Set.of(AuthEmailTokenPurpose.ADMIN_INVITE));
 

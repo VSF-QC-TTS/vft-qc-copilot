@@ -120,8 +120,8 @@ vfqc:
     enabled: ${VFQC_MAIL_ENABLED:true}
     from: ${MAIL_FROM:no-reply@localhost}
   security:
-    access-expiration: 15
-    refresh-expiration: 10080
+    access-expiration-minutes: 15
+    refresh-expiration-minutes: 10080
     jwt:
       secret-key: ${JWT_SECRET_KEY:dev-only-change-me-dev-only-change-me}
     encryption-key: ${ENCRYPTION_KEY:generate}

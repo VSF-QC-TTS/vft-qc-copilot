@@ -1,6 +1,7 @@
 package vn.vinfast.vfqc.api.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -43,6 +44,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
     mockMvc
         .perform(
             post("/api/v1/auth/register")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json(
@@ -72,6 +74,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
     mockMvc
         .perform(
             post("/api/v1/auth/login")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("email", "new.user@vinfast.vn", "password", "ChangeMe@123"))))
         .andExpect(status().isForbidden());
@@ -92,6 +95,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
     mockMvc
         .perform(
             post("/api/v1/auth/verify-email")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("token", token.token()))))
         .andExpect(status().isOk())
@@ -114,6 +118,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
         mockMvc
             .perform(
                 post("/api/v1/auth/login")
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         json(Map.of("email", "verify.user@vinfast.vn", "password", "OldPassword@123"))))
@@ -126,7 +131,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
 
     var refreshResult =
         mockMvc
-            .perform(post("/api/v1/auth/refresh").cookie(refreshCookie))
+            .perform(post("/api/v1/auth/refresh").with(csrf()).cookie(refreshCookie))
             .andExpect(status().isOk())
             .andExpect(cookie().exists(REFRESH_COOKIE))
             .andExpect(jsonPath("$.accessToken").isNotEmpty())
@@ -135,7 +140,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
     assertThat(rotatedRefreshCookie).isNotNull();
 
     mockMvc
-        .perform(post("/api/v1/auth/logout").cookie(rotatedRefreshCookie))
+        .perform(post("/api/v1/auth/logout").with(csrf()).cookie(rotatedRefreshCookie))
         .andExpect(status().isNoContent())
         .andExpect(cookie().maxAge(REFRESH_COOKIE, 0));
   }
@@ -148,6 +153,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
         mockMvc
             .perform(
                 post("/api/v1/auth/password/forgot")
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(Map.of("email", "missing@vinfast.vn"))))
             .andExpect(status().isOk())
@@ -158,6 +164,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
         mockMvc
             .perform(
                 post("/api/v1/auth/password/forgot")
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json(Map.of("email", "forgot.user@vinfast.vn"))))
             .andExpect(status().isOk())
@@ -189,6 +196,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
     mockMvc
         .perform(
             post("/api/v1/auth/password/reset")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("token", token.token(), "password", "NewPassword@123"))))
         .andExpect(status().isOk())
@@ -206,6 +214,7 @@ class AuthEndpointIntegrationTest extends PostgresIntegrationTestBase {
     mockMvc
         .perform(
             post("/api/v1/auth/login")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("email", "invite.user@vinfast.vn", "password", "NewPassword@123"))))
         .andExpect(status().isOk());

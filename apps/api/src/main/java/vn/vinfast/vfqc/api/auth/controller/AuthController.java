@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -43,6 +44,13 @@ public class AuthController {
   private final AuthService authService;
   private final RefreshTokenService refreshTokenService;
   private final SecurityProperties securityProperties;
+
+  @GetMapping("/csrf")
+  @Operation(summary = "Get CSRF token for browser clients")
+  @ApiResponse(responseCode = "200", description = "CSRF token returned")
+  public CsrfToken csrf(CsrfToken csrfToken) {
+    return csrfToken;
+  }
 
   @PostMapping("/register")
   @Operation(summary = "Register a local account when self-registration is enabled")

@@ -156,7 +156,6 @@ class AuthServiceImplTest {
   @Test
   void resetPassword_ValidToken_UpdatesPasswordAndRevokesRefreshTokens() {
     var user = user("user@vinfast.vn");
-    user.setStatus(UserStatus.PENDING_EMAIL_VERIFICATION);
     when(authEmailTokenService.consumeWithPurpose(eq("raw-token"), any()))
         .thenReturn(new AuthEmailTokenConsumption(user, AuthEmailTokenPurpose.PASSWORD_RESET));
 

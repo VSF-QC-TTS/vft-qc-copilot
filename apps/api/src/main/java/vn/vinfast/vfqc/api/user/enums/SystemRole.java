@@ -1,6 +1,13 @@
 package vn.vinfast.vfqc.api.user.enums;
 
-public enum SystemRole {
+import org.springframework.security.core.GrantedAuthority;
+
+public enum SystemRole implements GrantedAuthority {
   PLATFORM_ADMIN,
-  USER
+  USER;
+
+  @Override
+  public String getAuthority() {
+    return "ROLE_" + name();
+  }
 }
