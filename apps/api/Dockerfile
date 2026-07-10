@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 FROM maven:3.9.16-eclipse-temurin-21-noble AS build
+
 WORKDIR /workspace
 
 COPY pom.xml ./
@@ -30,6 +31,7 @@ RUN --mount=type=cache,target=/root/.m2,sharing=locked \
 
 
 FROM eclipse-temurin:21-jre-noble AS runtime
+
 WORKDIR /app
 
 RUN groupadd --gid 10001 vfqc && \
@@ -64,4 +66,4 @@ ENV JAVA_TOOL_OPTIONS="\
 -XX:+ExitOnOutOfMemoryError \
 -Djava.io.tmpdir=/tmp/vfqc"
 
-CMD ["java", "-jar", "application.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
