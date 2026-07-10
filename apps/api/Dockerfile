@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1.7
 
+# ============================================================
+# Stage 1: Build executable Spring Boot JAR
+# ============================================================
 FROM maven:3.9.16-eclipse-temurin-21-noble AS build
 
 WORKDIR /workspace
@@ -17,20 +20,25 @@ RUN --mount=type=cache,target=/root/.m2,sharing=locked \
         -maxdepth 1 \
         -type f \
         -name '*.jar' \
+        ! -name '*-sources.jar' \
+        ! -name '*-javadoc.jar' \
         ! -name '*.original'); \
     if [ "$#" -ne 1 ]; then \
         echo "Expected exactly one executable JAR, found: $#" >&2; \
         find target -maxdepth 1 -type f -name '*.jar' -print >&2; \
         exit 1; \
     fi && \
-    java -Djarmode=tools \
-        -jar "$1" \
-        extract \
-        --layers \
-        --destination /workspace/extracted
+    cp "$1" /workspace/application.jar && \
+    test -s /workspace/application.jar
 
 
+# ============================================================
+# Stage 2: Production runtime
+# ============================================================
 FROM eclipse-temurin:21-jre-noble AS runtime
+
+LABEL maintainer="nghlong3004"
+LABEL description="VinFast QC Copilot API"
 
 WORKDIR /app
 
@@ -46,24 +54,20 @@ RUN groupadd --gid 10001 vfqc && \
     chown -R vfqc:vfqc /app/storage /tmp/vfqc
 
 COPY --from=build --chown=vfqc:vfqc \
-    /workspace/extracted/dependencies/ ./
+    /workspace/application.jar \
+    /app/application.jar
 
-COPY --from=build --chown=vfqc:vfqc \
-    /workspace/extracted/spring-boot-loader/ ./
-
-COPY --from=build --chown=vfqc:vfqc \
-    /workspace/extracted/snapshot-dependencies/ ./
-
-COPY --from=build --chown=vfqc:vfqc \
-    /workspace/extracted/application/ ./
+RUN test -s /app/application.jar
 
 USER 10001:10001
 
 EXPOSE 8080
+
+ENV HOME=/app
 
 ENV JAVA_TOOL_OPTIONS="\
 -XX:MaxRAMPercentage=70.0 \
 -XX:+ExitOnOutOfMemoryError \
 -Djava.io.tmpdir=/tmp/vfqc"
 
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-jar", "/app/application.jar"]
