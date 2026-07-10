@@ -295,6 +295,9 @@ export interface RunnerTestRunConfigResponse {
   datasetSchemaVersion: number;
 
   progressTotal: number;
+  page: number;
+  size: number;
+  hasNext: boolean;
 
   domainSnapshot: Record<string, unknown>;
   promptfooSnapshot: Record<string, unknown>;
@@ -872,9 +875,9 @@ Current known gaps:
 ```text
 1. No dedicated backend artifact upload/metadata endpoint is currently implemented.
 2. No explicit command acknowledgement endpoint is currently implemented.
-3. Redis command consumer for the standalone runner is not implemented in this repository yet.
+3. Redis command intake, XACK, and stale pending recovery are implemented in the standalone runner.
 4. Exact Promptfoo adapter schema is not finalized.
-5. Large dataset row paging may need a more explicit runner row-page contract.
+5. Runner config paging uses page, size, and hasNext metadata.
 6. HTTP event output is fallback/dev; Redis event output is the runner v1 default.
 ```
 

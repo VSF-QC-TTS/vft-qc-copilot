@@ -110,12 +110,13 @@ Done:
 10. Slice 7 cancellation polling, event/backend retry, safe retry exhaustion, non-retryable auth fail-fast, and run timeout mapping are implemented.
 11. Slice 8 local smoke test plan is documented in `12-local-smoke-test.md`.
 12. Runtime loop, Redis event stream publisher, lazy Promptfoo library executor, and backend Testcontainers smoke seed fixture are implemented.
+13. Runner config pagination, pre-transport event masking, Promptfoo progress/cancellation signals, and Redis stale command recovery are implemented.
+14. Optimized non-root API/runner images and a localhost-restricted Compose runtime are documented in `13-docker-compose.md`.
 
 Not done yet:
-1. Full Redis pending recovery/claim loop beyond the no-op boundary.
-2. Non-test local seed command or documented dev seed flow for manual smoke.
-3. Completed manual local smoke run.
-4. Automated smoke test command.
+1. Non-test local seed command or documented dev seed flow for manual smoke.
+2. Completed manual local smoke run.
+3. Automated smoke test command.
 ```
 
 ## Documentation Files
@@ -142,6 +143,7 @@ Recommended later docs:
 10-scaffold-package-versions.md
 11-sliced-implementation-plan.md
 12-local-smoke-test.md
+13-docker-compose.md
 ```
 
 ## Local Smoke Test
@@ -187,10 +189,8 @@ Preserve these as gaps, not as implemented behavior:
 ```text
 1. No dedicated backend artifact upload/metadata endpoint is currently implemented.
 2. No explicit command acknowledgement endpoint is currently implemented.
-3. Full Redis pending recovery/claim loop is not implemented beyond the no-op boundary.
-4. Exact Promptfoo adapter schema is not finalized.
-5. Large dataset row paging may need a more explicit runner row-page contract.
-6. HTTP event output is fallback/dev; Redis event output is the runner v1 default.
+3. Exact Promptfoo adapter schema is not finalized.
+4. HTTP event output is fallback/dev; Redis event output is the runner v1 default.
 ```
 
 Implementation note checked against backend code on 2026-07-09:

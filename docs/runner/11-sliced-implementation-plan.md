@@ -168,7 +168,7 @@ Completed in apps/runner:
 2. Redis command stream wrapper exposes connect/disconnect, XGROUP CREATE, XREADGROUP, and XACK.
 3. RedisCommandConsumer creates the consumer group with MKSTREAM and reads one new command with STREAMS >.
 4. XACK remains explicit and is not called automatically after read.
-5. Pending recovery is a no-op boundary; full stale pending claim handling is intentionally left for a later slice.
+5. Stale pending commands are reclaimed with XAUTOCLAIM before new command reads.
 6. Slice tests pass under npm run check and npm run build.
 ```
 

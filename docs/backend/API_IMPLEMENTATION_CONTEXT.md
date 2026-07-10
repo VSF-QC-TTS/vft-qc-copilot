@@ -166,6 +166,11 @@ Runner Redis event polling:
 - Standalone runner Slice 6 now has a mocked/fake-executor lifecycle service that registers, heartbeats, fetches config/secrets, emits ordered events, and only acknowledges Redis commands after the final event succeeds.
 - Standalone runner Slice 7 adds control-state cancellation polling, safe event/backend retry behavior, and run timeout -> RUN_FAILED mapping without changing backend contracts.
 - Standalone runner runtime loop and Redis event publisher are now wired. `RunnerSmokeSeedFixtureIntegrationTest` stabilizes a no-real-secret backend seed fixture under Testcontainers and verifies compact `START_RUN` publish.
+- Runner config responses now include page metadata; the runner loads every locked row page before execution.
+- Runner events are masked before Redis, Promptfoo progress/cancellation uses the library callbacks and abort signal, and stale commands are recovered with XAUTOCLAIM.
+- Backend command publication now uses a retrying outbox publisher, and SSE replay pages through all persisted events.
+- Backend deletes Redis event records after successful DB ingestion or durable DLQ handoff, so high-volume testcase streams do not grow without bound.
+- Local Docker images and Compose networking are documented in `docs/runner/13-docker-compose.md`.
 - Full manual local smoke is still not completed: it needs running local backend/PostgreSQL/Redis plus a non-test seed command or documented dev seed flow.
 
 ## Recommended Next Work

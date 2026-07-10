@@ -224,6 +224,9 @@ export interface RunnerTestRunConfigResponse {
   datasetSchemaId: string; // UUID
   datasetSchemaVersion: number;
   progressTotal: number;
+  page: number;
+  size: number;
+  hasNext: boolean;
   domainSnapshot: Record<string, unknown>;
   promptfooSnapshot: Record<string, unknown>;
   targets: TargetSnapshot[];
@@ -630,9 +633,9 @@ Document these as known gaps, not as implemented behavior:
 
 - No dedicated backend artifact upload/metadata endpoint is currently implemented.
 - No explicit command acknowledgement endpoint is currently implemented, despite command status enum containing `ACKNOWLEDGED`.
-- Redis command consumer for the standalone runner is not implemented in this repository yet.
+- Redis command intake, XACK, and stale pending recovery are implemented in the standalone runner.
 - Exact Promptfoo adapter schema is not finalized. Backend stores `promptfooSnapshot`, but runner must still map locked VFQC domain snapshots to executable Promptfoo config.
-- Large dataset row paging may need a more explicit runner row-page contract if a run exceeds one config page.
+- Runner config responses include `page`, `size`, and `hasNext`; the runner follows pages until all locked rows are loaded.
 - HTTP event ingestion remains implemented but should be treated as fallback/dev now that backend has a long-running Redis event worker.
 
 ## Expected Documentation Output From The Next AI

@@ -27,7 +27,7 @@ rtk npm run build
 Current verified baseline:
 
 ```text
-rtk npm run check: 30 test files / 143 tests passed.
+rtk npm run check: 30 test files / 154 tests passed.
 rtk npm run build: TypeScript build passed.
 ```
 
@@ -59,7 +59,7 @@ Implemented module areas:
   - `RedisCommandConsumer`
   - `RedisEventStreamPublisher` for `XADD` to `vfqc:runs:events`
   - explicit XACK boundary
-  - no-op pending recovery boundary
+  - XAUTOCLAIM stale pending command recovery
 - `events`
   - event payload schemas
   - `DefaultRunnerEventFactory`
@@ -88,6 +88,7 @@ Implemented module areas:
   - cancellation polling before execution and between testcase events
   - retry budget for backend/event operations, preserving event IDs on retry
   - run timeout mapping to `RUN_FAILED`
+  - paged config loading, Promptfoo progress callbacks, and abortable cancellation polling
 - `main.ts`
   - runtime dependency composition for backend client, Redis command consumer, Redis/HTTP event sink, Promptfoo executor, and `DefaultRunnerService`
   - long-running loop with SIGINT/SIGTERM shutdown handling
@@ -198,7 +199,7 @@ Backend currently has Redis event worker enabled by default outside tests. Prefe
 
 - `apps/runner/dist` may exist after `npm run build`; it is ignored.
 - `apps/runner/node_modules` may exist locally; it is ignored.
-- Pending command recovery is currently a no-op boundary; stale pending claim handling is still not done.
+- Pending commands are reclaimed with XAUTOCLAIM using the configured idle and recovery intervals.
 - `docs/runner/12-local-smoke-test.md` is a manual smoke plan only; local smoke was not completed in this session because `localhost:8080` was not running and `redis-cli` was unavailable.
 - Backend/event retry currently uses immediate retries unless `retryDelayMs` is configured.
 - Artifact events are metadata-only; there is no complete backend artifact upload/download contract yet.
