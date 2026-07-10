@@ -57,15 +57,22 @@ class TestRunSseServiceImpl implements TestRunSseService {
   }
 
   private void replay(UUID testRunId, long afterSequenceNo, SseEmitter emitter) {
-    var events =
-        runnerEventRepository.findByTestRunIdAndSequenceNoGreaterThanOrderBySequenceNoAsc(
-            testRunId, afterSequenceNo, PageRequest.of(0, REPLAY_LIMIT));
-    for (var event : events) {
-      try {
-        emitter.send(toSseEvent(event));
-      } catch (IOException | IllegalStateException exception) {
-        log.debug("Closing SSE during replay: testRunId={}", testRunId, exception);
-        emitter.completeWithError(exception);
+    var cursor = afterSequenceNo;
+    while (true) {
+      var events =
+          runnerEventRepository.findByTestRunIdAndSequenceNoGreaterThanOrderBySequenceNoAsc(
+              testRunId, cursor, PageRequest.of(0, REPLAY_LIMIT));
+      for (var event : events) {
+        try {
+          emitter.send(toSseEvent(event));
+          cursor = event.getSequenceNo();
+        } catch (IOException | IllegalStateException exception) {
+          log.debug("Closing SSE during replay: testRunId={}", testRunId, exception);
+          emitter.completeWithError(exception);
+          return;
+        }
+      }
+      if (!events.hasNext()) {
         return;
       }
     }

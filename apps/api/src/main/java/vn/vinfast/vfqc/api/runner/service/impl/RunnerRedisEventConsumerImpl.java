@@ -65,7 +65,7 @@ public class RunnerRedisEventConsumerImpl implements RunnerRedisEventConsumer {
       try {
         ingestionService.ingest(toRequest(message), streamId);
         failedAttempts.remove(streamId);
-        streams.acknowledge(RunnerRedisStreams.EVENTS, CONSUMER_GROUP, record.getId());
+        acknowledgeAndDelete(streams, record);
         consumed++;
       } catch (RuntimeException ex) {
         var attempts = failedAttempts.merge(streamId, 1, Integer::sum);
@@ -77,13 +77,30 @@ public class RunnerRedisEventConsumerImpl implements RunnerRedisEventConsumer {
         if (attempts >= MAX_ATTEMPTS) {
           dlqService.send(RunnerRedisStreams.EVENTS_DLQ, message, ex.getMessage());
           failedAttempts.remove(streamId);
-          streams.acknowledge(RunnerRedisStreams.EVENTS, CONSUMER_GROUP, record.getId());
+          acknowledgeAndDelete(streams, record);
           consumed++;
         }
         break;
       }
     }
     return consumed;
+  }
+
+  private void acknowledgeAndDelete(
+      StreamOperations<String, String, String> streams,
+      MapRecord<String, String, String> record) {
+    var acknowledged =
+        streams.acknowledge(RunnerRedisStreams.EVENTS, CONSUMER_GROUP, record.getId());
+    if (acknowledged != null && acknowledged > 0) {
+      try {
+        streams.delete(RunnerRedisStreams.EVENTS, record.getId());
+      } catch (RuntimeException exception) {
+        log.warn(
+            "Runner event stream cleanup failed after acknowledgement: streamId={} errorType={}",
+            record.getId().getValue(),
+            exception.getClass().getSimpleName());
+      }
+    }
   }
 
   private void ensureGroup() {

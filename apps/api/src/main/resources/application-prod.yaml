@@ -123,12 +123,6 @@ logging:
     org.telegram: INFO
 
 vfqc:
-  auth:
-    registration:
-      mode: SELF_VERIFY
-    emailToken:
-      verification-expiration-minutes: 1440
-      password-reset-expiration-minutes: 15
   admin:
     seed:
       email: ${VFQC_ADMIN_EMAIL}
@@ -142,7 +136,7 @@ vfqc:
   user:
     default-avatar-url: ${DEFAULT_AVATAR_URL:https://ui-avatars.com/api/?name={name}&background=random&color=fff&size=128}
   mail:
-    enabled: ${VFQC_MAIL_ENABLED:true}
+    enabled: ${VFQC_MAIL_ENABLED:false}
     from: ${MAIL_FROM}
   security:
     access-expiration: 15
@@ -150,7 +144,7 @@ vfqc:
     jwt:
       secret-key: ${JWT_SECRET_KEY}
     encryption-key: ${ENCRYPTION_KEY}
-    encryption-salt: ${ENCRYPTION_SALT:5c0744940b5c369b}
+    encryption-salt: ${ENCRYPTION_SALT}
     cookie:
       secure: true
       same-site: Strict

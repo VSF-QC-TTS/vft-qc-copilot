@@ -34,6 +34,8 @@ vfqc:
   mail:
     enabled: ${VFQC_MAIL_ENABLED:true}
   runner:
+    commands:
+      publish-interval-ms: ${VFQC_RUNNER_COMMANDS_PUBLISH_INTERVAL_MS:100}
     redis-events:
       enabled: ${VFQC_RUNNER_REDIS_EVENTS_ENABLED:true}
       idle-sleep-ms: ${VFQC_RUNNER_REDIS_EVENTS_IDLE_SLEEP_MS:100}

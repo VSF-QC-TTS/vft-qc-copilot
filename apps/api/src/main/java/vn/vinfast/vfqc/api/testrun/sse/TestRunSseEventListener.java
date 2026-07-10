@@ -2,7 +2,6 @@ package vn.vinfast.vfqc.api.testrun.sse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -15,7 +14,6 @@ class TestRunSseEventListener {
 
   private final TestRunSseService sseService;
 
-  @Async
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void onRunnerEventCommitted(RunnerEventCommittedEvent event) {
     try {
