@@ -1,6 +1,5 @@
 package vn.vinfast.vfqc.api.auth.service.impl;
 
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -96,7 +95,9 @@ public class AuthServiceImpl implements AuthService {
     eventPublisher.publishEvent(
         new MailSendEvent(
             new EmailVerificationMailModel(
-                user.getEmail(), user.getDisplayName(), linkBuilder.verificationLink(token.token()))));
+                user.getEmail(),
+                user.getDisplayName(),
+                linkBuilder.verificationLink(token.token()))));
     log.info("User registration accepted: userId={}", user.getId());
     return new RegisterResponse(
         user.getId(),
@@ -108,45 +109,71 @@ public class AuthServiceImpl implements AuthService {
   @Transactional
   @Override
   public LoginResult login(LoginRequest request, String ip, String userAgent) {
+    var normalizedEmail = normalizeEmail(request.email());
+
     var user =
         userRepository
-            .findByEmailIgnoreCaseAndDeletedAtIsNull(normalizeEmail(request.email()))
+            .findByEmailIgnoreCaseAndDeletedAtIsNull(normalizedEmail)
             .orElseThrow(ErrorCode.INVALID_CREDENTIALS::throwIt);
-    if (user.getStatus() == UserStatus.PENDING_EMAIL_VERIFICATION) {
-      throw ErrorCode.EMAIL_NOT_VERIFIED.throwIt();
-    }
-    if (!user.active()) {
-      throw ErrorCode.USER_DISABLED.throwIt();
-    }
+
     if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
       throw ErrorCode.INVALID_CREDENTIALS.throwIt();
     }
+
+    if (user.getStatus() == UserStatus.PENDING_EMAIL_VERIFICATION) {
+      throw ErrorCode.EMAIL_NOT_VERIFIED.throwIt();
+    }
+
+    if (!user.active()) {
+      throw ErrorCode.USER_DISABLED.throwIt();
+    }
+
     if (passwordEncoder.upgradeEncoding(user.getPasswordHash())) {
       user.setPasswordHash(passwordEncoder.encode(request.password()));
     }
-    var refresh = refreshTokenService.issue(user, ip, userAgent);
+
+    var refreshToken = refreshTokenService.issue(user, ip, userAgent);
+
     var response =
         new LoginResponse(
             jwtTokenService.issueAccessToken(user),
             "Bearer",
             jwtTokenService.accessExpiresInSeconds(),
             authMapper.toCurrentUserResponse(user));
+
     log.info("User login succeeded: userId={}", user.getId());
-    return new LoginResult(response, refresh);
+
+    return new LoginResult(response, refreshToken);
   }
 
   @Transactional
   @Override
   public RefreshResult refresh(String refreshToken, String ip, String userAgent) {
     var rotation = refreshTokenService.rotate(refreshToken);
-    var refresh = refreshTokenService.issue(rotation.user(), rotation.familyId(), ip, userAgent);
-    log.info("Access token refreshed: userId={}", rotation.user().getId());
+    var user = rotation.user();
+
+    if (user.getDeletedAt() != null) {
+      throw ErrorCode.USER_DISABLED.throwIt();
+    }
+
+    if (user.getStatus() == UserStatus.PENDING_EMAIL_VERIFICATION) {
+      throw ErrorCode.EMAIL_NOT_VERIFIED.throwIt();
+    }
+
+    if (!user.active()) {
+      throw ErrorCode.USER_DISABLED.throwIt();
+    }
+
+    var newRefreshToken = refreshTokenService.issue(user, rotation.familyId(), ip, userAgent);
+
+    log.info("Access token refreshed: userId={}", user.getId());
+
     return new RefreshResult(
         new RefreshAccessTokenResponse(
-            jwtTokenService.issueAccessToken(rotation.user()),
+            jwtTokenService.issueAccessToken(user),
             "Bearer",
             jwtTokenService.accessExpiresInSeconds()),
-        refresh);
+        newRefreshToken);
   }
 
   @Transactional
@@ -155,7 +182,7 @@ public class AuthServiceImpl implements AuthService {
     var user =
         authEmailTokenService.consume(
             request.token(), Set.of(AuthEmailTokenPurpose.EMAIL_VERIFICATION));
-    if (user.getStatus() == UserStatus.DISABLED) {
+    if (user.getDeletedAt() != null || user.getStatus() == UserStatus.DISABLED) {
       throw ErrorCode.USER_DISABLED.throwIt();
     }
     if (user.getStatus() == UserStatus.PENDING_EMAIL_VERIFICATION) {
@@ -186,27 +213,49 @@ public class AuthServiceImpl implements AuthService {
             request.token(),
             Set.of(AuthEmailTokenPurpose.PASSWORD_RESET, AuthEmailTokenPurpose.ADMIN_INVITE));
     var user = consumption.user();
+    var purpose = consumption.purpose();
+
     if (user.getStatus() == UserStatus.DISABLED) {
       throw ErrorCode.USER_DISABLED.throwIt();
     }
+
+    switch (purpose) {
+      case PASSWORD_RESET -> {
+        if (!user.active()) {
+          throw ErrorCode.USER_DISABLED.throwIt();
+        }
+      }
+      case ADMIN_INVITE -> user.setStatus(UserStatus.ACTIVE);
+    }
+
     user.setPasswordHash(passwordEncoder.encode(request.password()));
-    user.setStatus(UserStatus.ACTIVE);
     user.setUpdatedAt(OffsetDateTime.now(clock));
     refreshTokenService.revokeActiveForUser(user.getId());
     authEmailTokenService.revokeActiveForUser(user.getId());
     if (consumption.purpose() == AuthEmailTokenPurpose.ADMIN_INVITE) {
       userOnboardingService.ensurePersonalWorkspace(user);
     }
-    log.info("User password reset: userId={}", user.getId());
+    log.info("User password updated: userId={}, purpose={}", user.getId(), purpose);
     return new AuthMessageResponse("Password reset successfully.");
   }
 
+  @Transactional(readOnly = true)
   @Override
-  public CurrentUserResponse currentUser(CurrentUser user) {
-    return userRepository
-        .findById(user.id())
-        .map(authMapper::toCurrentUserResponse)
-        .orElseGet(() -> authMapper.toCurrentUserResponse(user));
+  public CurrentUserResponse currentUser(CurrentUser currentUser) {
+    var persistedUser =
+        userRepository
+            .findByIdAndDeletedAtIsNull(currentUser.id())
+            .orElseThrow(ErrorCode.INVALID_CREDENTIALS::throwIt);
+
+    if (persistedUser.getDeletedAt() != null) {
+      throw ErrorCode.INVALID_CREDENTIALS.throwIt();
+    }
+
+    if (!persistedUser.active()) {
+      throw ErrorCode.USER_DISABLED.throwIt();
+    }
+
+    return authMapper.toCurrentUserResponse(persistedUser);
   }
 
   private void sendPasswordReset(AppUser user, String ip, String userAgent) {

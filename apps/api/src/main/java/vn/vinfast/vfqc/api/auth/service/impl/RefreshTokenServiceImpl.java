@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.vinfast.vfqc.api.auth.entity.AuthRefreshToken;
 import vn.vinfast.vfqc.api.auth.enums.AuthRefreshTokenStatus;
 import vn.vinfast.vfqc.api.auth.repository.AuthRefreshTokenRepository;
+import vn.vinfast.vfqc.api.auth.service.RefreshTokenCompromiseService;
 import vn.vinfast.vfqc.api.auth.service.RefreshTokenIssue;
 import vn.vinfast.vfqc.api.auth.service.RefreshTokenService;
 import vn.vinfast.vfqc.api.common.config.SecurityProperties;
@@ -27,11 +28,12 @@ import vn.vinfast.vfqc.api.user.repository.UserRepository;
 @Slf4j
 public class RefreshTokenServiceImpl implements RefreshTokenService {
 
+  private final RefreshTokenCompromiseService compromiseService;
   private final AuthRefreshTokenRepository repository;
   private final UserRepository userRepository;
   private final SecurityProperties properties;
   private final Clock clock;
-  private final SecureRandom random = new SecureRandom();
+  private final SecureRandom random;
 
   @Transactional
   @Override
@@ -48,12 +50,21 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     var now = OffsetDateTime.now(clock);
     var existing =
         repository
-            .findByTokenHash(hash(rawToken))
+            .findForUpdateByTokenHash(hash(rawToken))
             .orElseThrow(ErrorCode.REFRESH_TOKEN_INVALID::throwIt);
     if (existing.getStatus() != AuthRefreshTokenStatus.ACTIVE) {
+      if (existing.getRotatedAt() != null) {
+        compromiseService.revokeFamily(existing.getFamilyId());
+
+        log.warn(
+            "Refresh token reuse detected: tokenId={} userId={} familyId={}",
+            existing.getId(),
+            existing.getUserId(),
+            existing.getFamilyId());
+      }
       throw ErrorCode.REFRESH_TOKEN_INVALID.throwIt();
     }
-    if (existing.getExpiresAt().isBefore(now)) {
+    if (!existing.getExpiresAt().isAfter(now)) {
       existing.setStatus(AuthRefreshTokenStatus.EXPIRED);
       throw ErrorCode.REFRESH_TOKEN_EXPIRED.throwIt();
     }
@@ -77,11 +88,17 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
       return;
     }
     repository
-        .findByTokenHash(hash(rawToken))
+        .findForUpdateByTokenHash(hash(rawToken))
         .ifPresent(
             token -> {
+              if (token.getStatus() != AuthRefreshTokenStatus.ACTIVE) {
+                return;
+              }
+
+              var now = OffsetDateTime.now(clock);
               token.setStatus(AuthRefreshTokenStatus.REVOKED);
-              token.setRevokedAt(OffsetDateTime.now(clock));
+              token.setRevokedAt(now);
+
               log.info(
                   "Refresh token revoked: tokenId={} userId={}", token.getId(), token.getUserId());
             });
@@ -97,8 +114,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             AuthRefreshTokenStatus.REVOKED,
             OffsetDateTime.now(clock));
     if (count > 0) {
-      log.info(
-          "Refresh tokens revoked after password change: userId={} count={}", userId, count);
+      log.info("Refresh tokens revoked after password change: userId={} count={}", userId, count);
     }
   }
 

@@ -31,12 +31,17 @@ public class AuthEmailTokenServiceImpl implements AuthEmailTokenService {
   private final AuthEmailTokenRepository repository;
   private final UserRepository userRepository;
   private final Clock clock;
-  private final SecureRandom random = new SecureRandom();
+  private final SecureRandom random;
 
   @Transactional
   @Override
   public AuthEmailTokenIssue issue(
       AppUser user, AuthEmailTokenPurpose purpose, Duration ttl, String ip, String userAgent) {
+
+    userRepository
+        .findForUpdateById(user.getId())
+        .orElseThrow(ErrorCode.EMAIL_TOKEN_INVALID::throwIt);
+
     revokeActive(user.getId(), Set.of(purpose));
     var rawToken = randomToken();
     var now = OffsetDateTime.now(clock);
@@ -71,19 +76,21 @@ public class AuthEmailTokenServiceImpl implements AuthEmailTokenService {
     var now = OffsetDateTime.now(clock);
     var token =
         repository
-            .findByTokenHashAndStatus(hash(rawToken), AuthEmailTokenStatus.ACTIVE)
+            .findForUpdateByTokenHashAndStatus(hash(rawToken), AuthEmailTokenStatus.ACTIVE)
             .orElseThrow(ErrorCode.EMAIL_TOKEN_INVALID::throwIt);
     if (!allowedPurposes.contains(token.getPurpose())) {
       throw ErrorCode.EMAIL_TOKEN_INVALID.throwIt();
     }
-    if (token.getExpiresAt().isBefore(now)) {
+    if (!token.getExpiresAt().isAfter(now)) {
       token.setStatus(AuthEmailTokenStatus.EXPIRED);
       throw ErrorCode.EMAIL_TOKEN_EXPIRED.throwIt();
     }
     token.setStatus(AuthEmailTokenStatus.USED);
     token.setUsedAt(now);
     var user =
-        userRepository.findById(token.getUserId()).orElseThrow(ErrorCode.EMAIL_TOKEN_INVALID::throwIt);
+        userRepository
+            .findByIdAndDeletedAtIsNull(token.getUserId())
+            .orElseThrow(ErrorCode.EMAIL_TOKEN_INVALID::throwIt);
     return new AuthEmailTokenConsumption(user, token.getPurpose());
   }
 
