@@ -232,6 +232,7 @@ class Phase9RunnerIntegrationTest extends PostgresIntegrationTestBase {
     var dlqEntry = redisTemplate.opsForStream().range(RunnerRedisStreams.EVENTS_DLQ, Range.unbounded()).getFirst();
     assertThat(dlqEntry).isNotNull();
     assertThat(dlqEntry.getValue().toString()).doesNotContain("redis-secret-token").contains("****");
+    assertThat(redisTemplate.opsForStream().range(RunnerRedisStreams.EVENTS, Range.unbounded())).isEmpty();
   }
 
   @Test

@@ -25,7 +25,7 @@ class RunnerSmokeSeedFixtureIntegrationTest extends PostgresIntegrationTestBase 
   private final SecretEncryptionService encryptionService;
 
   @Test
-  void seedMinimalRun_CreatesQueuedRunAndPublishesCompactStartCommand() throws Exception {
+  void seedMinimalRun_CreatesQueuedRunAndOutboxPublishesCompactStartCommand() throws Exception {
     var fixture = new RunnerSmokeSeedFixture(this, mockMvc, objectMapper, encryptionService);
 
     var seeded = fixture.seedMinimalRun();
@@ -33,17 +33,30 @@ class RunnerSmokeSeedFixtureIntegrationTest extends PostgresIntegrationTestBase 
     assertThat(testRunRepository.findById(seeded.testRunId()).orElseThrow().getStatus())
         .isEqualTo(TestRunStatus.QUEUED);
     assertThat(datasetRowRepository.findByDatasetVersionIdOrderByRowIndexAsc(seeded.datasetVersionId())).hasSize(1);
-    assertThat(runnerCommandRepository.findByTestRunIdOrderByCreatedAtAsc(seeded.testRunId()))
-        .singleElement()
-        .satisfies(
-            command -> {
-              assertThat(command.getCommandType()).isEqualTo(RunnerCommandType.START_RUN);
-              assertThat(command.getStatus()).isEqualTo(RunnerCommandStatus.PUBLISHED);
-            });
+    var command = waitForPublishedCommand(seeded.testRunId());
+    assertThat(command.getCommandType()).isEqualTo(RunnerCommandType.START_RUN);
+    assertThat(command.getStatus()).isEqualTo(RunnerCommandStatus.PUBLISHED);
     var commandPayload = redisTemplate.opsForStream().range(RunnerRedisStreams.COMMANDS, Range.unbounded()).getFirst().getValue();
     assertThat(commandPayload.keySet()).containsExactlyInAnyOrder("commandId", "testRunId", "commandType", "createdAt");
     assertThat(commandPayload.toString())
         .doesNotContain(RunnerSmokeSeedFixture.FAKE_RUNTIME_SECRET)
         .doesNotContain("chatbot.example.test/api");
+  }
+
+  private vn.vinfast.vfqc.api.runner.entity.RunnerCommand waitForPublishedCommand(
+      java.util.UUID testRunId) throws InterruptedException {
+    for (var attempt = 0; attempt < 20; attempt++) {
+      var command =
+          runnerCommandRepository.findByTestRunIdOrderByCreatedAtAsc(testRunId).stream()
+              .findFirst()
+              .orElse(null);
+      if (command != null && command.getStatus() == RunnerCommandStatus.PUBLISHED) {
+        return command;
+      }
+      Thread.sleep(50);
+    }
+    return runnerCommandRepository.findByTestRunIdOrderByCreatedAtAsc(testRunId).stream()
+        .findFirst()
+        .orElseThrow();
   }
 }

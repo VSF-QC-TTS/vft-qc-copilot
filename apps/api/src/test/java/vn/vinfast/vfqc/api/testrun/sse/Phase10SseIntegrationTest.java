@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -151,6 +152,46 @@ class Phase10SseIntegrationTest extends PostgresIntegrationTestBase {
 
     var content = waitForContent(result, "RUN_PROGRESS");
     assertThat(content).contains("id:1").contains("id:2").contains("event:RUN_STARTED").contains("event:RUN_PROGRESS");
+  }
+
+  @Test
+  void subscribe_MoreThanReplayPage_ReplaysAllPersistedEvents() throws Exception {
+    var owner = user("phase10-large-replay@vinfast.vn");
+    var workspace = workspace(owner);
+    var projectId = createProject(owner, workspace.getId());
+    var testRunId = createRun(owner, projectId);
+    var now = OffsetDateTime.now();
+    var events =
+        IntStream.rangeClosed(1, 501)
+            .mapToObj(
+                sequenceNo ->
+                    RunnerEvent.builder()
+                        .eventId("phase10-large-" + testRunId + "-" + sequenceNo)
+                        .testRunId(testRunId)
+                        .eventType(RunnerEventType.RUN_PROGRESS)
+                        .sequenceNo(sequenceNo)
+                        .status(RunnerEventStatus.APPLIED)
+                        .attempts(1)
+                        .payloadJson(Map.of("completed", sequenceNo, "total", 501))
+                        .occurredAt(now)
+                        .createdAt(now)
+                        .updatedAt(now)
+                        .build())
+            .toList();
+    runnerEventRepository.saveAll(events);
+
+    var result =
+        mockMvc
+            .perform(
+                get("/api/v1/test-runs/" + testRunId + "/events")
+                    .with(bearer(owner))
+                    .accept(MediaType.TEXT_EVENT_STREAM))
+            .andExpect(status().isOk())
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+    var content = waitForContent(result, "\"completed\":501");
+    assertThat(content).contains("id:501").contains("\"completed\":501");
   }
 
   @Test
