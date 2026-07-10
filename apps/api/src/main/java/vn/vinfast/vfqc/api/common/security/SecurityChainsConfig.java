@@ -1,6 +1,7 @@
 package vn.vinfast.vfqc.api.common.security;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import java.nio.charset.StandardCharsets;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -84,11 +85,35 @@ public class SecurityChainsConfig {
         .build();
   }
 
+  @Bean
+  @Order(3)
+  public SecurityFilterChain fallbackSecurity(HttpSecurity http) throws Exception {
+    return http.csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers("/actuator/health", "/actuator/health/**", "/error")
+                    .permitAll()
+                    .anyRequest()
+                    .denyAll())
+        .build();
+  }
+
   private SecretKeySpec jwtKey(SecurityProperties properties) {
-    var key = properties.jwt().secretKey();
-    if (key == null || key.isBlank() || key.startsWith("${")) {
+    var secret = properties.jwt().secretKey();
+
+    if (secret == null || secret.isBlank() || secret.startsWith("${")) {
       throw new IllegalStateException("vfqc.security.jwt.secret-key must be configured");
     }
-    return new SecretKeySpec(key.getBytes(), "HmacSHA256");
+
+    var keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+
+    if (keyBytes.length < 32) {
+      throw new IllegalStateException(
+          "vfqc.security.jwt.secret-key must contain at least 32 UTF-8 bytes");
+    }
+
+    return new SecretKeySpec(keyBytes, "HmacSHA256");
   }
 }

@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,6 +36,8 @@ class AuthEmailTokenServiceImplTest {
   private static final Clock CLOCK =
       Clock.fixed(Instant.parse("2026-07-05T10:00:00Z"), ZoneOffset.UTC);
 
+  @Mock private SecureRandom secureRandom;
+
   @Mock private AuthEmailTokenRepository repository;
   @Mock private UserRepository userRepository;
 
@@ -42,7 +45,7 @@ class AuthEmailTokenServiceImplTest {
 
   @BeforeEach
   void setUp() {
-    service = new AuthEmailTokenServiceImpl(repository, userRepository, CLOCK);
+    service = new AuthEmailTokenServiceImpl(repository, userRepository, CLOCK, secureRandom);
   }
 
   @Test
@@ -76,7 +79,7 @@ class AuthEmailTokenServiceImplTest {
             .status(AuthEmailTokenStatus.ACTIVE)
             .expiresAt(OffsetDateTime.now(CLOCK).minusSeconds(1))
             .build();
-    when(repository.findByTokenHashAndStatus(any(), any())).thenReturn(Optional.of(token));
+    when(repository.findForUpdateByTokenHashAndStatus(any(), any())).thenReturn(Optional.of(token));
 
     assertThatThrownBy(
             () -> service.consume("raw", Set.of(AuthEmailTokenPurpose.EMAIL_VERIFICATION)))
@@ -97,7 +100,7 @@ class AuthEmailTokenServiceImplTest {
             .status(AuthEmailTokenStatus.ACTIVE)
             .expiresAt(OffsetDateTime.now(CLOCK).plusMinutes(15))
             .build();
-    when(repository.findByTokenHashAndStatus(any(), any())).thenReturn(Optional.of(token));
+    when(repository.findForUpdateByTokenHashAndStatus(any(), any())).thenReturn(Optional.of(token));
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
     var result = service.consume("raw", Set.of(AuthEmailTokenPurpose.ADMIN_INVITE));
