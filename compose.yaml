@@ -1,0 +1,174 @@
+name: vfqc
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vfqc
+      POSTGRES_USER: vfqc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vfqc -d vfqc"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - vfqc-internal
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - vfqc-internal
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    mem_limit: ${API_MEMORY_LIMIT:-2g}
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
+
+      DB_URL: jdbc:postgresql://postgres:5432/vfqc
+      DB_USERNAME: vfqc
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment}
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-5}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
+      DB_CONNECTION_TIMEOUT: ${DB_CONNECTION_TIMEOUT:-30000}
+      DB_IDLE_TIMEOUT: ${DB_IDLE_TIMEOUT:-600000}
+      DB_MAX_LIFETIME: ${DB_MAX_LIFETIME:-1800000}
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      VFQC_AUTH_REGISTRATION_MODE: ${VFQC_AUTH_REGISTRATION_MODE:-ADMIN_ONLY}
+      VFQC_RUNNER_REDIS_EVENTS_ENABLED: "true"
+      VFQC_SECURITY_RUNNER_TOKEN: ${VFQC_RUNNER_TOKEN:?Set VFQC_RUNNER_TOKEN in the environment}
+
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in the environment}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in the environment}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:?Set ENCRYPTION_SALT in the environment}
+
+      VFQC_ADMIN_EMAIL: ${VFQC_ADMIN_EMAIL:?Set VFQC_ADMIN_EMAIL in the environment}
+      VFQC_ADMIN_PASSWORD: ${VFQC_ADMIN_PASSWORD:?Set VFQC_ADMIN_PASSWORD in the environment}
+      VFQC_ADMIN_DISPLAY_NAME: ${VFQC_ADMIN_DISPLAY_NAME:-VFQC Administrator}
+
+      WEB_BASE_URL: ${WEB_BASE_URL:-http://127.0.0.1:3000}
+      SERVER_BASE_URL: ${SERVER_BASE_URL:-http://127.0.0.1:8080}
+      DEFAULT_AVATAR_URL: ${DEFAULT_AVATAR_URL:-https://ui-avatars.com/api/?name={name}&background=random&color=fff&size=128}
+
+      SPRING_AI_MODEL_CHAT: ${SPRING_AI_MODEL_CHAT:-none}
+      SPRING_AI_MODEL_EMBEDDING_TEXT: ${SPRING_AI_MODEL_EMBEDDING_TEXT:-none}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_MAX_TOKENS: ${GEMINI_MAX_TOKENS:-8192}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+
+      VFQC_MAIL_ENABLED: ${VFQC_MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-localhost}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_SMTP_STARTTLS_ENABLE:-false}
+      MAIL_CONNECTION_TIMEOUT: ${MAIL_CONNECTION_TIMEOUT:-5000}
+      MAIL_TIMEOUT: ${MAIL_TIMEOUT:-5000}
+      MAIL_WRITE_TIMEOUT: ${MAIL_WRITE_TIMEOUT:-5000}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@localhost}
+
+      VFQC_EXPORT_STORAGE_ROOT: /app/storage/exports
+    ports:
+      - "127.0.0.1:${VFQC_API_PORT:-8080}:8080"
+    volumes:
+      - api-storage:/app/storage
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - vfqc-internal
+      - vfqc-egress
+
+  runner:
+    build:
+      context: ./apps/runner
+      dockerfile: Dockerfile
+    mem_limit: ${RUNNER_MEMORY_LIMIT:-3g}
+    environment:
+      VFQC_RUNNER_KEY: runner-compose-01
+      VFQC_RUNNER_VERSION: 0.0.1
+      VFQC_RUNNER_HOSTNAME: runner
+      VFQC_BACKEND_BASE_URL: http://api:8080
+      VFQC_RUNNER_TOKEN: ${VFQC_RUNNER_TOKEN:?Set VFQC_RUNNER_TOKEN in the environment}
+      VFQC_REDIS_URL: redis://redis:6379
+      VFQC_REDIS_COMMAND_STREAM: vfqc:runs:commands
+      VFQC_REDIS_COMMAND_GROUP: vfqc-runners
+      VFQC_REDIS_CONSUMER_NAME: runner-compose-01
+      VFQC_REDIS_EVENTS_STREAM: vfqc:runs:events
+      VFQC_EVENT_TRANSPORT: redis
+      VFQC_WORK_DIR: /app/.runner-work
+      VFQC_ARTIFACTS_DIR: /app/storage/artifacts
+      VFQC_HEARTBEAT_INTERVAL_MS: 10000
+      VFQC_CONTROL_POLL_INTERVAL_MS: 1000
+      VFQC_COMMAND_BLOCK_MS: 5000
+      VFQC_COMMAND_MAX_ATTEMPTS: 5
+      VFQC_PENDING_IDLE_THRESHOLD_MS: 60000
+      VFQC_RECOVERY_INTERVAL_MS: 30000
+      VFQC_RUN_TIMEOUT_MS: 21600000
+      VFQC_LOG_LEVEL: info
+    volumes:
+      - runner-storage:/app/storage
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - vfqc-internal
+      - vfqc-egress
+
+volumes:
+  postgres-data:
+  redis-data:
+  api-storage:
+  runner-storage:
+
+networks:
+  vfqc-internal:
+    internal: true
+  vfqc-egress:
+    driver: bridge
