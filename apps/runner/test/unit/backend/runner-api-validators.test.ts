@@ -17,6 +17,9 @@ const validConfigFixture = {
   datasetSchemaId: '068283ff-7567-4b55-af35-f15d6e454c2f',
   datasetSchemaVersion: 1,
   progressTotal: 1,
+  page: 0,
+  size: 100,
+  hasNext: false,
   domainSnapshot: { domain: 'sales' },
   promptfooSnapshot: { providers: [] },
   targets: [
@@ -60,6 +63,7 @@ describe('runner API validators', () => {
 
     expect(parsed.testRunId).toBe(uuid);
     expect(parsed.targets[0]?.targetType).toBe('CHATBOT_TARGET');
+    expect(parsed.hasNext).toBe(false);
   });
 
   it('rejects invalid enum values loudly', () => {

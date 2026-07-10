@@ -64,6 +64,30 @@ describe('RedisCommandConsumer', () => {
 
     expect(delivery).toBeNull();
   });
+
+  it('reclaims a stale pending command before reading a new command', async () => {
+    const staleMessage: RedisStreamReadResult['messages'][number] = {
+      id: '1739999999999-0',
+      message: ['commandId', commandId, 'testRunId', testRunId, 'commandType', 'START_RUN', 'createdAt', createdAt],
+    };
+    const client = new FakeRedisCommandStreamClient([], [staleMessage]);
+    const consumer = createConsumer(client);
+
+    const delivery = await consumer.readNextCommand();
+
+    expect(delivery?.streamMessageId).toBe('1739999999999-0');
+    expect(client.autoClaimCalls).toEqual([
+      {
+        stream: 'vfqc:runs:commands',
+        group: 'vfqc-runners',
+        consumer: 'runner-01',
+        minIdleTimeMs: 60_000,
+        start: '0-0',
+        count: 1,
+      },
+    ]);
+    expect(client.readCalls).toBe(0);
+  });
 });
 
 interface GroupCreateCall {
@@ -82,8 +106,20 @@ interface AckCall {
 class FakeRedisCommandStreamClient implements RedisCommandStreamClient {
   public readonly groupCreateCalls: GroupCreateCall[] = [];
   public readonly ackCalls: AckCall[] = [];
+  public readonly autoClaimCalls: Array<{
+    readonly stream: string;
+    readonly group: string;
+    readonly consumer: string;
+    readonly minIdleTimeMs: number;
+    readonly start: string;
+    readonly count: number;
+  }> = [];
+  public readCalls = 0;
 
-  public constructor(private readonly result: readonly RedisStreamReadResult[]) {}
+  public constructor(
+    private readonly result: readonly RedisStreamReadResult[],
+    private readonly claimedMessages: readonly RedisStreamReadResult['messages'][number][] = [],
+  ) {}
 
   public async connect(): Promise<void> {}
 
@@ -94,7 +130,20 @@ class FakeRedisCommandStreamClient implements RedisCommandStreamClient {
   }
 
   public async xReadGroup(): Promise<readonly RedisStreamReadResult[] | null> {
+    this.readCalls += 1;
     return this.result.length === 0 ? null : this.result;
+  }
+
+  public async xAutoClaim(
+    stream: string,
+    group: string,
+    consumer: string,
+    minIdleTimeMs: number,
+    start: string,
+    options: { readonly count: number },
+  ): Promise<{ readonly nextId: string; readonly messages: readonly RedisStreamReadResult['messages'][number][] }> {
+    this.autoClaimCalls.push({ stream, group, consumer, minIdleTimeMs, start, count: options.count });
+    return { nextId: '0-0', messages: this.claimedMessages };
   }
 
   public async xAck(stream: string, group: string, id: string): Promise<number> {
@@ -109,5 +158,7 @@ function createConsumer(client: RedisCommandStreamClient): RedisCommandConsumer 
     group: 'vfqc-runners',
     consumerName: 'runner-01',
     blockMs: 5_000,
+    pendingIdleThresholdMs: 60_000,
+    recoveryIntervalMs: 30_000,
   });
 }

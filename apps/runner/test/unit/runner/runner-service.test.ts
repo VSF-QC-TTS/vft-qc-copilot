@@ -15,6 +15,7 @@ import type {
 } from '../../../src/backend/dto/runner-api.dto.js';
 import { RunnerError } from '../../../src/errors/runner-error.js';
 import { DefaultRunnerEventFactory } from '../../../src/events/runner-event-factory.js';
+import { DefaultRunnerEventSanitizer } from '../../../src/events/runner-event-sanitizer.js';
 import type { RunnerEventSink, RunnerEventSinkResult } from '../../../src/events/runner-event-sink.js';
 import { DefaultMaskingPolicy } from '../../../src/masking/masking-policy.js';
 import { RecursiveSensitiveDataMasker } from '../../../src/masking/sensitive-data-masker.js';
@@ -64,6 +65,37 @@ describe('DefaultRunnerService', () => {
       'RUN_COMPLETED',
     ]);
     expect(harness.consumer.ackedIds).toEqual(['1700000000000-0']);
+  });
+
+  it('loads every backend config page before executing Promptfoo', async () => {
+    const firstPage = testRunConfigResponse({ page: 0, hasNext: true });
+    const secondRow = { ...firstPage.rows[0]!, id: 102, rowIndex: 1, rowHash: 'row-hash-2' };
+    const secondPage = testRunConfigResponse({ page: 1, hasNext: false, rows: [secondRow] });
+    const harness = createHarness({ configPages: [firstPage, secondPage] });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.backend.configCalls).toEqual([
+      { testRunId: command.testRunId, page: 0, size: 100 },
+      { testRunId: command.testRunId, page: 1, size: 100 },
+    ]);
+    expect(harness.executor.executedConfigs[0]?.tests).toHaveLength(2);
+  });
+
+  it('masks resolved runtime secrets before sending testcase events', async () => {
+    const rawResult = successfulRawResult() as { results: Array<Record<string, unknown>> };
+    rawResult.results[0] = {
+      ...rawResult.results[0],
+      response: { body: { answer: `secret=${promptfooFakeSecret}` } },
+    };
+    const harness = createHarness({ rawResult });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(JSON.stringify(harness.sink.events)).not.toContain(promptfooFakeSecret);
+    expect(JSON.stringify(harness.sink.events)).toContain('****MASKED****');
   });
 
   it('does not acknowledge a command before the final event succeeds', async () => {
@@ -259,6 +291,39 @@ describe('DefaultRunnerService', () => {
       errorCategory: 'RUN_TIMEOUT',
     });
     expect(harness.consumer.ackedIds).toEqual(['1700000000000-0']);
+    expect(harness.executor.lastSignal?.aborted).toBe(true);
+  });
+
+  it('emits Promptfoo progress while execution is active', async () => {
+    const harness = createHarness({ executorMode: 'report-progress' });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.sink.events.map((event) => event.eventType)).toEqual([
+      'RUN_STARTED',
+      'RUN_PROGRESS',
+      'TESTCASE_COMPLETED',
+      'RUN_COMPLETED',
+    ]);
+    expect(harness.sink.events[1]?.payload).toEqual({ completed: 1, total: 1 });
+  });
+
+  it('aborts Promptfoo and sends RUN_CANCELLED when backend cancellation is observed', async () => {
+    const harness = createHarness({
+      executorMode: 'wait-for-abort',
+      controlPollIntervalMs: 1,
+      controlStates: [
+        { testRunId: command.testRunId, status: 'RUNNING', cancellationRequested: false },
+        { testRunId: command.testRunId, status: 'CANCEL_REQUESTED', cancellationRequested: true },
+      ],
+    });
+
+    await harness.service.start();
+    await harness.service.runOnce();
+
+    expect(harness.executor.lastSignal?.aborted).toBe(true);
+    expect(harness.sink.events.map((event) => event.eventType)).toEqual(['RUN_STARTED', 'RUN_CANCELLED']);
   });
 
   it('maps target timeout to testcase-level error instead of run-level failure', async () => {
@@ -281,9 +346,11 @@ interface HarnessOptions {
   readonly failFinalEvent?: boolean;
   readonly sinkFailures?: readonly EventFailureRule[];
   readonly rawResult?: unknown;
-  readonly executorMode?: 'normal' | 'never-resolve';
+  readonly executorMode?: 'normal' | 'never-resolve' | 'report-progress' | 'wait-for-abort';
   readonly eventRetryMaxAttempts?: number;
   readonly runTimeoutMs?: number;
+  readonly configPages?: readonly RunnerTestRunConfigResponse[];
+  readonly controlPollIntervalMs?: number;
 }
 
 interface Harness {
@@ -295,7 +362,11 @@ interface Harness {
 }
 
 function createHarness(options: HarnessOptions = {}): Harness {
-  const backend = new FakeBackendClient(options.controlStatus ?? 'QUEUED', options.controlStates ?? []);
+  const backend = new FakeBackendClient(
+    options.controlStatus ?? 'QUEUED',
+    options.controlStates ?? [],
+    options.configPages ?? [testRunConfigResponse()],
+  );
   const consumer = new FakeCommandConsumer([{ streamMessageId: '1700000000000-0', message: command }]);
   const sink = new FakeRunnerEventSink(options.failFinalEvent === true, options.sinkFailures ?? []);
   const executor = new FakePromptfooExecutor(options.rawResult ?? successfulRawResult(), options.executorMode ?? 'normal');
@@ -316,6 +387,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
     commandConsumer: consumer,
     eventSink: sink,
     eventFactory,
+    eventSanitizer: new DefaultRunnerEventSanitizer(),
     configBuilder: new DefaultPromptfooConfigBuilder({
       masker: new RecursiveSensitiveDataMasker(new DefaultMaskingPolicy({ knownSecrets: [promptfooFakeSecret] })),
     }),
@@ -323,6 +395,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
     resultNormalizer: new DefaultPromptfooResultNormalizer(),
     configPageSize: 100,
     eventRetryMaxAttempts: options.eventRetryMaxAttempts ?? (options.failFinalEvent === true ? 1 : 3),
+    controlPollIntervalMs: options.controlPollIntervalMs ?? 1_000,
   };
   if (options.runTimeoutMs !== undefined) {
     serviceOptions = { ...serviceOptions, runTimeoutMs: options.runTimeoutMs };
@@ -346,6 +419,7 @@ class FakeBackendClient implements BackendClient {
   public constructor(
     private readonly controlStatus: TestRunStatus,
     controlStates: readonly RunnerControlStateResponse[],
+    private readonly configPages: readonly RunnerTestRunConfigResponse[],
   ) {
     this.controlStates = [...controlStates];
   }
@@ -362,7 +436,7 @@ class FakeBackendClient implements BackendClient {
 
   public async getTestRunConfig(testRunId: string, page: number, size: number): Promise<RunnerTestRunConfigResponse> {
     this.configCalls.push({ testRunId, page, size });
-    return testRunConfigResponse();
+    return this.configPages[page] ?? testRunConfigResponse({ page, hasNext: false, rows: [] });
   }
 
   public async resolveRuntimeSecrets(
@@ -453,16 +527,31 @@ class FakeRunnerEventSink implements RunnerEventSink {
 
 class FakePromptfooExecutor implements PromptfooExecutor {
   public readonly executedConfigs: PromptfooConfigObject[] = [];
+  public lastSignal: AbortSignal | undefined;
 
   public constructor(
     private readonly rawResult: unknown,
-    private readonly mode: 'normal' | 'never-resolve',
+    private readonly mode: 'normal' | 'never-resolve' | 'report-progress' | 'wait-for-abort',
   ) {}
 
-  public async execute(config: PromptfooConfigObject | Record<string, unknown>): Promise<unknown> {
+  public async execute(
+    config: PromptfooConfigObject | Record<string, unknown>,
+    options?: { readonly signal?: AbortSignal; readonly onProgress?: (completed: number, total: number) => void },
+  ): Promise<unknown> {
     this.executedConfigs.push(config as PromptfooConfigObject);
+    this.lastSignal = options?.signal;
     if (this.mode === 'never-resolve') {
       return new Promise(() => {});
+    }
+    if (this.mode === 'report-progress') {
+      options?.onProgress?.(1, 1);
+    }
+    if (this.mode === 'wait-for-abort') {
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => reject(new Error('Promptfoo execution aborted')), {
+          once: true,
+        });
+      });
     }
     return this.rawResult;
   }
@@ -483,7 +572,13 @@ function runnerInstanceResponse(runnerKey: string, status: RunnerInstanceRespons
   };
 }
 
-function testRunConfigResponse(): RunnerTestRunConfigResponse {
+function testRunConfigResponse(
+  options: {
+    readonly page?: number;
+    readonly hasNext?: boolean;
+    readonly rows?: RunnerTestRunConfigResponse['rows'];
+  } = {},
+): RunnerTestRunConfigResponse {
   const input = singleChatbotInput();
   return {
     testRunId: input.testRunId,
@@ -495,11 +590,14 @@ function testRunConfigResponse(): RunnerTestRunConfigResponse {
     datasetSchemaId: 'e6978c48-a151-497e-8452-8493f90c6a59',
     datasetSchemaVersion: 1,
     progressTotal: input.rows.length,
+    page: options.page ?? 0,
+    size: 100,
+    hasNext: options.hasNext ?? false,
     domainSnapshot: {},
     promptfooSnapshot: input.promptfooSnapshot,
     targets: [...input.targets],
     evaluators: [...input.evaluators],
-    rows: [...input.rows],
+    rows: options.rows ?? [...input.rows],
   };
 }
 
