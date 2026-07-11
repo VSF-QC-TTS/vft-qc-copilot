@@ -68,10 +68,9 @@ The following npm `latest` or latest stable versions were verified on
 | `react` | `19.2.7` | Runtime |
 | `react-dom` | `19.2.7` | Runtime |
 | `typescript` | `7.0.2` | Type-check CLI; see Section 2.2 |
-| `@typescript/typescript6` | `6.0.2` compatibility line | Temporary compiler API for tools |
 | `vite` | `8.1.4` | Build/dev server |
 | `@vitejs/plugin-react` | `6.0.3` | React transform/refresh |
-| `react-router` | `8.1.0` | Routing |
+| `react-router` | `8.2.0` | Routing |
 | `@tanstack/react-query` | `5.101.2` | Server state |
 | `@tanstack/react-table` | `8.21.3` | Stable table adapter; v9 was prerelease |
 | `react-hook-form` | `7.81.0` | Form state |
@@ -81,46 +80,39 @@ The following npm `latest` or latest stable versions were verified on
 | `shadcn` | `4.13.0` | Component-source CLI |
 | `lucide-react` | `1.24.0` | Icons |
 | `date-fns` | `4.4.0` | Date utilities |
-| `vitest` | `4.1.9` | Unit/component test runner |
+| `sonner` | `2.0.7` | Toast implementation behind the shared notification abstraction |
+| `vitest` | `4.1.10` | Unit/component test runner |
 | `@testing-library/react` | `16.3.2` | Component tests |
 | `@testing-library/dom` | `10.4.1` | Required Testing Library peer |
 | `@testing-library/user-event` | `14.6.1` | User interactions |
 | `@testing-library/jest-dom` | `6.9.1` | DOM assertions for Vitest |
 | `@playwright/test` | `1.61.1` | Dev-only browser E2E |
 | `msw` | `2.15.0` | Dev-only HTTP mocks |
-| `eslint` | `10.6.0` | Linting |
-| `typescript-eslint` | `8.63.0` | TypeScript ESLint integration |
-| `prettier` | `3.9.4` | Formatting |
+| `oxlint` | `1.73.0` | Primary JavaScript/TypeScript linter |
+| `oxlint-tsgolint` | `0.24.0` | Type-aware TypeScript rules |
+| `prettier` | `3.9.5` | Formatting |
 
 `@types/react`, `@types/react-dom`, Vite/Tailwind integration packages, DOM
-test environment, and ESLint React plugins must be resolved and pinned with
-versions compatible with this set during scaffold. Do not guess their versions.
+test environment, and required platform packages must be resolved and pinned
+with versions compatible with this set during scaffold. Do not guess versions.
 
-### 2.2 TypeScript 7 compatibility exception
+### 2.2 TypeScript 7 and type-aware linting
 
-TypeScript 7.0 is the latest stable type-checker but does not ship a
-programmatic compiler API. Tools such as `typescript-eslint` may still need the
-TypeScript 6 API.
+TypeScript 7.0 is the required stable type-checker. This repository uses Oxlint
+with `oxlint-tsgolint`, which performs type-aware linting on the TypeScript 7 Go
+toolchain and therefore does not require the TypeScript 6 programmatic API.
 
-The scaffold must follow the current official TypeScript compatibility guidance
-and prove both CLI type-checking and type-aware ESLint. The expected temporary
-shape is:
+Required:
 
-```json
-{
-  "devDependencies": {
-    "typescript": "npm:@typescript/typescript6@6.0.2",
-    "typescript-7": "npm:typescript@7.0.2"
-  }
-}
+```text
+typescript 7 for tsc/typecheck/build
+oxlint for syntax, React, accessibility, import, and test rules
+oxlint-tsgolint for type-aware TypeScript rules
 ```
 
-The exact alias/bin arrangement must be tested in the generated scaffold. Stop
-if `npm run typecheck`, editor diagnostics, Vite, Vitest, or type-aware ESLint
-do not agree. Do not disable type-aware lint rules to claim compatibility.
-
-Remove the compatibility package only after official tooling supports the
-TypeScript 7 programmatic API or no longer requires it.
+Do not add `typescript-eslint`, ESLint, or a TypeScript 6 compatibility alias
+unless an approved migration proves that Oxlint cannot enforce a required rule.
+The scaffold must prove `tsc`, Vite, Vitest, and type-aware Oxlint agree.
 
 ---
 
@@ -147,7 +139,7 @@ Never solve a deprecated-API error by:
 using any
 using @ts-ignore
 using @ts-expect-error without a verified external typing defect
-adding eslint-disable
+adding eslint-disable or oxlint-disable
 copying an old Stack Overflow answer
 switching to a legacy package
 downgrading a dependency inside a feature slice
@@ -580,8 +572,9 @@ blind --overwrite of locally modified components
 ```
 
 Use `tw-animate-css` only when its animations comply with document `05`.
-Notifications must use the shared project abstraction; the underlying library
-is an implementation detail.
+Notifications must use Sonner through the shared project abstraction. Only the
+shared Toast component and notification adapter may import from `sonner`;
+feature modules must use semantic notification functions.
 
 Before adding or updating a component:
 
@@ -747,49 +740,48 @@ Forbidden/deprecated or flaky patterns:
 
 ---
 
-## 13. ESLint 10, typescript-eslint, and Prettier rules
+## 13. Oxlint, type-aware linting, and Prettier rules
 
-Use flat config:
+Oxlint is the sole application linter. Use a committed `.oxlintrc.json` or
+`oxlint.config.ts` and install matching stable versions of both `oxlint` and
+`oxlint-tsgolint`.
+
+Required lint command:
 
 ```text
-eslint.config.js or eslint.config.mjs
+oxlint --type-aware --deny-warnings --report-unused-disable-directives .
 ```
 
-Forbidden legacy configuration:
+Required native plugin coverage:
 
 ```text
-.eslintrc
-.eslintrc.json
-.eslintrc.cjs
-eslintConfig in package.json
-.eslintignore as an ESLint input
-extends: 'eslint:recommended' string syntax
-ESLINT_USE_FLAT_CONFIG=false
---no-eslintrc
---rulesdir
---resolve-plugins-relative-to
+TypeScript
+React and Hooks
+jsx-a11y
+Import
+Vitest
+Promise
+Oxc correctness
 ```
 
-Use imported flat configs, explicit `files`, `ignores`, `languageOptions`, and
-`linterOptions`. For local custom rules, use current ESLint 10 context members:
+Forbidden:
 
 ```text
-context.cwd
-context.filename
-context.physicalFilename
-context.sourceCode
-context.languageOptions
+syntax-only Oxlint in CI
+ESLint or typescript-eslint alongside Oxlint without an approved gap analysis
+.eslintrc or eslint.config.*
+eslint-disable comments
+oxlint-disable comments used to hide project code defects
+disabling type-aware rules because lint is slower
+experimental JavaScript plugins when a native Oxlint plugin exists
 ```
 
-Do not use removed `context.getSourceCode()`, `context.getFilename()`,
-`context.parserOptions`, or deprecated `SourceCode` token/comment helpers.
-
-Required lint intent:
+Required lint intent includes:
 
 ```text
-type-aware TypeScript rules
-React hooks rules
-React refresh rules for Vite boundaries
+type-aware TypeScript rules through oxlint-tsgolint
+React hooks and Vite component-export rules
+jsx-a11y correctness rules
 no explicit any
 no floating promises
 consistent type imports
@@ -797,10 +789,9 @@ no deprecated APIs where supported by available plugins/types
 no unused disable directives
 ```
 
-Prettier formats code; ESLint enforces correctness. Do not run Prettier as an
-ESLint rule, and do not add `eslint-plugin-prettier` by habit. Use
-`eslint-config-prettier` only when needed to disable conflicting formatting
-rules.
+Prettier formats code; Oxlint enforces correctness. Keep them as separate
+commands. Do not add `eslint-plugin-prettier`, `eslint-config-prettier`, or a
+formatting plugin to Oxlint.
 
 ---
 
@@ -843,7 +834,7 @@ Required:
 
 ```text
 TypeScript strict diagnostics
-ESLint type-aware rules
+Oxlint type-aware rules
 React hooks lint rules
 no deprecated API warnings ignored
 tests compiled with the same TypeScript contract
@@ -915,8 +906,9 @@ maintainer sources:
 - [Testing Library user-event setup](https://testing-library.com/docs/user-event/setup/)
 - [MSW repository and current v2 examples](https://github.com/mswjs/msw)
 - [Playwright Page API deprecations](https://playwright.dev/docs/api/class-page)
-- [ESLint flat-config migration guide](https://eslint.org/docs/latest/use/configure/migration-guide)
-- [ESLint 10 migration guide](https://eslint.org/docs/latest/use/migrate-to-10.0.0)
+- [Sonner documentation and package source](https://github.com/emilkowalski/sonner)
+- [Oxlint documentation](https://oxc.rs/docs/guide/usage/linter)
+- [Oxlint type-aware linting](https://oxc.rs/docs/guide/usage/linter/type-aware.html)
 - [TypeScript 7 announcement and compatibility guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
 - [date-fns Unicode token guidance](https://blog.date-fns.org/v2-unicode-tokens/)
 

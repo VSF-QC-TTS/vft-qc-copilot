@@ -949,7 +949,11 @@ Toast:
   transient mutation result or background event
 ```
 
-Feature modules must not call a third-party Toast package directly. Use the shared semantic notification abstraction and prevent duplicate inline/Toast feedback.
+Sonner is the required Toast implementation. Mount its `Toaster` once at the
+application root, behind the shared notification boundary. Feature modules must
+not import from `sonner` directly; they use the shared semantic notification
+abstraction so implementation details, deduplication, and inline/Toast feedback
+rules remain centralized.
 
 ---
 

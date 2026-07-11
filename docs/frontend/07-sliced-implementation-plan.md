@@ -1,7 +1,7 @@
 # VinFast QC Copilot Frontend — Sliced Implementation Plan
 
 **Document:** `docs/frontend/07-sliced-implementation-plan.md`  
-**Status:** Reviewed and ready for execution  
+**Status:** Partially implementation-ready; see Section 8 for blocked behavior
 **Applies to:** `apps/web`  
 **Last reviewed:** 2026-07-11
 
@@ -30,20 +30,15 @@ The plan is designed for implementation by developers or AI coding agents withou
 For every slice:
 
 ```text
-1. Read AGENTS.md.
-2. List and read every Markdown file in docs/frontend.
-3. Read the complete section for the named slice.
-4. Inspect current apps/web source.
-5. Inspect current OpenAPI and touched backend contracts.
-6. Before editing, report the slice, instruction files read, contracts checked, and blockers.
-7. Implement only the named scope.
-8. Do not add unapproved dependencies.
-9. Follow Vietnamese UI copy and Toast rules in 08-ui-language-toast-and-agent-rules.md.
-10. Follow current-library and deprecation rules in 09-modern-library-and-deprecation-rules.md.
-11. Add tests in the same slice.
-12. Run typecheck, lint, unit tests, and build.
-13. Report changed files and unresolved gaps.
-14. Stop at the slice boundary.
+1. Follow `docs/frontend/SLICE-WORKFLOW.md`.
+2. Read `AGENTS.md`, documents `00`, `08`, `09`, and the complete named slice.
+3. Load only the additional documents routed by the workflow for this slice.
+4. Inspect current `apps/web`, touched backend contracts, OpenAPI, and git diff.
+5. Report the pre-edit gate and stop on unresolved blockers.
+6. Implement only the approved scope and dependency set.
+7. Add tests in the same slice.
+8. Run typecheck, lint, tests, and build.
+9. Report changed files and unresolved gaps, then stop at the slice boundary.
 ```
 
 Do not start the next slice automatically before review.
@@ -100,7 +95,7 @@ Create the frontend project shell without implementing product workflows.
 ```text
 React
 Vite
-TypeScript strict
+TypeScript 7 strict
 npm
 Tailwind CSS
 shadcn/ui foundation
@@ -108,10 +103,11 @@ React Router
 TanStack Query
 React Hook Form
 Zod
+Sonner
 Vitest
 Testing Library
 Playwright
-ESLint
+Oxlint with type-aware linting
 Prettier
 ```
 
@@ -197,6 +193,7 @@ PageHeader
 Breadcrumbs
 UserMenu placeholder
 WorkspaceSwitcher placeholder
+NotificationToaster
 ```
 
 ### Acceptance criteria

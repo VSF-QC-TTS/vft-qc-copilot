@@ -1,7 +1,7 @@
 # VinFast QC Copilot Frontend — Project Standard
 
 **Document:** `docs/frontend/00-project-standard.md`  
-**Status:** Reviewed and implementation-ready  
+**Status:** Implementation-ready except for the named blockers in Section 20
 **Applies to:** `apps/web`  
 **Product:** VinFast QC Copilot  
 **Last reviewed:** 2026-07-11
@@ -145,7 +145,7 @@ Use the following stack unless an explicit architecture decision changes it:
 
 ```text
 Framework:        React + Vite
-Language:         TypeScript
+Language:         TypeScript 7 strict
 Routing:          React Router
 Server state:     TanStack Query
 Forms:            React Hook Form
@@ -155,6 +155,7 @@ UI foundation:    shadcn/ui
 Icons:            Lucide
 Data tables:      TanStack Table
 Date utilities:   date-fns
+Notifications:    Sonner
 Unit tests:       Vitest
 Component tests:  Testing Library
 E2E tests:        Playwright
@@ -720,7 +721,7 @@ The scaffold must provide commands equivalent to:
   "build": "tsc -b && vite build",
   "preview": "vite preview",
   "typecheck": "tsc --noEmit",
-  "lint": "eslint .",
+  "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives .",
   "format": "prettier --write .",
   "test": "vitest run",
   "test:watch": "vitest",
@@ -729,7 +730,8 @@ The scaffold must provide commands equivalent to:
 }
 ```
 
-The exact lint configuration will be pinned during scaffold.
+The exact Oxlint configuration will be pinned during scaffold. Type-aware
+linting is mandatory; syntax-only linting is insufficient.
 
 A feature slice is not complete unless the applicable checks pass.
 
@@ -741,8 +743,9 @@ Every AI implementation task must follow these rules:
 
 ```text
 1. Read AGENTS.md.
-2. List and read every Markdown file in docs/frontend.
-3. Read the complete section for the named slice in document 07.
+2. Follow document `SLICE-WORKFLOW` to load `00`, `08`, `09`, the complete
+   named slice, and only the additional task-relevant documents.
+3. Follow referenced sections when they define a required contract.
 4. Inspect current apps/web source.
 5. Inspect the current OpenAPI and relevant backend implementation.
 6. Before editing, report the slice, files read, contracts checked, planned files, and blockers.

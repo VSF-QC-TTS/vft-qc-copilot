@@ -466,12 +466,17 @@ Recommended deduplication window:
 
 ## 12. Toast variants and durations
 
-| Variant | Default duration | `aria-live` |
+| Variant | Default duration | Announcement |
 |---|---:|---|
 | Success | 4 seconds | polite |
 | Information | 5 seconds | polite |
 | Warning | 7 seconds | polite |
-| Error | 8 seconds | assertive only when immediate attention is required |
+| Error | 8 seconds | polite |
+
+Sonner 2.0.7 does not expose a per-Toast `aria-live` option. Use its single
+polite notification region and verify the rendered DOM. An error requiring
+assertive, immediate attention belongs in an inline alert or dialog, not only
+in a Toast. Do not add nested competing live regions inside Toast content.
 
 When a Toast contains an action such as `Thử lại`, use:
 
@@ -693,9 +698,27 @@ result panel
 
 ## 18. Required implementation behavior
 
-Use one shared Toast abstraction.
+Use Sonner as the sole Toast implementation behind one shared abstraction.
 
-Do not call a Toast library directly from random components.
+Mount Sonner's `Toaster` once at the application root. Only the shared Toast
+component and notification adapter may import from `sonner`.
+
+Required centralized Sonner configuration:
+
+```text
+desktop position: top-right
+narrow-screen position: top-center
+visibleToasts: 3
+closeButton: true
+closeButtonAriaLabel: Đóng thông báo
+containerAriaLabel: Thông báo
+```
+
+Sonner defaults are not the project contract: its default bottom-right
+placement and English labels must not leak into the application. Implement the
+responsive position switch in the shared component and test both breakpoints.
+
+Feature modules must not call Sonner directly.
 
 Recommended boundary:
 
@@ -712,6 +735,11 @@ notifyError(...)
 notifyWarning(...)
 notifyInfo(...)
 ```
+
+The adapter maps these semantic functions to `toast.success`, `toast.error`,
+`toast.warning`, and `toast.info`. Configure placement, duration, visible count,
+dismissal, accessibility, and reduced motion centrally according to Sections
+12–14; do not rely on Sonner defaults when they differ from this contract.
 
 Do not hardcode colors inside feature modules.
 

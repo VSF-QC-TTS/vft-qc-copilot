@@ -42,20 +42,19 @@ AGENTS.md
 00 -> 01 -> 02 -> 03 -> 04 -> 05 -> 06 -> 07 -> 08 -> 09
 ```
 
-Khi làm một slice:
+Khi làm một slice, dùng `SLICE-WORKFLOW.md`; không nạp toàn bộ 13.000+ dòng tài
+liệu vào context nếu slice không sử dụng chúng:
 
 ```text
 1. Đọc AGENTS.md.
-2. Đọc toàn bộ Markdown trong docs/frontend.
-3. Đọc đầy đủ slice tương ứng trong 07.
-4. Kiểm tra source hiện tại trong apps/web.
-5. Kiểm tra backend/OpenAPI liên quan.
-6. Chỉ phân tích trước, chưa sửa code.
-7. Triển khai đúng một slice.
-8. Review độc lập.
-9. Sửa findings.
-10. Chạy typecheck, lint, test và build.
-11. Commit riêng cho slice.
+2. Đọc `00`, `08`, `09` và đầy đủ slice tương ứng trong `07`.
+3. Đọc thêm tài liệu được routing theo loại thay đổi.
+4. Kiểm tra source hiện tại, backend/OpenAPI liên quan và git diff.
+5. Chạy Analyze gate; chỉ code sau khi plan được duyệt.
+6. Triển khai đúng một slice và thêm tests.
+7. Review độc lập, sửa findings đã chấp nhận.
+8. Chạy typecheck, lint, test và build.
+9. Chỉ commit khi người dùng yêu cầu rõ ràng.
 ```
 
 ## 4. Vai trò của từng file

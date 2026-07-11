@@ -70,7 +70,7 @@ Type checking:
   TypeScript compiler
 
 Static analysis:
-  ESLint
+  Oxlint with type-aware linting
 
 Formatting:
   Prettier
@@ -87,7 +87,7 @@ The frontend must expose scripts equivalent to:
 ```json
 {
   "typecheck": "tsc --noEmit",
-  "lint": "eslint .",
+  "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives .",
   "test": "vitest run",
   "test:watch": "vitest",
   "test:e2e": "playwright test",
@@ -822,6 +822,9 @@ hover-out resumes remaining time
 maximum three visible Toasts
 deduplication within the configured window
 close button keyboard access
+Vietnamese close-button and notification-region accessible names
+polite live-region behavior without nested competing live regions
+top-right desktop and top-center narrow-screen placement
 reduced-motion behavior
 no sensitive values rendered
 ```
