@@ -35,5 +35,13 @@ build/
 apps/runner/node_modules/
 apps/runner/dist/
 
+### Frontend ###
+apps/web/node_modules/
+apps/web/dist/
+apps/web/coverage/
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/*.tsbuildinfo
+
 ### VS Code ###
 .vscode/
