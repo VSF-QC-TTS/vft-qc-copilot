@@ -5,3 +5,7 @@ const runtime = createApiRuntime({ baseUrl: apiBaseUrl });
 
 export const apiClient = runtime.apiClient;
 export const accessTokenStore = runtime.tokenStore;
+
+export function setAuthenticationFailureHandler(handler: () => void) {
+  runtime.setAuthenticationFailureHandler(handler);
+}

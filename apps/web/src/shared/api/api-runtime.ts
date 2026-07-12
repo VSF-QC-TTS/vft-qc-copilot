@@ -9,19 +9,19 @@ import { createTokenStore } from '@/shared/api/token-store';
 export interface ApiRuntime {
   apiClient: ApiClient;
   tokenStore: TokenStore;
+  setAuthenticationFailureHandler: (handler: () => void) => void;
 }
 
 interface CreateApiRuntimeOptions {
   baseUrl: string;
   fetch?: typeof fetch;
-  onAuthenticationFailure?: () => void;
 }
 
 export function createApiRuntime({
   baseUrl,
   fetch: fetchOption,
-  onAuthenticationFailure,
 }: CreateApiRuntimeOptions): ApiRuntime {
+  let authenticationFailureHandler: (() => void) | undefined;
   const fetchImplementation = fetchOption ?? globalThis.fetch.bind(globalThis);
   const tokenStore = createTokenStore();
   const csrf = createCsrfTokenManager({ baseUrl, fetch: fetchImplementation });
@@ -34,7 +34,7 @@ export function createApiRuntime({
     refreshAction,
     onFailure() {
       tokenStore.clear();
-      onAuthenticationFailure?.();
+      authenticationFailureHandler?.();
     },
   });
   const apiClient = createApiClient({
@@ -45,5 +45,11 @@ export function createApiRuntime({
     fetch: fetchImplementation,
   });
 
-  return { apiClient, tokenStore };
+  return { 
+    apiClient, 
+    tokenStore, 
+    setAuthenticationFailureHandler: (handler) => {
+      authenticationFailureHandler = handler;
+    } 
+  };
 }
