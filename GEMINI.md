@@ -59,7 +59,8 @@ the exact conflict. Do not improvise a compromise.
 Before modifying frontend code:
 
 1. Read `AGENTS.md` completely.
-2. List and read every Markdown file in `docs/frontend` completely.
+2. Read documents `00`, `08`, `09`, then load the additional task-relevant
+   documents routed by `docs/frontend/SLICE-WORKFLOW.md`.
 3. Read the complete target slice in
    `docs/frontend/07-sliced-implementation-plan.md` when the task belongs to a
    slice.
@@ -122,7 +123,8 @@ frontend-only permission rule, an invented API adapter, a disabled lint rule,
   contracts ad hoc, or reproduce backend business logic.
 - Feature modules must use shared design tokens, primitives, API adapters,
   permission helpers, and semantic notification functions.
-- Feature modules must not call a third-party Toast package directly.
+- Feature modules must not import from `sonner` directly; only the shared
+  notification boundary may call Sonner.
 - Feature code must not introduce raw hex colors when a semantic token exists.
 - Do not create a new visual pattern when the closest documented shared pattern
   covers the need.
