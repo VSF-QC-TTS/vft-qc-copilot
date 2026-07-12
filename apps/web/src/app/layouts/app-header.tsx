@@ -1,5 +1,5 @@
 import { cn } from '@/shared/lib/utils';
-import { WorkspaceSwitcherPlaceholder } from '@/app/layouts/workspace-switcher-placeholder';
+import { WorkspaceSwitcher } from '@/app/layouts/workspace-switcher';
 import { UserMenuPlaceholder } from '@/app/layouts/user-menu-placeholder';
 import { ThemeSwitcher } from '@/app/layouts/theme-switcher';
 import { Menu } from 'lucide-react';
@@ -29,7 +29,7 @@ export function AppHeader({ isMenuOpen, onMenuClick, className }: AppHeaderProps
         >
           <Menu aria-hidden="true" className="h-5 w-5" />
         </button>
-        <WorkspaceSwitcherPlaceholder className="lg:hidden" />
+        <WorkspaceSwitcher className="lg:hidden" />
       </div>
       <div className="flex items-center gap-2">
         <ThemeSwitcher />

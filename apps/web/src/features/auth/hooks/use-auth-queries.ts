@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getCurrentUser, login, logout } from '@/features/auth/api/auth.api';
+import {
+  forgotPassword,
+  getCurrentUser,
+  login,
+  logout,
+  register,
+  resetPassword,
+  verifyEmail,
+} from '@/features/auth/api/auth.api';
 import { authKeys } from '@/features/auth/hooks/auth.keys';
 import { accessTokenStore } from '@/shared/api/api';
 
@@ -36,3 +44,28 @@ export function useLogoutMutation() {
     },
   });
 }
+
+export function useRegisterMutation() {
+  return useMutation({
+    mutationFn: register,
+  });
+}
+
+export function useVerifyEmailMutation() {
+  return useMutation({
+    mutationFn: verifyEmail,
+  });
+}
+
+export function useForgotPasswordMutation() {
+  return useMutation({
+    mutationFn: forgotPassword,
+  });
+}
+
+export function useResetPasswordMutation() {
+  return useMutation({
+    mutationFn: resetPassword,
+  });
+}
+

@@ -1,4 +1,4 @@
-import { WorkspaceSwitcherPlaceholder } from '@/app/layouts/workspace-switcher-placeholder';
+import { WorkspaceSwitcher } from '@/app/layouts/workspace-switcher';
 import { UserMenuPlaceholder } from '@/app/layouts/user-menu-placeholder';
 import { Logo } from '@/shared/components/logo';
 import { cn } from '@/shared/lib/utils';
@@ -39,7 +39,7 @@ export function GlobalSidebar({ className, id, onNavigate }: GlobalSidebarProps)
       </div>
 
       <div className="border-b border-border p-2">
-        <WorkspaceSwitcherPlaceholder isCollapsed={isCollapsed} className="w-full" />
+        <WorkspaceSwitcher isCollapsed={isCollapsed} className="w-full" />
       </div>
 
       <nav className="flex-1 space-y-1 px-2 py-4" aria-label="Menu chính">
