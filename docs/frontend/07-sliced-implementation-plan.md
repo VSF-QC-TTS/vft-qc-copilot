@@ -56,7 +56,6 @@ a response shape is ambiguous
 a permission action is unclear
 auth/CSRF behavior differs at runtime
 an SSE payload differs from documented fields
-LLM_JUDGE or MIXED fields are not verified
 a new dependency is required
 a test requires production secrets
 a backend gap would require invented frontend behavior
@@ -758,7 +757,14 @@ mixed composition rules
 
 ### Scope
 
-Defined only after prerequisite verification.
+```text
+typed evaluator schemas for RULE_BASED, LLM_JUDGE, MIXED
+LLM_JUDGE form fields: rubric, inputTemplate, scoreScale, threshold, outputSchema, passCondition, optional default provider/model
+MIXED form fields: reusable rule builder plus LLM_JUDGE form fields
+version creation preserves immutable evaluator type
+frontend utility tests for LLM_JUDGE and MIXED payloads
+backend/docs enum contract aligned to EvaluatorConfigValidator
+```
 
 ### Stop condition
 
@@ -1228,13 +1234,21 @@ Do not let implementation silently become the only source of truth.
 
 ## 8. Remaining backend verification
 
-Before Slice 12 final form behavior and before Slice 13:
+Pre-Slice 13 verification checklist:
 
 ```text
 EvaluatorConfigValidator
 TestRunEvaluatorValidator
 fully typed LLM_JUDGE field values and allowed options
 fully typed MIXED field values, aggregation, and composition rules
+```
+
+Resolved in Slice 13:
+
+```text
+EvaluatorConfigValidator validates typed ruleBased, llmJudge and mixed config enums.
+LLM_JUDGE uses rubric, inputTemplate, scoreScale, threshold, SCORE_AT_LEAST_THRESHOLD, VFQC_JUDGE_V1, optional default provider/model.
+MIXED uses ruleBased aggregation/passCondition plus llmJudge config.
 ```
 
 Before finalizing Dataset row conflict UX:

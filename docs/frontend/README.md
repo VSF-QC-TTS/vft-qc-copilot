@@ -108,8 +108,6 @@ Toast chỉ dùng cho transient feedback
 ## 7. Các phần còn bị chặn
 
 ```text
-fully typed LLM_JUDGE field values và allowed options
-fully typed MIXED form contract, aggregation và composition rules
 Dataset draft-row conflict contract
 ```
 

@@ -542,15 +542,15 @@ backend validation errors
 immutable version display
 ```
 
-`LLM_JUDGE` and `MIXED` production-form tests must not be finalized until field
-value types, allowed options, and `MIXED` composition rules are documented as a
-typed contract.
-
-Temporary placeholder tests may verify only:
+`LLM_JUDGE` and `MIXED` production-form tests must verify the typed evaluator
+contract:
 
 ```text
-feature remains disabled or guarded
-no invented config fields are submitted
+LLM_JUDGE rules=[]
+LLM_JUDGE config includes rubric, inputTemplate, scoreScale, threshold, passCondition=SCORE_AT_LEAST_THRESHOLD, outputSchema=VFQC_JUDGE_V1
+MIXED includes at least one rule plus llmJudge config
+MIXED weighted rule aggregation uses ALL_REQUIRED_AND_WEIGHTED_THRESHOLD with SCORE_AT_LEAST_THRESHOLD
+optional default judge provider/model are omitted when blank
 ```
 
 ---

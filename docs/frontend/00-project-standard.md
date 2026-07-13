@@ -816,8 +816,6 @@ Scaffold is followed by a human review checkpoint before feature implementation.
 The following items remain intentionally blocked:
 
 ```text
-Fully typed production form contract for LLM_JUDGE field values and allowed options.
-Fully typed production form contract and composition rules for MIXED.
 Dataset row revision/conflict behavior required by the draft editor.
 ```
 
@@ -834,6 +832,8 @@ SSE event names, envelope, heartbeat, replay, and reconnect behavior
 manual Dataset schema CRUD, which is not supported in the current MVP
 evaluator validation-only endpoint permission, which requires EDIT
 TestRun transition matrix from TestRunStateMachine
+typed LLM_JUDGE evaluator contract: rubric, inputTemplate, scoreScale, threshold, SCORE_AT_LEAST_THRESHOLD, VFQC_JUDGE_V1, optional default provider/model
+typed MIXED evaluator contract: ruleBased aggregation plus llmJudge config; ALL_REQUIRED_AND_WEIGHTED_THRESHOLD uses SCORE_AT_LEAST_THRESHOLD with threshold 0..1
 ```
 
 Do not implement blocked behavior by guessing. All other slices may proceed according to document `07`.

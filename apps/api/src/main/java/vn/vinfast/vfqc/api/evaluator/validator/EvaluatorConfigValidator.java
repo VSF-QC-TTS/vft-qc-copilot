@@ -13,8 +13,11 @@ import org.springframework.stereotype.Component;
 import vn.vinfast.vfqc.api.common.error.ErrorCode;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.evaluator.dto.EvaluatorRuleRequest;
+import vn.vinfast.vfqc.api.evaluator.enums.EvaluatorAggregation;
 import vn.vinfast.vfqc.api.evaluator.enums.EvaluatorOperator;
+import vn.vinfast.vfqc.api.evaluator.enums.EvaluatorPassConditionType;
 import vn.vinfast.vfqc.api.evaluator.enums.EvaluatorType;
+import vn.vinfast.vfqc.api.evaluator.enums.JudgeOutputSchema;
 import vn.vinfast.vfqc.api.provider.enums.ProviderStatus;
 import vn.vinfast.vfqc.api.provider.service.LlmProviderLookupService;
 
@@ -51,6 +54,7 @@ public class EvaluatorConfigValidator {
     rejectExecutablePayload(config);
     rejectExecutablePayload(rules == null ? List.of() : rules);
     if (type == EvaluatorType.RULE_BASED || type == EvaluatorType.MIXED) {
+      validateRuleBasedConfig(config);
       validateRules(rules, availableFieldSources);
     }
     if (type == EvaluatorType.LLM_JUDGE || type == EvaluatorType.MIXED) {
@@ -141,6 +145,49 @@ public class EvaluatorConfigValidator {
   }
 
   @SuppressWarnings("unchecked")
+  private void validateRuleBasedConfig(Map<String, Object> config) {
+    var ruleBased =
+        config == null ? null : config.get("ruleBased") instanceof Map<?, ?> map ? (Map<String, Object>) map : null;
+    if (ruleBased == null) {
+      throw ErrorCode.EVALUATOR_RULE_INVALID.throwIt("Rule-based config is required");
+    }
+    var aggregation =
+        enumValue(
+            ruleBased.get("aggregation"),
+            EvaluatorAggregation.class,
+            ErrorCode.EVALUATOR_RULE_INVALID,
+            "Rule-based aggregation is invalid");
+    var passCondition =
+        ruleBased.get("passCondition") instanceof Map<?, ?> map
+            ? (Map<String, Object>) map
+            : null;
+    if (passCondition == null) {
+      throw ErrorCode.EVALUATOR_RULE_INVALID.throwIt("Rule-based pass condition is required");
+    }
+    var passConditionType =
+        enumValue(
+            passCondition.get("type"),
+            EvaluatorPassConditionType.class,
+            ErrorCode.EVALUATOR_RULE_INVALID,
+            "Rule-based pass condition type is invalid");
+    if (aggregation == EvaluatorAggregation.ALL_PASS
+        && passConditionType != EvaluatorPassConditionType.ALL_RULES_PASS) {
+      throw ErrorCode.EVALUATOR_RULE_INVALID.throwIt("ALL_PASS requires ALL_RULES_PASS");
+    }
+    if (aggregation == EvaluatorAggregation.ANY_PASS
+        && passConditionType != EvaluatorPassConditionType.ANY_RULE_PASS) {
+      throw ErrorCode.EVALUATOR_RULE_INVALID.throwIt("ANY_PASS requires ANY_RULE_PASS");
+    }
+    if (aggregation == EvaluatorAggregation.ALL_REQUIRED_AND_WEIGHTED_THRESHOLD) {
+      if (passConditionType != EvaluatorPassConditionType.SCORE_AT_LEAST_THRESHOLD) {
+        throw ErrorCode.EVALUATOR_RULE_INVALID.throwIt(
+            "Weighted threshold aggregation requires SCORE_AT_LEAST_THRESHOLD");
+      }
+      requireProbability(passCondition.get("threshold"), ErrorCode.EVALUATOR_RULE_INVALID, "Rule threshold is invalid");
+    }
+  }
+
+  @SuppressWarnings("unchecked")
   private void validateLlmJudge(CurrentUser user, Map<String, Object> config) {
     var llmJudge =
         config == null ? null : config.get("llmJudge") instanceof Map<?, ?> map ? (Map<String, Object>) map : null;
@@ -149,10 +196,34 @@ public class EvaluatorConfigValidator {
     }
     requireText(llmJudge, "rubric");
     requireText(llmJudge, "inputTemplate");
-    requireText(llmJudge, "outputSchema");
-    requireText(llmJudge, "passCondition");
-    if (!llmJudge.containsKey("threshold")) {
-      throw ErrorCode.EVALUATOR_LLM_JUDGE_CONFIG_INVALID.throwIt("LLM judge threshold is required");
+    enumValue(
+        llmJudge.get("outputSchema"),
+        JudgeOutputSchema.class,
+        ErrorCode.EVALUATOR_LLM_JUDGE_CONFIG_INVALID,
+        "LLM judge output schema is invalid");
+    var passCondition =
+        enumValue(
+            llmJudge.get("passCondition"),
+            EvaluatorPassConditionType.class,
+            ErrorCode.EVALUATOR_LLM_JUDGE_CONFIG_INVALID,
+            "LLM judge pass condition is invalid");
+    if (passCondition != EvaluatorPassConditionType.SCORE_AT_LEAST_THRESHOLD) {
+      throw ErrorCode.EVALUATOR_LLM_JUDGE_CONFIG_INVALID.throwIt(
+          "LLM judge pass condition must be SCORE_AT_LEAST_THRESHOLD");
+    }
+    requireProbability(
+        llmJudge.get("threshold"),
+        ErrorCode.EVALUATOR_LLM_JUDGE_CONFIG_INVALID,
+        "LLM judge threshold is invalid");
+    var scoreScale =
+        llmJudge.get("scoreScale") instanceof Map<?, ?> map ? (Map<String, Object>) map : null;
+    if (scoreScale == null) {
+      throw ErrorCode.EVALUATOR_LLM_JUDGE_CONFIG_INVALID.throwIt("LLM judge score scale is required");
+    }
+    var min = numeric(scoreScale.get("min"));
+    var max = numeric(scoreScale.get("max"));
+    if (min == null || max == null || min >= max) {
+      throw ErrorCode.EVALUATOR_LLM_JUDGE_CONFIG_INVALID.throwIt("LLM judge score scale is invalid");
     }
     var providerId = uuid(llmJudge.get("defaultJudgeProviderId"));
     if (providerId != null) {
@@ -166,6 +237,32 @@ public class EvaluatorConfigValidator {
         throw ErrorCode.EVALUATOR_PROVIDER_INVALID.throwIt("Default judge model is required");
       }
     }
+  }
+
+  private <T extends Enum<T>> T enumValue(
+      Object value, Class<T> enumType, ErrorCode errorCode, String message) {
+    if (value == null || value.toString().isBlank()) {
+      throw errorCode.throwIt(message);
+    }
+    try {
+      return Enum.valueOf(enumType, value.toString());
+    } catch (IllegalArgumentException exception) {
+      throw errorCode.throwIt(message);
+    }
+  }
+
+  private void requireProbability(Object value, ErrorCode errorCode, String message) {
+    var number = numeric(value);
+    if (number == null || number < 0 || number > 1) {
+      throw errorCode.throwIt(message);
+    }
+  }
+
+  private Double numeric(Object value) {
+    if (value instanceof Number number) {
+      return number.doubleValue();
+    }
+    return null;
   }
 
   private void requireText(Map<String, Object> config, String key) {

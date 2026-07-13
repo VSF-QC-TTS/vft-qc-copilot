@@ -274,9 +274,9 @@ Rules:
   "version": 3,
   "config": {
     "ruleBased": {
-      "aggregation": "WEIGHTED_AVERAGE",
+      "aggregation": "ALL_REQUIRED_AND_WEIGHTED_THRESHOLD",
       "passCondition": {
-        "type": "SCORE_AT_LEAST",
+        "type": "SCORE_AT_LEAST_THRESHOLD",
         "threshold": 0.7
       }
     },
@@ -580,9 +580,9 @@ Canonical shape:
 ```json
 {
   "ruleBased": {
-    "aggregation": "WEIGHTED_AVERAGE",
+    "aggregation": "ALL_REQUIRED_AND_WEIGHTED_THRESHOLD",
     "passCondition": {
-      "type": "SCORE_AT_LEAST",
+      "type": "SCORE_AT_LEAST_THRESHOLD",
       "threshold": 0.7
     }
   }
@@ -592,17 +592,29 @@ Canonical shape:
 Supported aggregation values:
 
 ```text
-ALL_REQUIRED_PASS
-WEIGHTED_AVERAGE
+ALL_PASS
+ANY_PASS
+ALL_REQUIRED_AND_WEIGHTED_THRESHOLD
+```
+
+Supported pass condition values:
+
+```text
+ALL_RULES_PASS
+ANY_RULE_PASS
+SCORE_AT_LEAST_THRESHOLD
 ```
 
 Rules:
 
 ```text
-1. required=true means the rule must pass for evaluator to pass.
-2. weight defaults to 1.0 if omitted.
-3. orderIndex controls display/evaluation order.
-4. Final aggregation details are normalized by Runner into component_results_json.
+1. ALL_PASS requires passCondition.type=ALL_RULES_PASS.
+2. ANY_PASS requires passCondition.type=ANY_RULE_PASS.
+3. ALL_REQUIRED_AND_WEIGHTED_THRESHOLD requires passCondition.type=SCORE_AT_LEAST_THRESHOLD and threshold from 0 to 1.
+4. required=true means the rule must pass for evaluator to pass.
+5. weight defaults to 1.0 if omitted.
+6. orderIndex controls display/evaluation order.
+7. Final aggregation details are normalized by Runner into component_results_json.
 ```
 
 ---
@@ -629,9 +641,9 @@ Project UPDATE / Configure evaluator: OWNER / ADMIN / MEMBER.
   "type": "RULE_BASED",
   "config": {
     "ruleBased": {
-      "aggregation": "ALL_REQUIRED_PASS",
+      "aggregation": "ALL_PASS",
       "passCondition": {
-        "type": "ALL_REQUIRED_PASS"
+        "type": "ALL_RULES_PASS"
       }
     }
   },
@@ -685,9 +697,9 @@ Project UPDATE / Configure evaluator: OWNER / ADMIN / MEMBER.
   "type": "MIXED",
   "config": {
     "ruleBased": {
-      "aggregation": "WEIGHTED_AVERAGE",
+      "aggregation": "ALL_REQUIRED_AND_WEIGHTED_THRESHOLD",
       "passCondition": {
-        "type": "SCORE_AT_LEAST",
+        "type": "SCORE_AT_LEAST_THRESHOLD",
         "threshold": 0.7
       }
     },
@@ -993,9 +1005,9 @@ Same version payload shape as create evaluator, but without `name` and `type`:
 {
   "config": {
     "ruleBased": {
-      "aggregation": "WEIGHTED_AVERAGE",
+      "aggregation": "ALL_REQUIRED_AND_WEIGHTED_THRESHOLD",
       "passCondition": {
-        "type": "SCORE_AT_LEAST",
+        "type": "SCORE_AT_LEAST_THRESHOLD",
         "threshold": 0.8
       }
     },
@@ -1100,9 +1112,9 @@ Project UPDATE / Configure evaluator: OWNER / ADMIN / MEMBER.
   "type": "MIXED",
   "config": {
     "ruleBased": {
-      "aggregation": "WEIGHTED_AVERAGE",
+      "aggregation": "ALL_REQUIRED_AND_WEIGHTED_THRESHOLD",
       "passCondition": {
-        "type": "SCORE_AT_LEAST",
+        "type": "SCORE_AT_LEAST_THRESHOLD",
         "threshold": 0.7
       }
     },

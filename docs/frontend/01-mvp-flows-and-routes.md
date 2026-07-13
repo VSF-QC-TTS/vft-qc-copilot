@@ -723,8 +723,9 @@ Rules:
 3. Do not expose arbitrary JavaScript.
 4. Load operators from the backend metadata endpoint.
 5. Load field sources from the backend.
-6. Required top-level `LLM_JUDGE` fields are known, but their fully typed values and allowed options remain pending a production form contract; `MIXED` composition rules remain pending.
-7. Do not infer dynamic config fields from examples alone.
+6. `LLM_JUDGE` production forms must use typed fields: `rubric`, `inputTemplate`, `scoreScale`, `threshold`, `passCondition=SCORE_AT_LEAST_THRESHOLD`, `outputSchema=VFQC_JUDGE_V1`, optional default provider/model.
+7. `MIXED` production forms must include both typed `ruleBased` config and typed `llmJudge` config; weighted aggregation uses `ALL_REQUIRED_AND_WEIGHTED_THRESHOLD` plus `SCORE_AT_LEAST_THRESHOLD`.
+8. Do not infer dynamic config fields from examples alone.
 
 ---
 
@@ -1293,8 +1294,6 @@ The route map, browser auth flow, permission matrix, pagination, error handling,
 The following remain blocked:
 
 ```text
-fully typed LLM_JUDGE production form values and allowed options
-fully typed MIXED production form contract and composition rules
 Dataset draft-row revision/conflict behavior
 ```
 

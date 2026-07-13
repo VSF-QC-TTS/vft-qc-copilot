@@ -1042,9 +1042,14 @@ Replay from persisted events helps reconnect, but it does not guarantee immediat
 
 ### 22.2 Dynamic evaluator config
 
-`LLM_JUDGE` and `MIXED` config remain partially dynamic.
+`LLM_JUDGE` and `MIXED` config must be authored through typed form models, not raw JSON.
 
-The validator exposes required top-level keys, but the production forms remain blocked until field value types, allowed options, and `MIXED` composition rules are documented as a typed contract.
+The current typed contract is:
+
+```text
+LLM_JUDGE: llmJudge.rubric, inputTemplate, scoreScale.min/max, threshold 0..1, passCondition=SCORE_AT_LEAST_THRESHOLD, outputSchema=VFQC_JUDGE_V1, optional defaultJudgeProviderId/defaultJudgeModel
+MIXED: ruleBased aggregation/passCondition plus the full LLM_JUDGE config
+```
 
 ### 22.3 Pagination totals
 

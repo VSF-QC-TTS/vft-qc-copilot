@@ -130,6 +130,38 @@ class Phase7EvaluatorIntegrationTest extends PostgresIntegrationTestBase {
   }
 
   @Test
+  void createRuleBasedEvaluator_WithInvalidAggregation_ReturnsBadRequest() throws Exception {
+    var user = user("evaluator-aggregation-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId());
+
+    var body =
+        Map.of(
+            "name",
+            "Invalid aggregation evaluator",
+            "type",
+            "RULE_BASED",
+            "config",
+            Map.of(
+                "ruleBased",
+                Map.of(
+                    "aggregation",
+                    "WEIGHTED_AVERAGE",
+                    "passCondition",
+                    Map.of("type", "SCORE_AT_LEAST", "threshold", 0.7))),
+            "rules",
+            List.of(rule("response.statusCode", "NUMERIC_EQUALS", Map.of("type", "number", "value", 200))));
+
+    mockMvc
+        .perform(
+            post("/api/v1/projects/" + projectId + "/evaluators")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void validateEvaluator_WithTargetFieldSources_RejectsUnknownExtractedField() throws Exception {
     var user = user("evaluator-validation-owner@vinfast.vn");
     var workspace = workspace(user);
@@ -296,6 +328,46 @@ class Phase7EvaluatorIntegrationTest extends PostgresIntegrationTestBase {
   }
 
   @Test
+  void createLlmJudgeEvaluator_WithInvalidOutputSchema_ReturnsBadRequest() throws Exception {
+    var user = user("evaluator-llm-schema-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId());
+
+    var body =
+        Map.of(
+            "name",
+            "Invalid schema judge",
+            "type",
+            "LLM_JUDGE",
+            "config",
+            Map.of(
+                "llmJudge",
+                Map.of(
+                    "rubric",
+                    "Judge answer quality",
+                    "scoreScale",
+                    Map.of("min", 0, "max", 1),
+                    "threshold",
+                    0.7,
+                    "passCondition",
+                    "SCORE_AT_LEAST_THRESHOLD",
+                    "inputTemplate",
+                    "Actual: {{extracted.answer}}",
+                    "outputSchema",
+                    "UNSUPPORTED_SCHEMA")),
+            "rules",
+            List.of());
+
+    mockMvc
+        .perform(
+            post("/api/v1/projects/" + projectId + "/evaluators")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void createMixedEvaluator_WithIncompleteConfig_ReturnsBadRequest() throws Exception {
     var user = user("evaluator-mixed-owner@vinfast.vn");
     var workspace = workspace(user);
@@ -319,6 +391,32 @@ class Phase7EvaluatorIntegrationTest extends PostgresIntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createMixedEvaluator_WithTypedConfig_CreatesEvaluator() throws Exception {
+    var user = user("evaluator-mixed-valid-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId());
+
+    var body =
+        Map.of(
+            "name",
+            "Mixed evaluator",
+            "type",
+            "MIXED",
+            "config",
+            mixedConfig(),
+            "rules",
+            List.of(rule("response.statusCode", "NUMERIC_EQUALS", Map.of("type", "number", "value", 200))));
+
+    mockMvc
+        .perform(
+            post("/api/v1/projects/" + projectId + "/evaluators")
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+        .andExpect(status().isCreated());
   }
 
   private UUID createProject(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID workspaceId)
@@ -371,10 +469,12 @@ class Phase7EvaluatorIntegrationTest extends PostgresIntegrationTestBase {
         "LLM_JUDGE",
         "config",
         Map.of(
-            "llmJudge",
+                "llmJudge",
             Map.of(
                 "rubric",
                 "Judge answer quality",
+                "scoreScale",
+                Map.of("min", 0, "max", 1),
                 "threshold",
                 0.7,
                 "passCondition",
@@ -421,7 +521,31 @@ class Phase7EvaluatorIntegrationTest extends PostgresIntegrationTestBase {
   private Map<String, Object> ruleBasedConfig() {
     return Map.of(
         "ruleBased",
-        Map.of("aggregation", "ALL_PASS", "passCondition", Map.of("type", "ALL_RULE_PASS")));
+        Map.of("aggregation", "ALL_PASS", "passCondition", Map.of("type", "ALL_RULES_PASS")));
+  }
+
+  private Map<String, Object> mixedConfig() {
+    return Map.of(
+        "ruleBased",
+        Map.of(
+            "aggregation",
+            "ALL_REQUIRED_AND_WEIGHTED_THRESHOLD",
+            "passCondition",
+            Map.of("type", "SCORE_AT_LEAST_THRESHOLD", "threshold", 0.7)),
+        "llmJudge",
+        Map.of(
+            "rubric",
+            "Judge answer quality",
+            "scoreScale",
+            Map.of("min", 0, "max", 1),
+            "threshold",
+            0.7,
+            "passCondition",
+            "SCORE_AT_LEAST_THRESHOLD",
+            "inputTemplate",
+            "Actual: {{extracted.answer}}",
+            "outputSchema",
+            "VFQC_JUDGE_V1"));
   }
 
   private UUID targetWithExtraction(UUID projectId, UUID createdBy) {
