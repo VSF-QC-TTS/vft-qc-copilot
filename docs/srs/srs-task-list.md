@@ -1,0 +1,105 @@
+# SRS Task List: MVP UX and Contract Hardening
+
+Last updated: 2026-07-14
+
+This task list is the implementation ledger for the MVP audit/fix effort. Each batch must be independently reviewable, verified, and committed before moving to the next batch.
+
+## Rules for every batch
+
+- Keep backend, frontend, runner, and docs in sync when a contract changes.
+- Prefer tests before implementation when behavior changes.
+- Preserve user changes in the worktree.
+- Use Vietnamese UI copy with canonical English product terms.
+- Do not log or render raw secrets.
+- End each batch with relevant verification and one conventional commit.
+
+## Batch 1 — Audit baseline + contract matrix
+
+Status: completed
+
+Acceptance:
+
+- Add an audit report that names confirmed gaps and fix paths.
+- Add this task list for future context.
+- Verify markdown files are tracked and diff is clean.
+
+Evidence:
+
+- Report: `docs/frontend/MVP-UX-AUDIT-AND-FIX-REPORT.md`
+- Validation: `rtk git diff --check`
+
+## Batch 2 — Workspace + Project lifecycle
+
+Status: pending
+
+Acceptance:
+
+- Workspace create is usable from empty and non-empty list states.
+- Project create is usable from workspace overview and project list.
+- Project metadata edit, archive, and delete are available with permission guards.
+- Frontend uses backend DTOs exactly; no invented fields.
+- E2E covers login -> create workspace -> create project -> reload.
+
+## Batch 3 — Secrets + Providers setup flow
+
+Status: pending
+
+Acceptance:
+
+- Secret/provider setup is clear from workspace settings and setup checklist.
+- Provider test works only with ACTIVE secrets.
+- No raw secret is shown, logged, cached in URL, or exported.
+- Error and empty states are stable inline where persistent context matters.
+
+## Batch 4 — Dataset import, rows, pagination
+
+Status: pending
+
+Acceptance:
+
+- Dataset rows are paginated end to end.
+- Import Preview/mapping/confirm handles dirty navigation and validation clearly.
+- Dataset draft edit handles revision conflicts.
+- Dataset export remains available after reload.
+
+## Batch 5 — Export job persistence
+
+Status: pending
+
+Acceptance:
+
+- Dataset/TestRun export panels list recent source-scoped jobs.
+- Reload/out-in resumes active job polling.
+- Completed job can be downloaded after reload.
+- Expired/failed/cancelled states are explicit.
+
+## Batch 6 — TestRun, SSE, runner, Redis recovery
+
+Status: pending
+
+Acceptance:
+
+- TestRun active tab is URL-persistent.
+- SSE reconnect/fallback polling is visible and avoids duplicate UI state.
+- Runner command/event flow is verified for retries, DLQ, heartbeat, cancellation, and idempotency.
+- Offline/network errors degrade without corrupting UI state.
+
+## Batch 7 — UX/UI professionalization
+
+Status: pending
+
+Acceptance:
+
+- Pages follow the operational shell: sidebar, context topbar, cockpit/list/detail patterns.
+- Feature code uses semantic tokens instead of scattered raw hex.
+- Heavy default shadows are removed where docs ban them.
+- Lucide remains the only icon library unless project docs are explicitly changed.
+
+## Batch 8 — Full verification suite
+
+Status: pending
+
+Acceptance:
+
+- Unit, integration, and E2E coverage matches the audit verification matrix.
+- Frontend `npm run check`, Playwright E2E, backend Maven tests, runner check, and `git diff --check` pass or documented blockers are resolved.
