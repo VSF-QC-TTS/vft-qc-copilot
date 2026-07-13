@@ -1,4 +1,4 @@
-import { useOutletContext } from 'react-router';
+import { Link, useOutletContext } from 'react-router';
 import { AlertTriangle, Archive, CheckCircle2, Circle, PlayCircle, Workflow } from 'lucide-react';
 import { WorkspaceContextType } from '@/app/layouts/workspace-context-layout';
 import { useProjectSetupStatus } from '@/features/projects/hooks/use-projects';
@@ -102,6 +102,14 @@ export function ProjectOverviewPage() {
             <h1 className="truncate text-3xl font-semibold tracking-tight text-foreground">
               {project.name}
             </h1>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to={`/workspaces/${workspace.id}/projects/${project.id}/targets`}
+              className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover"
+            >
+              Chatbot targets
+            </Link>
           </div>
           {project.description && (
             <p className="max-w-3xl text-sm leading-6 text-foreground-secondary">

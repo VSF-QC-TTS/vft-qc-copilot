@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ProjectOverviewPage } from '@/features/projects/pages/project-overview-page';
@@ -88,7 +89,11 @@ describe('ProjectOverviewPage', () => {
       error: null,
     });
 
-    render(<ProjectOverviewPage />);
+    render(
+      <MemoryRouter>
+        <ProjectOverviewPage />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByRole('heading', { name: 'VF Assistant Regression' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Thiết lập Project' })).toBeVisible();

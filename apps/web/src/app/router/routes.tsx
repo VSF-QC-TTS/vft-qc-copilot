@@ -26,6 +26,9 @@ import { WorkspaceProvidersPage } from '@/features/providers/pages/workspace-pro
 import { ProjectListPage } from '@/features/projects/pages/project-list-page';
 import { ProjectOverviewPage } from '@/features/projects/pages/project-overview-page';
 import { ProjectContextLayout } from '@/app/layouts/project-context-layout';
+import { ChatbotTargetListPage } from '@/features/chatbot-targets/pages/chatbot-target-list-page';
+import { ChatbotTargetCreatePage } from '@/features/chatbot-targets/pages/chatbot-target-create-page';
+import { ChatbotTargetDetailPage } from '@/features/chatbot-targets/pages/chatbot-target-detail-page';
 
 export const appRoutes: RouteObject[] = [
   {
@@ -104,6 +107,18 @@ export const appRoutes: RouteObject[] = [
                   {
                     index: true,
                     element: <ProjectOverviewPage />,
+                  },
+                  {
+                    path: 'targets',
+                    element: <ChatbotTargetListPage />,
+                  },
+                  {
+                    path: 'targets/new',
+                    element: <ChatbotTargetCreatePage />,
+                  },
+                  {
+                    path: 'targets/:targetId',
+                    element: <ChatbotTargetDetailPage />,
                   },
                 ],
               },
