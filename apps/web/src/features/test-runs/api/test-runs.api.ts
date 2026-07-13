@@ -42,3 +42,15 @@ export async function getTestRun(testRunId: string, signal?: AbortSignal) {
   );
   return response.data;
 }
+
+export async function cancelTestRun(testRunId: string, reason?: string) {
+  const response = await apiClient.requestJson(
+    `/api/v1/test-runs/${testRunId}/cancel`,
+    testRunDetailResponseSchema,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason?.trim() || undefined }),
+    },
+  );
+  return response.data;
+}

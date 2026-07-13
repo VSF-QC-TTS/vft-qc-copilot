@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  cancelTestRun,
   createTestRun,
   getProjectTestRuns,
   getTestRun,
@@ -42,6 +43,18 @@ export function useCreateTestRun(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateTestRunRequest) => createTestRun(projectId, data),
+    onSuccess: (testRun) => {
+      void queryClient.invalidateQueries({ queryKey: testRunKeys.project(projectId) });
+      void queryClient.setQueryData(testRunKeys.detail(testRun.id), testRun);
+    },
+  });
+}
+
+export function useCancelTestRun(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ testRunId, reason }: { testRunId: string; reason?: string }) =>
+      cancelTestRun(testRunId, reason),
     onSuccess: (testRun) => {
       void queryClient.invalidateQueries({ queryKey: testRunKeys.project(projectId) });
       void queryClient.setQueryData(testRunKeys.detail(testRun.id), testRun);
