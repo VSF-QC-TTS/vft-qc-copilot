@@ -25,6 +25,20 @@ const useExportJobMock = vi.hoisted(() =>
     }
   >(),
 );
+const useRecentExportJobsMock = vi.hoisted(() =>
+  vi.fn<
+    () => {
+      data:
+        | {
+            items: ExportJobResponse[];
+            page: { limit: number; nextCursor: string | null; hasMore: boolean };
+          }
+        | undefined;
+      isLoading: boolean;
+      isError: boolean;
+    }
+  >(),
+);
 const downloadBlobMock = vi.hoisted(() => vi.fn<(blob: Blob, filename: string) => void>());
 
 vi.mock('@/features/exports/hooks/use-export-jobs', () => ({
@@ -41,6 +55,7 @@ vi.mock('@/features/exports/hooks/use-export-jobs', () => ({
     isPending: false,
   }),
   useExportJob: useExportJobMock,
+  useRecentExportJobs: useRecentExportJobsMock,
 }));
 
 vi.mock('@/shared/api/download', () => ({
@@ -64,6 +79,12 @@ describe('ExportJobPanel', () => {
     downloadBlobMock.mockReset();
     useExportJobMock.mockReset();
     useExportJobMock.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    useRecentExportJobsMock.mockReset();
+    useRecentExportJobsMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    });
   });
 
   it('allows a read-only user flow to create a dataset export job', async () => {
@@ -146,6 +167,29 @@ describe('ExportJobPanel', () => {
     await waitFor(() => expect(downloadMutateAsyncMock).toHaveBeenCalledWith(JOB_ID));
     expect(downloadBlobMock).toHaveBeenCalledWith(blob, 'ket-qua.xlsx');
     expect(screen.getByText('2.0 KB')).toBeInTheDocument();
+  });
+
+  it('resumes the latest source export job after a reload', () => {
+    const recentJob = exportJob('COMPLETED', { fileName: 'gan-nhat.xlsx' });
+    useRecentExportJobsMock.mockReturnValue({
+      data: {
+        items: [recentJob],
+        page: { limit: 5, nextCursor: null, hasMore: false },
+      },
+      isLoading: false,
+      isError: false,
+    });
+    useExportJobMock.mockImplementation((jobId) => ({
+      data: jobId === recentJob.id ? recentJob : undefined,
+      isLoading: false,
+      isError: false,
+    }));
+
+    render(panel());
+
+    expect(useExportJobMock).toHaveBeenCalledWith(recentJob.id);
+    expect(screen.getByText('gan-nhat.xlsx')).toBeInTheDocument();
+    expect(screen.getByText('Export jobs gần đây')).toBeInTheDocument();
   });
 
   it('renders failed, cancelled, and expired terminal messages', () => {

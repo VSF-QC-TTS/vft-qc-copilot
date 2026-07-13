@@ -206,6 +206,52 @@ class Phase11ExportJobIntegrationTest extends PostgresIntegrationTestBase {
         .isEqualTo(ExportJobStatus.COMPLETED);
   }
 
+  @Test
+  void listDatasetExportJobs_ReturnsNewestJobsWithPaginationAndRechecksAccess() throws Exception {
+    var user = user("phase11-list-owner@vinfast.vn");
+    var outsider = user("phase11-list-outsider@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Phase 11 List Export");
+    var datasetId = createDataset(user, projectId, "List Export Dataset");
+    var draft = datasetVersionRepository.findByDatasetIdOrderByVersionDesc(datasetId).getFirst();
+    mockMvc
+        .perform(post("/api/v1/dataset-versions/" + draft.getId() + "/publish").with(bearer(user)))
+        .andExpect(status().isOk());
+    var activeVersion =
+        datasetVersionRepository
+            .findByDatasetIdAndStatus(datasetId, DatasetVersionStatus.ACTIVE)
+            .orElseThrow();
+
+    var olderJobId = createDatasetExport(user, activeVersion.getId());
+    var newerJobId = createDatasetExport(user, activeVersion.getId());
+    var olderJob = exportJobRepository.findById(olderJobId).orElseThrow();
+    olderJob.setCreatedAt(OffsetDateTime.now().minusMinutes(2));
+    exportJobRepository.saveAndFlush(olderJob);
+    var newerJob = exportJobRepository.findById(newerJobId).orElseThrow();
+    newerJob.setCreatedAt(OffsetDateTime.now().minusMinutes(1));
+    exportJobRepository.saveAndFlush(newerJob);
+
+    var response =
+        mockMvc
+            .perform(
+                get("/api/v1/dataset-versions/" + activeVersion.getId() + "/export-jobs")
+                    .param("page", "0")
+                    .param("size", "1")
+                    .with(bearer(user)))
+            .andExpect(status().isOk())
+            .andReturn();
+    var json = objectMapper.readTree(response.getResponse().getContentAsString());
+    assertThat(json.at("/items/0/id").asText()).isEqualTo(newerJobId.toString());
+    assertThat(json.at("/page/limit").asInt()).isEqualTo(1);
+    assertThat(json.at("/page/hasMore").asBoolean()).isTrue();
+
+    mockMvc
+        .perform(
+            get("/api/v1/dataset-versions/" + activeVersion.getId() + "/export-jobs")
+                .with(bearer(outsider)))
+        .andExpect(status().isNotFound());
+  }
+
   private UUID createProject(vn.vinfast.vfqc.api.user.entity.AppUser user, UUID workspaceId, String name)
       throws Exception {
     var result =

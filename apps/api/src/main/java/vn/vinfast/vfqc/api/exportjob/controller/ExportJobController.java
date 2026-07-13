@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import vn.vinfast.vfqc.api.common.api.CollectionResponse;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.exportjob.dto.CreateDatasetExportRequest;
 import vn.vinfast.vfqc.api.exportjob.dto.CreateTestRunExportRequest;
@@ -50,6 +53,16 @@ public class ExportJobController {
     return exportJobService.createDatasetExport(user, datasetVersionId, safeRequest.safeFormat());
   }
 
+  @GetMapping("/dataset-versions/{datasetVersionId}/export-jobs")
+  @Operation(summary = "List dataset version export jobs")
+  @ApiResponse(responseCode = "200", description = "Export jobs returned")
+  public CollectionResponse<ExportJobResponse> listDatasetExports(
+      @AuthenticationPrincipal CurrentUser user,
+      @PathVariable UUID datasetVersionId,
+      @PageableDefault(size = 5) Pageable pageable) {
+    return queryService.listDatasetVersionExports(user, datasetVersionId, pageable);
+  }
+
   @PostMapping("/test-runs/{testRunId}/export-jobs")
   @ResponseStatus(HttpStatus.CREATED)
   @Operation(summary = "Create TestRun result export job")
@@ -61,6 +74,16 @@ public class ExportJobController {
     var safeRequest = request == null ? new CreateTestRunExportRequest(null, null) : request;
     return exportJobService.createTestRunExport(
         user, testRunId, safeRequest.safeFormat(), safeRequest.safeResultMode());
+  }
+
+  @GetMapping("/test-runs/{testRunId}/export-jobs")
+  @Operation(summary = "List TestRun export jobs")
+  @ApiResponse(responseCode = "200", description = "Export jobs returned")
+  public CollectionResponse<ExportJobResponse> listTestRunExports(
+      @AuthenticationPrincipal CurrentUser user,
+      @PathVariable UUID testRunId,
+      @PageableDefault(size = 5) Pageable pageable) {
+    return queryService.listTestRunExports(user, testRunId, pageable);
   }
 
   @GetMapping("/export-jobs/{jobId}")

@@ -17,6 +17,7 @@ import {
   useCreateTestRunExportJob,
   useDownloadExportJobFile,
   useExportJob,
+  useRecentExportJobs,
 } from '@/features/exports/hooks/use-export-jobs';
 import type {
   ExportJobResponse,
@@ -40,20 +41,27 @@ interface ExportJobPanelProps {
   source: ExportSource;
 }
 
+const RECENT_EXPORT_JOBS_SIZE = 5;
+
 export function ExportJobPanel({ title, description, source }: ExportJobPanelProps) {
   const [activeJobId, setActiveJobId] = useState<string>();
   const [resultMode, setResultMode] = useState<ExportResultMode>('FINAL');
+  const recentJobsQuery = useRecentExportJobs(source, RECENT_EXPORT_JOBS_SIZE);
+  const recentJobs = recentJobsQuery.data?.items ?? [];
+  const selectedJobId = activeJobId ?? recentJobs[0]?.id;
   const datasetExportMutation = useCreateDatasetExportJob(
     source.sourceType === 'dataset-version' ? source.sourceId : undefined,
   );
   const testRunExportMutation = useCreateTestRunExportJob(
     source.sourceType === 'test-run' ? source.sourceId : '',
   );
-  const jobQuery = useExportJob(activeJobId);
+  const jobQuery = useExportJob(selectedJobId);
   const downloadMutation = useDownloadExportJobFile();
-  const job = jobQuery.data;
+  const job = jobQuery.data ?? recentJobs.find((recentJob) => recentJob.id === selectedJobId);
   const isCreatePending = datasetExportMutation.isPending || testRunExportMutation.isPending;
   const sourceReady = Boolean(source.sourceId);
+  const isJobLoading = selectedJobId ? jobQuery.isLoading && !job : recentJobsQuery.isLoading;
+  const isJobError = jobQuery.isError || recentJobsQuery.isError;
 
   const handleCreateJob = async () => {
     if (!sourceReady) {
@@ -140,7 +148,14 @@ export function ExportJobPanel({ title, description, source }: ExportJobPanelPro
         </Button>
       </div>
 
-      <ExportJobState job={job} isLoading={jobQuery.isLoading} isError={jobQuery.isError} />
+      <ExportJobState job={job} isLoading={isJobLoading} isError={isJobError} />
+
+      <RecentExportJobs
+        jobs={recentJobs}
+        selectedJobId={selectedJobId}
+        onSelect={setActiveJobId}
+        isLoading={recentJobsQuery.isLoading}
+      />
     </section>
   );
 }
@@ -173,7 +188,7 @@ function ExportJobState({
   if (!job) {
     return (
       <div className="mt-4 rounded-lg border bg-muted p-3 text-sm text-muted-foreground">
-        Chưa có Export job trong phiên này.
+        Chưa có Export job cho nguồn này.
       </div>
     );
   }
@@ -215,6 +230,51 @@ function ExportJobState({
           Job chưa terminal; UI sẽ poll trạng thái và tự dừng khi hoàn tất.
         </p>
       )}
+    </div>
+  );
+}
+
+function RecentExportJobs({
+  jobs,
+  selectedJobId,
+  onSelect,
+  isLoading,
+}: {
+  jobs: ExportJobResponse[];
+  selectedJobId: string | undefined;
+  onSelect: (jobId: string) => void;
+  isLoading: boolean;
+}) {
+  if (isLoading || jobs.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border bg-background p-3">
+      <div className="text-xs font-medium text-muted-foreground">Export jobs gần đây</div>
+      <div className="mt-2 space-y-2">
+        {jobs.map((job) => (
+          <button
+            key={job.id}
+            type="button"
+            className={[
+              'flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+              selectedJobId === job.id
+                ? 'border-foreground bg-muted text-foreground'
+                : 'bg-surface text-muted-foreground hover:text-foreground',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => onSelect(job.id)}
+          >
+            <span className="min-w-0">
+              <span className="block truncate font-mono text-xs">{job.id}</span>
+              <span className="mt-1 block text-xs">{formatDate(job.createdAt)}</span>
+            </span>
+            <ExportStatusBadge status={job.status} />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

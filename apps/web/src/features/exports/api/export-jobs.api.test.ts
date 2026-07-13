@@ -5,6 +5,8 @@ import {
   createTestRunExportJob,
   downloadExportJobFile,
   getExportJob,
+  listDatasetExportJobs,
+  listTestRunExportJobs,
 } from '@/features/exports/api/export-jobs.api';
 import {
   exportJobResponseSchema,
@@ -87,6 +89,33 @@ describe('export jobs API', () => {
     expect(requestBlobMock).toHaveBeenCalledWith(`/api/v1/export-jobs/${JOB_ID}/download`, {
       signal,
     });
+  });
+
+  it('lists recent source export jobs with backend pagination metadata', async () => {
+    const signal = new AbortController().signal;
+    const page = {
+      items: [exportJob({ jobType: 'DATASET_VERSION', datasetVersionId: DATASET_VERSION_ID })],
+      page: { limit: 5, nextCursor: null, hasMore: false },
+    };
+    requestJsonMock.mockResolvedValue({ data: page });
+
+    await expect(listDatasetExportJobs(DATASET_VERSION_ID, { size: 5, signal })).resolves.toEqual(
+      page,
+    );
+    await expect(listTestRunExportJobs(TEST_RUN_ID, { size: 3, signal })).resolves.toEqual(page);
+
+    expect(requestJsonMock).toHaveBeenNthCalledWith(
+      1,
+      `/api/v1/dataset-versions/${DATASET_VERSION_ID}/export-jobs?size=5`,
+      expect.any(Object),
+      { signal },
+    );
+    expect(requestJsonMock).toHaveBeenNthCalledWith(
+      2,
+      `/api/v1/test-runs/${TEST_RUN_ID}/export-jobs?size=3`,
+      expect.any(Object),
+      { signal },
+    );
   });
 
   it('validates terminal states and nullable source fields from backend', () => {

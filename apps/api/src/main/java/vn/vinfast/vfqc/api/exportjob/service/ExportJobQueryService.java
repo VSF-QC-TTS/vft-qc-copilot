@@ -1,6 +1,8 @@
 package vn.vinfast.vfqc.api.exportjob.service;
 
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
+import vn.vinfast.vfqc.api.common.api.CollectionResponse;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.exportjob.dto.ExportJobResponse;
 
@@ -14,4 +16,10 @@ public interface ExportJobQueryService {
    * @return the export job response details
    */
   ExportJobResponse get(CurrentUser user, UUID jobId);
+
+  CollectionResponse<ExportJobResponse> listDatasetVersionExports(
+      CurrentUser user, UUID datasetVersionId, Pageable pageable);
+
+  CollectionResponse<ExportJobResponse> listTestRunExports(
+      CurrentUser user, UUID testRunId, Pageable pageable);
 }

@@ -90,7 +90,7 @@ Use one consistent operational application structure:
 | 2. Workspace + Project lifecycle | Completed | `feat(projects): wire workspace and project lifecycle` |
 | 3. Secrets + Providers setup flow | Completed | `fix(providers): harden setup flow and secret handling` |
 | 4. Dataset import, rows, pagination | Completed | `feat(datasets): add row pagination and resilient import` |
-| 5. Export job persistence | Pending | `feat(exports): persist export job recovery` |
+| 5. Export job persistence | Completed | `feat(exports): persist export job recovery` |
 | 6. TestRun, SSE, runner, Redis recovery | Pending | `fix(testruns): harden realtime run recovery` |
 | 7. UX/UI professionalization | Pending | `refactor(ui): align mvp shell with design rules` |
 | 8. Full verification suite | Pending | `test(mvp): cover end to end qc workflows` |

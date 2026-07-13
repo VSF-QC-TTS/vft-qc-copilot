@@ -49,3 +49,13 @@ export const exportJobResponseSchema = z.object({
   expiresAt: z.string().nullable().optional(),
 });
 export type ExportJobResponse = z.infer<typeof exportJobResponseSchema>;
+
+export const exportJobCollectionSchema = z.object({
+  items: z.array(exportJobResponseSchema),
+  page: z.object({
+    limit: z.number(),
+    nextCursor: z.string().nullable().optional(),
+    hasMore: z.boolean(),
+  }),
+});
+export type ExportJobCollectionResponse = z.infer<typeof exportJobCollectionSchema>;

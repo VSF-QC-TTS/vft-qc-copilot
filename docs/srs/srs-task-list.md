@@ -100,7 +100,7 @@ Evidence:
 
 ## Batch 5 — Export job persistence
 
-Status: pending
+Status: completed
 
 Acceptance:
 
@@ -108,6 +108,15 @@ Acceptance:
 - Reload/out-in resumes active job polling.
 - Completed job can be downloaded after reload.
 - Expired/failed/cancelled states are explicit.
+
+Evidence:
+
+- Backend now exposes source-scoped export job list endpoints for Dataset versions and TestRuns.
+- Backend list endpoints reuse source permission checks before returning job metadata.
+- Frontend export panels select the newest source job after reload and still allow selecting recent jobs.
+- Frontend API contract test covers source-scoped list endpoints and pagination metadata.
+- Frontend panel test covers reload recovery from the latest source job.
+- Backend `Phase11ExportJobIntegrationTest` covers source list ordering, pagination, and unauthorized access.
 
 ## Batch 6 — TestRun, SSE, runner, Redis recovery
 
