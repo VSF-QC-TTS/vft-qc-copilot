@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useOutletContext } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 import { Upload } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -90,6 +90,7 @@ export function DatasetImportPage() {
     [draft, importJob],
   );
   const hasNewColumns = hasNewSchemaColumns(draft.mapping);
+  const hasUnsavedImportDraft = Boolean(importJob) && !confirmImportMutation.isSuccess;
 
   useEffect(() => {
     if (!importJob || schemaColumns.length === 0) return;
@@ -101,6 +102,27 @@ export function DatasetImportPage() {
       mapping: importMappingFromJob(importJob, schemaColumns),
     }));
   }, [importJob, schemaColumns]);
+
+  useEffect(() => {
+    if (!hasUnsavedImportDraft) return undefined;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedImportDraft]);
+
+  const handleBack = async () => {
+    if (
+      hasUnsavedImportDraft &&
+      !window.confirm('Preview import chưa được confirm. Bạn có chắc muốn rời trang?')
+    ) {
+      return;
+    }
+    await navigate(`/workspaces/${workspace.id}/projects/${project.id}/datasets`);
+  };
 
   const handlePreview = async () => {
     if (!file) {
@@ -158,8 +180,8 @@ export function DatasetImportPage() {
             Upload file XLSX, kiểm tra Preview, mapping cột rồi confirm để tạo Dataset ACTIVE.
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link to={`/workspaces/${workspace.id}/projects/${project.id}/datasets`}>Quay lại</Link>
+        <Button type="button" variant="outline" onClick={() => void handleBack()}>
+          Quay lại
         </Button>
       </div>
 

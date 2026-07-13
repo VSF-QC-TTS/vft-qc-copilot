@@ -1,7 +1,8 @@
 package vn.vinfast.vfqc.api.dataset.service;
 
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
+import vn.vinfast.vfqc.api.common.api.CollectionResponse;
 import vn.vinfast.vfqc.api.common.security.CurrentUser;
 import vn.vinfast.vfqc.api.dataset.dto.CreateDatasetRowRequest;
 import vn.vinfast.vfqc.api.dataset.dto.DatasetRowResponse;
@@ -14,9 +15,10 @@ public interface DatasetRowService {
    *
    * @param user authenticated user with view permission
    * @param versionId dataset version id
-   * @return ordered dataset rows
+   * @param pageable page request for large dataset versions
+   * @return ordered dataset rows with page metadata
    */
-  List<DatasetRowResponse> rows(CurrentUser user, UUID versionId);
+  CollectionResponse<DatasetRowResponse> rows(CurrentUser user, UUID versionId, Pageable pageable);
 
   /**
    * Adds a row to an editable DRAFT dataset version.

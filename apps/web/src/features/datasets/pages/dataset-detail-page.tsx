@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
 import { GitBranch, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
@@ -31,23 +32,30 @@ interface ProjectContextType extends WorkspaceContextType {
   project: ProjectResponse;
 }
 
+const DATASET_ROWS_PAGE_SIZE = 20;
+
 export function DatasetDetailPage() {
   const { datasetId = '', versionId } = useParams<{ datasetId: string; versionId?: string }>();
   const { workspace, project } = useOutletContext<ProjectContextType>();
   const navigate = useNavigate();
+  const [rowsPage, setRowsPage] = useState(0);
   const datasetQuery = useDataset(datasetId);
   const versionsQuery = useDatasetVersions(datasetId);
   const schemaQuery = useProjectDatasetSchema(project.id);
   const selectedVersion =
     versionsQuery.data?.find((version) => version.id === versionId) ??
     preferredVersion(versionsQuery.data);
-  const rowsQuery = useDatasetRows(selectedVersion?.id ?? '');
+  const rowsQuery = useDatasetRows(selectedVersion?.id ?? '', rowsPage, DATASET_ROWS_PAGE_SIZE);
   const createDraftMutation = useCreateDatasetDraft(datasetId);
   const publishMutation = usePublishDatasetVersion(datasetId);
   const discardMutation = useDiscardDatasetVersion(datasetId);
   const addRowMutation = useAddDatasetRow(selectedVersion?.id ?? '');
   const patchRowMutation = usePatchDatasetRow(selectedVersion?.id ?? '');
   const isLoading = datasetQuery.isLoading || versionsQuery.isLoading || schemaQuery.isLoading;
+
+  useEffect(() => {
+    setRowsPage(0);
+  }, [selectedVersion?.id]);
 
   if (isLoading) {
     return (
@@ -219,7 +227,7 @@ export function DatasetDetailPage() {
               <PermissionGuard capability="EDIT" workspaceRole={workspace.currentUserRole}>
                 {(canEdit) => (
                   <DatasetRowEditor
-                    rows={rowsQuery.data ?? []}
+                    rows={rowsQuery.data?.items ?? []}
                     columns={schemaQuery.data.columns}
                     isEditable={canEdit && isSelectedDraft}
                     isPending={canMutate}
@@ -233,6 +241,32 @@ export function DatasetDetailPage() {
                 Dataset chưa có version để hiển thị.
               </div>
             )}
+
+            {selectedVersion ? (
+              <div className="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Trang {String(rowsPage + 1)} · {String(rowsQuery.data?.items.length ?? 0)} dòng
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={rowsPage === 0 || rowsQuery.isFetching}
+                    onClick={() => setRowsPage((current) => Math.max(0, current - 1))}
+                  >
+                    Trang trước
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!rowsQuery.data?.page.hasMore || rowsQuery.isFetching}
+                    onClick={() => setRowsPage((current) => current + 1)}
+                  >
+                    Trang sau
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </section>
         </main>
 

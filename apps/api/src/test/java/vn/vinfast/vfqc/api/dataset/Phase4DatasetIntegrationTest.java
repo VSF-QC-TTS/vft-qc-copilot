@@ -1,6 +1,7 @@
 package vn.vinfast.vfqc.api.dataset;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -203,6 +204,34 @@ class Phase4DatasetIntegrationTest extends PostgresIntegrationTestBase {
         .isEqualTo(3);
     assertThat(datasetRepository.findById(datasetId).orElseThrow().getCurrentVersionId())
         .isEqualTo(copiedDraft.getId());
+  }
+
+  @Test
+  void listRows_UsesBackendPaginationMetadata() throws Exception {
+    var user = user("dataset-row-pagination-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset Row Pagination Project");
+    var datasetId = createDataset(user, projectId, "Row Pagination Dataset");
+    var draftId = draftVersionId(datasetId);
+    addRow(user, draftId, Map.of("question", "Q1", "expected", "A1"));
+    addRow(user, draftId, Map.of("question", "Q2", "expected", "A2"));
+    addRow(user, draftId, Map.of("question", "Q3", "expected", "A3"));
+
+    var result =
+        mockMvc
+            .perform(
+                get("/api/v1/dataset-versions/" + draftId + "/rows")
+                    .param("page", "1")
+                    .param("size", "2")
+                    .with(bearer(user)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    var body = objectMapper.readTree(result.getResponse().getContentAsString());
+    assertThat(body.get("items")).hasSize(1);
+    assertThat(body.at("/items/0/rowIndex").asInt()).isEqualTo(2);
+    assertThat(body.at("/page/limit").asInt()).isEqualTo(2);
+    assertThat(body.at("/page/hasMore").asBoolean()).isFalse();
   }
 
   @Test

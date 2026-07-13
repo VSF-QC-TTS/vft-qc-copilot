@@ -105,7 +105,13 @@ export type DatasetRowResponse = z.infer<typeof datasetRowSchema>;
 
 export const datasetRowCollectionSchema = z.object({
   items: z.array(datasetRowSchema),
+  page: z.object({
+    limit: z.number(),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  }),
 });
+export type DatasetRowCollectionResponse = z.infer<typeof datasetRowCollectionSchema>;
 
 export const datasetSchemaColumnSchema = z.object({
   id: z.number(),

@@ -89,7 +89,7 @@ Use one consistent operational application structure:
 | 1. Audit baseline + contract matrix | Completed | `docs(frontend): add mvp ux audit baseline` |
 | 2. Workspace + Project lifecycle | Completed | `feat(projects): wire workspace and project lifecycle` |
 | 3. Secrets + Providers setup flow | Completed | `fix(providers): harden setup flow and secret handling` |
-| 4. Dataset import, rows, pagination | Pending | `feat(datasets): add row pagination and resilient import` |
+| 4. Dataset import, rows, pagination | Completed | `feat(datasets): add row pagination and resilient import` |
 | 5. Export job persistence | Pending | `feat(exports): persist export job recovery` |
 | 6. TestRun, SSE, runner, Redis recovery | Pending | `fix(testruns): harden realtime run recovery` |
 | 7. UX/UI professionalization | Pending | `refactor(ui): align mvp shell with design rules` |

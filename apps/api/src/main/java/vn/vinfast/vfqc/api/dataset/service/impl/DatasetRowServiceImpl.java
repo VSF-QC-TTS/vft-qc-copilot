@@ -2,12 +2,14 @@ package vn.vinfast.vfqc.api.dataset.service.impl;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.vinfast.vfqc.api.common.api.CollectionResponse;
+import vn.vinfast.vfqc.api.common.api.PageInfo;
 import vn.vinfast.vfqc.api.common.error.ErrorCode;
 import vn.vinfast.vfqc.api.common.permission.PermissionAction;
 import vn.vinfast.vfqc.api.common.permission.ProjectPermissionService;
@@ -42,13 +44,15 @@ public class DatasetRowServiceImpl implements DatasetRowService {
 
   @Transactional(readOnly = true)
   @Override
-  public List<DatasetRowResponse> rows(CurrentUser user, UUID versionId) {
+  public CollectionResponse<DatasetRowResponse> rows(
+      CurrentUser user, UUID versionId, Pageable pageable) {
     var version =
         versionRepository.findById(versionId).orElseThrow(ErrorCode.RESOURCE_NOT_FOUND::throwIt);
     requireDatasetView(user, version.getDatasetId());
-    return rowRepository.findByDatasetVersionIdOrderByRowIndexAsc(versionId).stream()
-        .map(datasetMapper::toResponse)
-        .toList();
+    var page = rowRepository.findByDatasetVersionIdOrderByRowIndexAsc(versionId, pageable);
+    return new CollectionResponse<>(
+        page.getContent().stream().map(datasetMapper::toResponse).toList(),
+        new PageInfo(page.getSize(), null, page.hasNext()));
   }
 
   @Transactional

@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -124,8 +126,10 @@ public class DatasetController {
   @Operation(summary = "List dataset version rows")
   @ApiResponse(responseCode = "200", description = "Dataset rows returned")
   public CollectionResponse<DatasetRowResponse> rows(
-      @AuthenticationPrincipal CurrentUser user, @PathVariable UUID versionId) {
-    return CollectionResponse.of(rowService.rows(user, versionId));
+      @AuthenticationPrincipal CurrentUser user,
+      @PathVariable UUID versionId,
+      @PageableDefault(size = 50) Pageable pageable) {
+    return rowService.rows(user, versionId, pageable);
   }
 
   @PostMapping("/dataset-versions/{versionId}/rows")

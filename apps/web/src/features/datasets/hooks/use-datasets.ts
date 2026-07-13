@@ -31,6 +31,8 @@ export const datasetKeys = {
   detail: (datasetId: string) => [...datasetKeys.all, 'detail', datasetId] as const,
   versions: (datasetId: string) => [...datasetKeys.detail(datasetId), 'versions'] as const,
   rows: (versionId: string) => [...datasetKeys.all, 'version', versionId, 'rows'] as const,
+  rowsPage: (versionId: string, page: number, size: number) =>
+    [...datasetKeys.rows(versionId), page, size] as const,
   importJob: (importJobId: string) => [...datasetKeys.all, 'import-job', importJobId] as const,
 };
 
@@ -66,10 +68,10 @@ export function useDatasetVersions(datasetId: string) {
   });
 }
 
-export function useDatasetRows(versionId: string) {
+export function useDatasetRows(versionId: string, page: number, size: number) {
   return useQuery({
-    queryKey: datasetKeys.rows(versionId),
-    queryFn: ({ signal }) => getDatasetRows(versionId, signal),
+    queryKey: datasetKeys.rowsPage(versionId, page, size),
+    queryFn: ({ signal }) => getDatasetRows(versionId, { page, size, signal }),
     enabled: Boolean(versionId),
   });
 }

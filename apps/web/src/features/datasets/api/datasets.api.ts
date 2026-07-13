@@ -72,13 +72,22 @@ export async function createDatasetDraft(datasetId: string) {
   return response.data;
 }
 
-export async function getDatasetRows(versionId: string, signal?: AbortSignal) {
+export interface GetDatasetRowsParams {
+  page: number;
+  size: number;
+  signal?: AbortSignal;
+}
+
+export async function getDatasetRows(
+  versionId: string,
+  { page, size, signal }: GetDatasetRowsParams,
+) {
   const response = await apiClient.requestJson(
-    `/api/v1/dataset-versions/${versionId}/rows`,
+    `/api/v1/dataset-versions/${versionId}/rows?page=${String(page)}&size=${String(size)}`,
     datasetRowCollectionSchema,
     { ...(signal && { signal }) },
   );
-  return response.data.items;
+  return response.data;
 }
 
 export async function addDatasetRow(versionId: string, data: CreateDatasetRowRequest) {

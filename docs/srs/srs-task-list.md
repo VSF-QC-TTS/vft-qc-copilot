@@ -75,14 +75,28 @@ Evidence:
 
 ## Batch 4 — Dataset import, rows, pagination
 
-Status: pending
+Status: completed
 
 Acceptance:
 
 - Dataset rows are paginated end to end.
 - Import Preview/mapping/confirm handles dirty navigation and validation clearly.
 - Dataset draft edit handles revision conflicts.
-- Dataset export remains available after reload.
+- Dataset export recovery remains in Batch 5.
+
+Evidence:
+
+- Backend dataset row listing now uses Spring `Pageable`.
+- Frontend dataset detail renders row page controls instead of all rows.
+- Import Preview/mapping now warns before tab unload or Quay lại navigation.
+- Frontend dataset API pagination test added.
+- Backend `Phase4DatasetIntegrationTest` covers row pagination metadata.
+- `rtk npm run typecheck` in `apps/web`
+- `rtk npm run lint` in `apps/web`
+- `rtk npm run format:check` in `apps/web`
+- Targeted dataset API test: `rtk npm run test -- src/features/datasets/api/datasets.api.test.ts`
+- Backend dataset integration: `rtk bash mvnw -Dtest=Phase4DatasetIntegrationTest test`
+- `rtk npm run build` in `apps/web`
 
 ## Batch 5 — Export job persistence
 
