@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getTestCaseResult,
+  getTestRunComparisonMatrix,
   getTestRunResults,
   upsertTestCaseResultReview,
 } from '@/features/test-runs/api/test-runs.api';
-import { testRunResultPageResponseSchema } from '@/features/test-runs/types/test-run';
+import {
+  comparisonMatrixResponseSchema,
+  testRunResultPageResponseSchema,
+} from '@/features/test-runs/types/test-run';
 
 const requestJsonMock = vi.hoisted(() =>
   vi.fn<(path: string, schema: unknown, init?: RequestInit) => Promise<{ data: unknown }>>(),
@@ -54,6 +58,27 @@ describe('test runs results API', () => {
     );
   });
 
+  it('maps comparison matrix mode and page state to the server-driven endpoint', async () => {
+    const signal = new AbortController().signal;
+    const matrix = comparisonMatrix();
+    requestJsonMock.mockResolvedValueOnce({ data: matrix });
+
+    await expect(
+      getTestRunComparisonMatrix(TEST_RUN_ID, {
+        mode: 'FINAL',
+        page: 1,
+        size: 20,
+        signal,
+      }),
+    ).resolves.toEqual(matrix);
+
+    expect(requestJsonMock).toHaveBeenCalledWith(
+      `/api/v1/test-runs/${TEST_RUN_ID}/comparison-matrix?mode=FINAL&page=1&size=20`,
+      expect.any(Object),
+      { signal },
+    );
+  });
+
   it('validates the backend PageInfo shape without total-page fields', () => {
     const valid = testRunResultPageResponseSchema.safeParse({
       items: [result()],
@@ -62,6 +87,18 @@ describe('test runs results API', () => {
     const invalid = testRunResultPageResponseSchema.safeParse({
       items: [result()],
       page: { number: 0, size: 20, totalPages: 10 },
+    });
+
+    expect(valid.success).toBe(true);
+    expect(invalid.success).toBe(false);
+  });
+
+  it('validates the implemented backend comparison matrix shape', () => {
+    const valid = comparisonMatrixResponseSchema.safeParse(comparisonMatrix());
+    const invalid = comparisonMatrixResponseSchema.safeParse({
+      targets: comparisonMatrix().columns,
+      rows: comparisonMatrix().rows,
+      page: { limit: 20, nextCursor: null, hasMore: false },
     });
 
     expect(valid.success).toBe(true);
@@ -135,5 +172,49 @@ function baseResult() {
     review: null,
     createdAt: '2026-07-02T10:00:12+07:00',
     updatedAt: '2026-07-02T10:00:12+07:00',
+  };
+}
+
+function comparisonMatrix() {
+  return {
+    columns: [
+      {
+        testRunTargetId: '22222222-2222-4222-8222-222222222222',
+        name: 'Internal Chatbot',
+        orderIndex: 0,
+      },
+      {
+        testRunTargetId: '44444444-4444-4444-8444-444444444444',
+        name: 'Baseline model',
+        orderIndex: 1,
+      },
+    ],
+    rows: [
+      {
+        datasetRowId: 18001,
+        rowIndex: 0,
+        cells: [
+          {
+            testRunTargetId: '22222222-2222-4222-8222-222222222222',
+            resultId: 9122,
+            finalStatus: 'FAILED',
+            finalScore: 0.42,
+            finalPassed: false,
+            errorCategory: null,
+            reviewed: true,
+          },
+          {
+            testRunTargetId: '44444444-4444-4444-8444-444444444444',
+            resultId: null,
+            finalStatus: null,
+            finalScore: null,
+            finalPassed: null,
+            errorCategory: null,
+            reviewed: false,
+          },
+        ],
+      },
+    ],
+    page: { limit: 20, nextCursor: null, hasMore: false },
   };
 }

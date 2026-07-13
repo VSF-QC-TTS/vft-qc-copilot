@@ -35,6 +35,7 @@ import {
   toReviewRequest,
   type ReviewFormState,
 } from '@/features/test-runs/components/test-case-result-review-utils';
+import { TestRunComparisonMatrix } from '@/features/test-runs/components/test-run-comparison-matrix';
 import {
   jsonPreview,
   latencyText,
@@ -71,7 +72,7 @@ interface ProjectContextType extends WorkspaceContextType {
   project: ProjectResponse;
 }
 
-type DetailTab = 'overview' | 'targets' | 'evaluators' | 'snapshots' | 'results';
+type DetailTab = 'overview' | 'targets' | 'evaluators' | 'snapshots' | 'results' | 'matrix';
 
 const tabs: { value: DetailTab; label: string }[] = [
   { value: 'overview', label: 'Tổng quan' },
@@ -79,6 +80,7 @@ const tabs: { value: DetailTab; label: string }[] = [
   { value: 'evaluators', label: 'Evaluators' },
   { value: 'snapshots', label: 'Snapshots' },
   { value: 'results', label: 'Machine / Final' },
+  { value: 'matrix', label: 'Comparison matrix' },
 ];
 
 const summaryMetricItems = [
@@ -135,6 +137,8 @@ export function TestRunDetailPage() {
   const resultMode = parseResultMode(searchParams.get('resultMode'));
   const resultPage = parseResultPage(searchParams.get('resultPage'));
   const selectedResultId = parseResultId(searchParams.get('resultId'));
+  const matrixMode = parseResultMode(searchParams.get('matrixMode'));
+  const matrixPage = parseResultPage(searchParams.get('matrixPage'));
 
   const updateResultParams = (patch: {
     mode?: ResultMode;
@@ -153,6 +157,19 @@ export function TestRunDetailPage() {
         next.delete('resultId');
       } else if (patch.resultId !== undefined) {
         next.set('resultId', String(patch.resultId));
+      }
+      return next;
+    });
+  };
+
+  const updateMatrixParams = (patch: { mode?: ResultMode; page?: number }) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (patch.mode) {
+        next.set('matrixMode', patch.mode);
+      }
+      if (patch.page !== undefined) {
+        next.set('matrixPage', String(patch.page));
       }
       return next;
     });
@@ -277,6 +294,19 @@ export function TestRunDetailPage() {
           onModeChange={(mode) => updateResultParams({ mode, page: 0, resultId: null })}
           onPageChange={(page) => updateResultParams({ page, resultId: null })}
           onSelectResult={(resultId) => updateResultParams({ resultId })}
+        />
+      ) : null}
+      {activeTab === 'matrix' ? (
+        <TestRunComparisonMatrix
+          testRunId={testRun.id}
+          mode={matrixMode}
+          page={matrixPage}
+          onModeChange={(mode) => updateMatrixParams({ mode, page: 0 })}
+          onPageChange={(page) => updateMatrixParams({ page })}
+          onOpenResult={(resultId, mode) => {
+            updateResultParams({ mode, resultId });
+            setActiveTab('results');
+          }}
         />
       ) : null}
     </div>

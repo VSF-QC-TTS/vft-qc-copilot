@@ -223,3 +223,39 @@ export const testRunResultPageResponseSchema = z.object({
   }),
 });
 export type TestRunResultPageResponse = z.infer<typeof testRunResultPageResponseSchema>;
+
+export const comparisonMatrixColumnSchema = z.object({
+  testRunTargetId: z.string().uuid(),
+  name: z.string(),
+  orderIndex: z.number(),
+});
+export type ComparisonMatrixColumn = z.infer<typeof comparisonMatrixColumnSchema>;
+
+export const comparisonMatrixCellSchema = z.object({
+  testRunTargetId: z.string().uuid(),
+  resultId: z.number().nullable(),
+  finalStatus: testCaseResultStatusSchema.nullable(),
+  finalScore: z.number().nullable(),
+  finalPassed: z.boolean().nullable(),
+  errorCategory: z.string().nullable(),
+  reviewed: z.boolean(),
+});
+export type ComparisonMatrixCell = z.infer<typeof comparisonMatrixCellSchema>;
+
+export const comparisonMatrixRowSchema = z.object({
+  datasetRowId: z.number(),
+  rowIndex: z.number(),
+  cells: z.array(comparisonMatrixCellSchema),
+});
+export type ComparisonMatrixRow = z.infer<typeof comparisonMatrixRowSchema>;
+
+export const comparisonMatrixResponseSchema = z.object({
+  columns: z.array(comparisonMatrixColumnSchema),
+  rows: z.array(comparisonMatrixRowSchema),
+  page: z.object({
+    limit: z.number(),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  }),
+});
+export type ComparisonMatrixResponse = z.infer<typeof comparisonMatrixResponseSchema>;

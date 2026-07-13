@@ -5,6 +5,7 @@ import {
   getProjectTestRuns,
   getTestCaseResult,
   getTestRun,
+  getTestRunComparisonMatrix,
   getTestRunResults,
   preflightTestRun,
   upsertTestCaseResultReview,
@@ -26,6 +27,8 @@ export const testRunKeys = {
   resultDetail: (resultId: number, mode: ResultMode) =>
     [...testRunKeys.all, 'result-detail', resultId, mode] as const,
   matrix: (testRunId: string) => [...testRunKeys.all, 'matrix', testRunId] as const,
+  matrixPage: (testRunId: string, mode: ResultMode, page: number, size: number) =>
+    [...testRunKeys.matrix(testRunId), mode, page, size] as const,
 };
 
 export function useProjectTestRuns(projectId: string) {
@@ -48,6 +51,19 @@ export function useTestRunResults(testRunId: string, mode: ResultMode, page: num
   return useQuery({
     queryKey: testRunKeys.resultsPage(testRunId, mode, page, size),
     queryFn: ({ signal }) => getTestRunResults(testRunId, { mode, page, size, signal }),
+    enabled: Boolean(testRunId),
+  });
+}
+
+export function useTestRunComparisonMatrix(
+  testRunId: string,
+  mode: ResultMode,
+  page: number,
+  size: number,
+) {
+  return useQuery({
+    queryKey: testRunKeys.matrixPage(testRunId, mode, page, size),
+    queryFn: ({ signal }) => getTestRunComparisonMatrix(testRunId, { mode, page, size, signal }),
     enabled: Boolean(testRunId),
   });
 }

@@ -1,5 +1,6 @@
 import { apiClient } from '@/shared/api/api';
 import {
+  comparisonMatrixResponseSchema,
   runPreflightResponseSchema,
   testCaseResultDetailResponseSchema,
   testCaseResultReviewResponseSchema,
@@ -79,6 +80,30 @@ export async function getTestRunResults(
   const response = await apiClient.requestJson(
     `/api/v1/test-runs/${testRunId}/results?${searchParams.toString()}`,
     testRunResultPageResponseSchema,
+    { ...(signal ? { signal } : {}) },
+  );
+  return response.data;
+}
+
+export interface GetTestRunComparisonMatrixParams {
+  mode: ResultMode;
+  page: number;
+  size: number;
+  signal?: AbortSignal;
+}
+
+export async function getTestRunComparisonMatrix(
+  testRunId: string,
+  { mode, page, size, signal }: GetTestRunComparisonMatrixParams,
+) {
+  const searchParams = new URLSearchParams({
+    mode,
+    page: String(page),
+    size: String(size),
+  });
+  const response = await apiClient.requestJson(
+    `/api/v1/test-runs/${testRunId}/comparison-matrix?${searchParams.toString()}`,
+    comparisonMatrixResponseSchema,
     { ...(signal ? { signal } : {}) },
   );
   return response.data;
