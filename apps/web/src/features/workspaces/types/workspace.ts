@@ -78,6 +78,17 @@ export type UpdateWorkspaceMemberRoleRequest = z.infer<
 >;
 
 export const updateWorkspaceRequestSchema = z.object({
-  name: z.string().min(1, 'Tên Workspace không được để trống'),
+  name: z
+    .string()
+    .min(1, 'Tên Workspace không được để trống')
+    .max(120, 'Tên Workspace tối đa 120 ký tự'),
 });
 export type UpdateWorkspaceRequest = z.infer<typeof updateWorkspaceRequestSchema>;
+
+export const createWorkspaceRequestSchema = z.object({
+  name: z
+    .string()
+    .min(1, 'Tên Workspace không được để trống')
+    .max(120, 'Tên Workspace tối đa 120 ký tự'),
+});
+export type CreateWorkspaceRequest = z.infer<typeof createWorkspaceRequestSchema>;

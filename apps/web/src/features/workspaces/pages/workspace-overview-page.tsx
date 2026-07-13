@@ -3,6 +3,7 @@ import { WorkspaceContextType } from '@/app/layouts/workspace-context-layout';
 import { useWorkspaceProjects } from '@/features/workspaces/hooks/use-workspaces';
 import { Plus, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
+import { CreateProjectDialog } from '@/features/projects/components/create-project-dialog';
 
 const recentProjectSkeletonKeys = [
   'recent-project-skeleton-1',
@@ -50,10 +51,18 @@ export function WorkspaceOverviewPage() {
           >
             Tất cả Project
           </Link>
-          <button className="flex h-9 items-center justify-center rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-transform hover:bg-[#333333] active:scale-[0.98]">
-            <Plus className="mr-2 h-4 w-4" />
-            Tạo Project
-          </button>
+          <CreateProjectDialog
+            workspace={workspace}
+            trigger={
+              <button
+                type="button"
+                className="flex h-9 items-center justify-center rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-transform hover:bg-[#333333] active:scale-[0.98]"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Tạo Project
+              </button>
+            }
+          />
         </div>
       </div>
 
@@ -73,6 +82,17 @@ export function WorkspaceOverviewPage() {
         ) : projects.length === 0 ? (
           <div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-[#EAEAEA] bg-[#FBFBFA] p-8 text-center">
             <p className="text-[#787774]">Chưa có project nào trong workspace này.</p>
+            <CreateProjectDialog
+              workspace={workspace}
+              trigger={
+                <button
+                  type="button"
+                  className="mt-4 flex h-9 items-center justify-center rounded-md border border-[#EAEAEA] bg-white px-4 text-sm font-medium text-[#111111] transition-transform hover:bg-[#F9F9F8] active:scale-[0.98]"
+                >
+                  Tạo Project đầu tiên
+                </button>
+              }
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

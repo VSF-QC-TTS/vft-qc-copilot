@@ -87,7 +87,7 @@ Use one consistent operational application structure:
 | Batch | Status | Commit target |
 | --- | --- | --- |
 | 1. Audit baseline + contract matrix | Completed | `docs(frontend): add mvp ux audit baseline` |
-| 2. Workspace + Project lifecycle | Pending | `feat(projects): wire workspace and project lifecycle` |
+| 2. Workspace + Project lifecycle | Completed | `feat(projects): wire workspace and project lifecycle` |
 | 3. Secrets + Providers setup flow | Pending | `fix(providers): harden setup flow and secret handling` |
 | 4. Dataset import, rows, pagination | Pending | `feat(datasets): add row pagination and resilient import` |
 | 5. Export job persistence | Pending | `feat(exports): persist export job recovery` |

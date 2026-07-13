@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addWorkspaceMember,
+  createWorkspace,
   getWorkspace,
   getWorkspaceMembers,
   getWorkspaceProjects,
@@ -10,6 +11,7 @@ import {
 } from '@/features/workspaces/api/workspaces.api';
 import type {
   AddWorkspaceMemberRequest,
+  CreateWorkspaceRequest,
   UpdateWorkspaceMemberRoleRequest,
   UpdateWorkspaceRequest,
 } from '@/features/workspaces/types/workspace';
@@ -54,6 +56,16 @@ export function useWorkspaceMembers(workspaceId: string | undefined) {
     queryFn: ({ signal }) => getWorkspaceMembers(workspaceId!, signal),
     enabled: !!workspaceId,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateWorkspaceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateWorkspaceRequest) => createWorkspace(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: workspaceKeys.list() });
+    },
   });
 }
 

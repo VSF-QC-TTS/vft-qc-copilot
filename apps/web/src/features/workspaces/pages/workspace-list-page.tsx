@@ -2,6 +2,7 @@ import { useWorkspaces } from '@/features/workspaces/hooks/use-workspaces';
 import { Plus, Building2, User } from 'lucide-react';
 import { Link } from 'react-router';
 import { Skeleton } from '@/shared/components/ui/skeleton';
+import { CreateWorkspaceDialog } from '@/features/workspaces/components/create-workspace-dialog';
 
 const workspaceSkeletonKeys = [
   'workspace-skeleton-1',
@@ -25,10 +26,17 @@ export function WorkspaceListPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-[#111111]">Workspace</h1>
           <p className="mt-1 text-sm text-[#787774]">Quản lý không gian làm việc của bạn</p>
         </div>
-        <button className="flex h-9 items-center gap-2 rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-colors hover:bg-[#2C2C2C]">
-          <Plus className="h-4 w-4" />
-          Tạo Workspace
-        </button>
+        <CreateWorkspaceDialog
+          trigger={
+            <button
+              type="button"
+              className="flex h-9 items-center gap-2 rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-colors hover:bg-[#2C2C2C]"
+            >
+              <Plus className="h-4 w-4" />
+              Tạo Workspace
+            </button>
+          }
+        />
       </div>
 
       {isLoading ? (
@@ -44,6 +52,17 @@ export function WorkspaceListPage() {
       ) : workspaces.length === 0 ? (
         <div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-[#EAEAEA] bg-[#FBFBFA] p-8 text-center">
           <p className="text-[#787774]">Chưa có Workspace nào.</p>
+          <CreateWorkspaceDialog
+            trigger={
+              <button
+                type="button"
+                className="mt-4 flex h-9 items-center gap-2 rounded-md border border-[#EAEAEA] bg-white px-4 text-sm font-medium text-[#111111] transition-colors hover:bg-[#F9F9F8]"
+              >
+                <Plus className="h-4 w-4" />
+                Tạo Workspace đầu tiên
+              </button>
+            }
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

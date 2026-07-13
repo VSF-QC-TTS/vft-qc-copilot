@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   addWorkspaceMember,
+  createWorkspace,
   getWorkspaceMembers,
   updateWorkspaceMemberRole,
 } from '@/features/workspaces/api/workspaces.api';
@@ -19,6 +20,27 @@ vi.mock('@/shared/api/api', () => ({
 describe('workspaces API', () => {
   beforeEach(() => {
     requestJsonMock.mockReset();
+  });
+
+  it('creates a workspace through the backend lifecycle endpoint', async () => {
+    const workspace = {
+      id: 'workspace-1',
+      name: 'VF QA Platform',
+      type: 'TEAM',
+      currentUserRole: 'OWNER',
+      createdBy: 'user-1',
+      createdByUser: null,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    requestJsonMock.mockResolvedValueOnce({ data: workspace });
+
+    await expect(createWorkspace({ name: 'VF QA Platform' })).resolves.toEqual(workspace);
+
+    expect(requestJsonMock).toHaveBeenCalledWith('/api/v1/workspaces', expect.any(Object), {
+      method: 'POST',
+      body: JSON.stringify({ name: 'VF QA Platform' }),
+    });
   });
 
   it('fetches workspace members as a backend collection response', async () => {

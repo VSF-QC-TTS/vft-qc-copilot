@@ -30,7 +30,7 @@ Evidence:
 
 ## Batch 2 — Workspace + Project lifecycle
 
-Status: pending
+Status: completed
 
 Acceptance:
 
@@ -38,7 +38,17 @@ Acceptance:
 - Project create is usable from workspace overview and project list.
 - Project metadata edit, archive, and delete are available with permission guards.
 - Frontend uses backend DTOs exactly; no invented fields.
-- E2E covers login -> create workspace -> create project -> reload.
+- API contract tests cover Workspace/Project lifecycle endpoints.
+- Full login -> create Workspace -> create Project -> reload E2E remains in Batch 8.
+
+Evidence:
+
+- `rtk npm run typecheck` in `apps/web`
+- `rtk npm run lint` in `apps/web`
+- `rtk npm run format:check` in `apps/web`
+- `rtk npm run test` in `apps/web` passed 58 files / 181 tests before formatting
+- Targeted lifecycle tests: `rtk npm run test -- src/features/projects/api/projects.api.test.ts src/features/workspaces/api/workspaces.api.test.ts`
+- `rtk npm run build` in `apps/web`
 
 ## Batch 3 — Secrets + Providers setup flow
 

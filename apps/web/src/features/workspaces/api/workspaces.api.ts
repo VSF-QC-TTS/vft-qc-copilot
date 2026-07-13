@@ -1,6 +1,7 @@
 import { apiClient } from '@/shared/api/api';
 import {
   AddWorkspaceMemberRequest,
+  CreateWorkspaceRequest,
   UpdateWorkspaceMemberRoleRequest,
   UpdateWorkspaceRequest,
   workspaceCollectionSchema,
@@ -9,6 +10,14 @@ import {
   workspaceResponseSchema,
 } from '@/features/workspaces/types/workspace';
 import { projectCollectionSchema } from '@/features/projects/types/project';
+
+export async function createWorkspace(data: CreateWorkspaceRequest) {
+  const response = await apiClient.requestJson('/api/v1/workspaces', workspaceResponseSchema, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return response.data;
+}
 
 export async function getWorkspaces(signal?: AbortSignal) {
   const response = await apiClient.requestJson('/api/v1/workspaces', workspaceCollectionSchema, {

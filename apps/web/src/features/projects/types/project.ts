@@ -28,3 +28,21 @@ export const projectCollectionSchema = z.object({
     hasMore: z.boolean(),
   }),
 });
+
+export const createProjectRequestSchema = z.object({
+  name: z
+    .string()
+    .min(1, 'Tên Project không được để trống')
+    .max(120, 'Tên Project tối đa 120 ký tự'),
+  description: z.string().max(1000, 'Mô tả tối đa 1000 ký tự').optional(),
+});
+export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
+
+export const updateProjectRequestSchema = z.object({
+  name: z
+    .string()
+    .min(1, 'Tên Project không được để trống')
+    .max(120, 'Tên Project tối đa 120 ký tự'),
+  description: z.string().max(1000, 'Mô tả tối đa 1000 ký tự'),
+});
+export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
