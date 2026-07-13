@@ -1,9 +1,12 @@
 import { apiClient } from '@/shared/api/api';
 import {
   runPreflightResponseSchema,
+  testCaseResultDetailResponseSchema,
   testRunCollectionSchema,
   testRunDetailResponseSchema,
+  testRunResultPageResponseSchema,
   type CreateTestRunRequest,
+  type ResultMode,
   type RunPreflightRequest,
 } from '@/features/test-runs/types/test-run';
 
@@ -51,6 +54,40 @@ export async function cancelTestRun(testRunId: string, reason?: string) {
       method: 'POST',
       body: JSON.stringify({ reason: reason?.trim() || undefined }),
     },
+  );
+  return response.data;
+}
+
+export interface GetTestRunResultsParams {
+  mode: ResultMode;
+  page: number;
+  size: number;
+  signal?: AbortSignal;
+}
+
+export async function getTestRunResults(
+  testRunId: string,
+  { mode, page, size, signal }: GetTestRunResultsParams,
+) {
+  const searchParams = new URLSearchParams({
+    mode,
+    page: String(page),
+    size: String(size),
+  });
+  const response = await apiClient.requestJson(
+    `/api/v1/test-runs/${testRunId}/results?${searchParams.toString()}`,
+    testRunResultPageResponseSchema,
+    { ...(signal ? { signal } : {}) },
+  );
+  return response.data;
+}
+
+export async function getTestCaseResult(resultId: number, mode: ResultMode, signal?: AbortSignal) {
+  const searchParams = new URLSearchParams({ mode });
+  const response = await apiClient.requestJson(
+    `/api/v1/test-case-results/${String(resultId)}?${searchParams.toString()}`,
+    testCaseResultDetailResponseSchema,
+    { ...(signal ? { signal } : {}) },
   );
   return response.data;
 }

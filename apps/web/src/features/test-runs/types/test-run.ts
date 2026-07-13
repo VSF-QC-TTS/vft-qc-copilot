@@ -18,6 +18,21 @@ export type TestRunStatus = z.infer<typeof testRunStatusSchema>;
 export const testRunTargetTypeSchema = z.enum(['CHATBOT_TARGET', 'LLM_BASELINE']);
 export type TestRunTargetType = z.infer<typeof testRunTargetTypeSchema>;
 
+export const resultModeSchema = z.enum(['MACHINE', 'FINAL']);
+export type ResultMode = z.infer<typeof resultModeSchema>;
+
+export const testCaseResultStatusSchema = z.enum([
+  'PASSED',
+  'FAILED',
+  'ERROR',
+  'JUDGE_ERROR',
+  'TIMEOUT',
+]);
+export type TestCaseResultStatus = z.infer<typeof testCaseResultStatusSchema>;
+
+export const reviewStatusSchema = z.enum(['APPROVED', 'REJECTED', 'NEEDS_FIX', 'OVERRIDDEN']);
+export type ReviewStatus = z.infer<typeof reviewStatusSchema>;
+
 export const runTargetRequestSchema = z.discriminatedUnion('targetType', [
   z.object({
     targetType: z.literal('CHATBOT_TARGET'),
@@ -149,3 +164,52 @@ export type TestRunSummaryResponse = z.infer<typeof testRunSummaryResponseSchema
 export const testRunCollectionSchema = z.object({
   items: z.array(testRunSummaryResponseSchema),
 });
+
+export const testCaseResultReviewResponseSchema = z.object({
+  id: z.number(),
+  testCaseResultId: z.number(),
+  reviewerId: z.string().uuid(),
+  reviewStatus: reviewStatusSchema,
+  overrideStatus: testCaseResultStatusSchema.nullable().optional(),
+  overrideScore: z.number().nullable().optional(),
+  note: z.string().nullable().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type TestCaseResultReviewResponse = z.infer<typeof testCaseResultReviewResponseSchema>;
+
+export const testCaseResultDetailResponseSchema = z.object({
+  id: z.number(),
+  testRunId: z.string().uuid(),
+  testRunTargetId: z.string().uuid(),
+  datasetRowId: z.number(),
+  machineStatus: testCaseResultStatusSchema,
+  machineScore: z.number().nullable().optional(),
+  machinePassed: z.boolean().nullable().optional(),
+  finalStatus: testCaseResultStatusSchema,
+  finalScore: z.number().nullable().optional(),
+  finalPassed: z.boolean().nullable().optional(),
+  errorCategory: z.string().nullable().optional(),
+  request: z.record(z.string(), z.unknown()).nullable().optional(),
+  response: z.record(z.string(), z.unknown()).nullable().optional(),
+  extractedOutput: z.record(z.string(), z.unknown()).nullable().optional(),
+  gradingResult: z.record(z.string(), z.unknown()).nullable().optional(),
+  componentResults: z.record(z.string(), z.unknown()).nullable().optional(),
+  tokenUsage: z.record(z.string(), z.unknown()).nullable().optional(),
+  latencyMs: z.number().nullable().optional(),
+  machineSummary: z.string().nullable().optional(),
+  review: testCaseResultReviewResponseSchema.nullable().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type TestCaseResultDetailResponse = z.infer<typeof testCaseResultDetailResponseSchema>;
+
+export const testRunResultPageResponseSchema = z.object({
+  items: z.array(testCaseResultDetailResponseSchema),
+  page: z.object({
+    limit: z.number(),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  }),
+});
+export type TestRunResultPageResponse = z.infer<typeof testRunResultPageResponseSchema>;

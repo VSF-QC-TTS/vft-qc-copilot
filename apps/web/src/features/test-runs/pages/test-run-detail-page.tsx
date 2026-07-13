@@ -1,8 +1,16 @@
 import { useState } from 'react';
-import { Link, useOutletContext, useParams } from 'react-router';
+import { Link, useOutletContext, useParams, useSearchParams } from 'react-router';
 import { AlertTriangle, CheckCircle2, CirclePause, Clock3, XCircle } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Skeleton } from '@/shared/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/components/ui/table';
 import { PermissionGuard } from '@/shared/components/permission-guard';
 import { notifyError, notifySuccess } from '@/shared/lib/notifications';
 import {
@@ -15,14 +23,36 @@ import {
   testRunStatusLabel,
   testRunStatusTone,
 } from '@/features/test-runs/components/test-run-detail-utils';
-import { useCancelTestRun, useTestRun } from '@/features/test-runs/hooks/use-test-runs';
+import {
+  jsonPreview,
+  latencyText,
+  machineFinalChanged,
+  parseResultId,
+  parseResultMode,
+  parseResultPage,
+  resultStatusLabel,
+  resultStatusTone,
+  reviewedText,
+  scoreText,
+  TEST_RUN_RESULTS_PAGE_SIZE,
+} from '@/features/test-runs/components/test-run-results-utils';
+import {
+  useCancelTestRun,
+  useTestCaseResult,
+  useTestRun,
+  useTestRunResults,
+} from '@/features/test-runs/hooks/use-test-runs';
 import {
   testRunSseConnectionLabel,
   useTestRunSse,
 } from '@/features/test-runs/sse/use-test-run-sse';
 import type { WorkspaceContextType } from '@/app/layouts/workspace-context-layout';
 import type { ProjectResponse } from '@/features/projects/types/project';
-import type { TestRunDetailResponse } from '@/features/test-runs/types/test-run';
+import type {
+  ResultMode,
+  TestCaseResultDetailResponse,
+  TestRunDetailResponse,
+} from '@/features/test-runs/types/test-run';
 
 interface ProjectContextType extends WorkspaceContextType {
   project: ProjectResponse;
@@ -52,6 +82,7 @@ const summaryMetricItems = [
 export function TestRunDetailPage() {
   const { testRunId = '' } = useParams<{ testRunId: string }>();
   const { workspace, project } = useOutletContext<ProjectContextType>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const testRunQuery = useTestRun(testRunId);
   const cancelMutation = useCancelTestRun(project.id);
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
@@ -88,6 +119,31 @@ export function TestRunDetailPage() {
   const progressPercent = testRunProgressPercent(testRun);
   const canCancel = canCancelTestRun(testRun.status) && !cancelMutation.isPending;
   const realtimeClosed = isTerminalTestRunStatus(testRun.status);
+  const resultMode = parseResultMode(searchParams.get('resultMode'));
+  const resultPage = parseResultPage(searchParams.get('resultPage'));
+  const selectedResultId = parseResultId(searchParams.get('resultId'));
+
+  const updateResultParams = (patch: {
+    mode?: ResultMode;
+    page?: number;
+    resultId?: number | null;
+  }) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (patch.mode) {
+        next.set('resultMode', patch.mode);
+      }
+      if (patch.page !== undefined) {
+        next.set('resultPage', String(patch.page));
+      }
+      if (patch.resultId === null) {
+        next.delete('resultId');
+      } else if (patch.resultId !== undefined) {
+        next.set('resultId', String(patch.resultId));
+      }
+      return next;
+    });
+  };
 
   const handleCancel = async () => {
     try {
@@ -198,7 +254,17 @@ export function TestRunDetailPage() {
       {activeTab === 'targets' ? <TargetsTab testRun={testRun} /> : null}
       {activeTab === 'evaluators' ? <EvaluatorsTab testRun={testRun} /> : null}
       {activeTab === 'snapshots' ? <SnapshotsTab testRun={testRun} /> : null}
-      {activeTab === 'results' ? <ResultsEntryTab testRun={testRun} /> : null}
+      {activeTab === 'results' ? (
+        <ResultsEntryTab
+          testRun={testRun}
+          mode={resultMode}
+          page={resultPage}
+          selectedResultId={selectedResultId}
+          onModeChange={(mode) => updateResultParams({ mode, page: 0, resultId: null })}
+          onPageChange={(page) => updateResultParams({ page, resultId: null })}
+          onSelectResult={(resultId) => updateResultParams({ resultId })}
+        />
+      ) : null}
     </div>
   );
 }
@@ -333,36 +399,278 @@ function SnapshotsTab({ testRun }: { testRun: TestRunDetailResponse }) {
   );
 }
 
-function ResultsEntryTab({ testRun }: { testRun: TestRunDetailResponse }) {
+function ResultsEntryTab({
+  testRun,
+  mode,
+  page,
+  selectedResultId,
+  onModeChange,
+  onPageChange,
+  onSelectResult,
+}: {
+  testRun: TestRunDetailResponse;
+  mode: ResultMode;
+  page: number;
+  selectedResultId: number | undefined;
+  onModeChange: (mode: ResultMode) => void;
+  onPageChange: (page: number) => void;
+  onSelectResult: (resultId: number) => void;
+}) {
+  const resultsQuery = useTestRunResults(testRun.id, mode, page, TEST_RUN_RESULTS_PAGE_SIZE);
+  const detailQuery = useTestCaseResult(selectedResultId, mode);
+  const results = resultsQuery.data?.items ?? [];
+
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section className="rounded-lg border bg-surface p-5">
-        <h2 className="text-lg font-semibold">Machine results</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Entry point cho kết quả máy chấm theo rule-based / LLM Judge. Slice kết quả sẽ nối vào
-          REST results endpoint.
-        </p>
-        <Button type="button" className="mt-4" variant="outline" disabled>
-          Mở Machine results
-        </Button>
-      </section>
-      <section className="rounded-lg border bg-surface p-5">
-        <h2 className="text-lg font-semibold">Final QC results</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Entry point cho kết quả cuối cùng sau QC review/manual override. Machine result không bị
-          ghi đè.
-        </p>
-        <Button type="button" className="mt-4" variant="outline" disabled>
-          Mở Final results
-        </Button>
-      </section>
-      {isTerminalTestRunStatus(testRun.status) ? null : (
-        <div className="rounded-lg border bg-muted p-4 text-sm text-muted-foreground md:col-span-2">
-          TestRun chưa terminal; results có thể chưa đầy đủ.
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Kết quả TestRun</h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              MACHINE giữ nguyên kết quả máy chấm. FINAL áp dụng QC override nếu có nhưng vẫn giữ
+              cột Machine để đối chiếu.
+            </p>
+          </div>
+          <div className="flex rounded-md border bg-background p-1 text-sm">
+            {(['MACHINE', 'FINAL'] satisfies ResultMode[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={[
+                  'rounded px-3 py-1.5 transition-colors',
+                  mode === item
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:text-foreground',
+                ].join(' ')}
+                onClick={() => onModeChange(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+
+        <div className="mt-5 rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Result</TableHead>
+                <TableHead>Machine</TableHead>
+                <TableHead>Final</TableHead>
+                <TableHead>Review</TableHead>
+                <TableHead>Latency</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {resultsQuery.isLoading ? (
+                <ResultsSkeletonRows />
+              ) : results.length > 0 ? (
+                results.map((result) => (
+                  <TableRow
+                    key={result.id}
+                    className={selectedResultId === result.id ? 'bg-muted/60' : 'cursor-pointer'}
+                    onClick={() => onSelectResult(result.id)}
+                  >
+                    <TableCell>
+                      <div className="font-medium">#{String(result.id)}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Row {String(result.datasetRowId)}
+                      </div>
+                      <div className="mt-1 max-w-[220px] truncate font-mono text-xs text-muted-foreground">
+                        {result.testRunTargetId}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <ResultStatusBadge status={result.machineStatus} />
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Score {scoreText(result.machineScore)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <ResultStatusBadge status={result.finalStatus} />
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Score {scoreText(result.finalScore)}
+                      </div>
+                      {machineFinalChanged(result) ? (
+                        <div className="mt-1 text-xs text-warning">Khác Machine</div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-sm">{reviewedText(result)}</TableCell>
+                    <TableCell className="text-sm">{latencyText(result.latencyMs)}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    Chưa có result nào.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {resultsQuery.isError ? (
+          <div className="mt-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
+            Không thể tải result list.
+          </div>
+        ) : null}
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="text-sm text-muted-foreground">
+            Trang {String(page + 1)} · {String(results.length)} result
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={page === 0 || resultsQuery.isFetching}
+              onClick={() => onPageChange(Math.max(0, page - 1))}
+            >
+              Trang trước
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!resultsQuery.data?.page.hasMore || resultsQuery.isFetching}
+              onClick={() => onPageChange(page + 1)}
+            >
+              Trang sau
+            </Button>
+          </div>
+        </div>
+
+        {isTerminalTestRunStatus(testRun.status) ? null : (
+          <div className="mt-4 rounded-lg border bg-muted p-4 text-sm text-muted-foreground">
+            TestRun chưa terminal; results có thể chưa đầy đủ.
+          </div>
+        )}
+      </section>
+
+      <ResultDetailPanel
+        resultId={selectedResultId}
+        result={detailQuery.data}
+        isLoading={detailQuery.isLoading}
+        isError={detailQuery.isError}
+        mode={mode}
+      />
     </div>
   );
+}
+
+function ResultsSkeletonRows() {
+  return (
+    <>
+      {['result-skeleton-1', 'result-skeleton-2', 'result-skeleton-3', 'result-skeleton-4'].map(
+        (key) => (
+          <TableRow key={key}>
+            <TableCell colSpan={5}>
+              <Skeleton className="h-12 w-full" />
+            </TableCell>
+          </TableRow>
+        ),
+      )}
+    </>
+  );
+}
+
+function ResultDetailPanel({
+  resultId,
+  result,
+  isLoading,
+  isError,
+  mode,
+}: {
+  resultId: number | undefined;
+  result: TestCaseResultDetailResponse | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  mode: ResultMode;
+}) {
+  if (resultId === undefined) {
+    return (
+      <aside className="rounded-lg border bg-surface p-5 text-sm text-muted-foreground">
+        Chọn một result để xem request, response, grading và token usage đã được backend sanitize.
+      </aside>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <aside className="rounded-lg border bg-surface p-5">
+        <Skeleton className="h-6 w-1/2" />
+        <Skeleton className="mt-4 h-[520px] w-full" />
+      </aside>
+    );
+  }
+
+  if (isError || !result) {
+    return (
+      <aside className="rounded-lg border border-danger-soft bg-danger-soft p-5 text-sm text-danger">
+        Không thể tải result detail.
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="space-y-4 rounded-lg border bg-surface p-5">
+      <div>
+        <div className="text-xs text-muted-foreground">Result detail · {mode}</div>
+        <h2 className="mt-1 text-lg font-semibold">#{String(result.id)}</h2>
+        <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+          Target {result.testRunTargetId}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <SummaryCard label="Machine" value={resultStatusLabel(result.machineStatus)} />
+        <SummaryCard label="Final" value={resultStatusLabel(result.finalStatus)} />
+        <SummaryCard label="Score máy" value={scoreText(result.machineScore)} />
+        <SummaryCard label="Score final" value={scoreText(result.finalScore)} />
+      </div>
+
+      {result.machineSummary ? (
+        <section className="rounded-lg border bg-background p-4">
+          <h3 className="text-sm font-semibold">Machine summary</h3>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+            {result.machineSummary}
+          </p>
+        </section>
+      ) : null}
+
+      <JsonBlock title="Request" value={result.request} />
+      <JsonBlock title="Response" value={result.response} />
+      <JsonBlock title="Extracted output" value={result.extractedOutput} />
+      <JsonBlock title="Grading result" value={result.gradingResult} />
+      <JsonBlock title="Component results" value={result.componentResults} />
+      <JsonBlock title="Token usage" value={result.tokenUsage} />
+    </aside>
+  );
+}
+
+function JsonBlock({ title, value }: { title: string; value: unknown }) {
+  return (
+    <section className="rounded-lg border bg-background p-4">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <pre className="mt-3 max-h-72 overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed text-muted-foreground">
+        {jsonPreview(value)}
+      </pre>
+    </section>
+  );
+}
+
+function ResultStatusBadge({ status }: { status: TestCaseResultDetailResponse['machineStatus'] }) {
+  const tone = resultStatusTone(status);
+  const className = [
+    'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+    tone === 'success' ? 'bg-success-soft text-success' : '',
+    tone === 'danger' ? 'bg-danger-soft text-danger' : '',
+    tone === 'warning' ? 'bg-warning-soft text-warning' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return <span className={className}>{resultStatusLabel(status)}</span>;
 }
 
 function StatusBadge({ status }: { status: TestRunDetailResponse['status'] }) {

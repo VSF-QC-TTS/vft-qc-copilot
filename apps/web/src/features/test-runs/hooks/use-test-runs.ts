@@ -3,11 +3,14 @@ import {
   cancelTestRun,
   createTestRun,
   getProjectTestRuns,
+  getTestCaseResult,
   getTestRun,
+  getTestRunResults,
   preflightTestRun,
 } from '@/features/test-runs/api/test-runs.api';
 import type {
   CreateTestRunRequest,
+  ResultMode,
   RunPreflightRequest,
 } from '@/features/test-runs/types/test-run';
 
@@ -16,6 +19,10 @@ export const testRunKeys = {
   project: (projectId: string) => [...testRunKeys.all, 'project', projectId] as const,
   detail: (testRunId: string) => [...testRunKeys.all, 'detail', testRunId] as const,
   results: (testRunId: string) => [...testRunKeys.all, 'results', testRunId] as const,
+  resultsPage: (testRunId: string, mode: ResultMode, page: number, size: number) =>
+    [...testRunKeys.results(testRunId), mode, page, size] as const,
+  resultDetail: (resultId: number, mode: ResultMode) =>
+    [...testRunKeys.all, 'result-detail', resultId, mode] as const,
 };
 
 export function useProjectTestRuns(projectId: string) {
@@ -31,6 +38,27 @@ export function useTestRun(testRunId: string) {
     queryKey: testRunKeys.detail(testRunId),
     queryFn: ({ signal }) => getTestRun(testRunId, signal),
     enabled: Boolean(testRunId),
+  });
+}
+
+export function useTestRunResults(testRunId: string, mode: ResultMode, page: number, size: number) {
+  return useQuery({
+    queryKey: testRunKeys.resultsPage(testRunId, mode, page, size),
+    queryFn: ({ signal }) => getTestRunResults(testRunId, { mode, page, size, signal }),
+    enabled: Boolean(testRunId),
+  });
+}
+
+export function useTestCaseResult(resultId: number | undefined, mode: ResultMode) {
+  return useQuery({
+    queryKey: resultId === undefined ? testRunKeys.all : testRunKeys.resultDetail(resultId, mode),
+    queryFn: ({ signal }) => {
+      if (resultId === undefined) {
+        throw new Error('Result ID is required');
+      }
+      return getTestCaseResult(resultId, mode, signal);
+    },
+    enabled: resultId !== undefined,
   });
 }
 
