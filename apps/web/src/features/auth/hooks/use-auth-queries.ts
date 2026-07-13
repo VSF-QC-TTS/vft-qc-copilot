@@ -36,11 +36,17 @@ export function useLoginMutation() {
 export function useLogoutMutation() {
   const queryClient = useQueryClient();
 
+  const clearSession = () => {
+    accessTokenStore.clear();
+    queryClient.setQueryData(authKeys.currentUser(), { data: null });
+    queryClient.removeQueries({ queryKey: authKeys.all, type: 'inactive' });
+  };
+
   return useMutation({
     mutationFn: logout,
+    onMutate: clearSession,
     onSettled: () => {
-      accessTokenStore.clear();
-      queryClient.removeQueries({ queryKey: authKeys.all });
+      clearSession();
     },
   });
 }
