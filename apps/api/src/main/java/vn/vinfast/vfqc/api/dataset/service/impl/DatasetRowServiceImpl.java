@@ -82,6 +82,10 @@ public class DatasetRowServiceImpl implements DatasetRowService {
       CurrentUser user, Long rowId, PatchDatasetRowCellsRequest request) {
     var row = rowRepository.findById(rowId).orElseThrow(ErrorCode.RESOURCE_NOT_FOUND::throwIt);
     var version = requireDraftVersion(user, row.getDatasetVersionId());
+    if (row.getRevision() != request.expectedRevision()) {
+      throw ErrorCode.DATASET_ROW_REVISION_CONFLICT.throwIt(
+          "Dataset row was changed by another request. Refresh the row before saving.");
+    }
     cellValidator.validate(version.getSchemaId(), request.cells());
     row.setCellsJson(request.cells());
     row.setRevision(row.getRevision() + 1);

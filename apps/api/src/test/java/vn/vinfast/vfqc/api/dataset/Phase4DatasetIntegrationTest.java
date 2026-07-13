@@ -49,10 +49,40 @@ class Phase4DatasetIntegrationTest extends PostgresIntegrationTestBase {
     var stored = datasetRowRepository.findById(rowId).orElseThrow();
     assertThat(stored.getRowHash()).isNotBlank();
 
-    patchRow(user, rowId, Map.of("question", "What is VF 9?", "expected", "Answer"));
+    patchRow(user, rowId, Map.of("question", "What is VF 9?", "expected", "Answer"), 0);
 
     var patched = datasetRowRepository.findById(rowId).orElseThrow();
     assertThat(patched.getRowHash()).isNotBlank().isNotEqualTo(stored.getRowHash());
+  }
+
+  @Test
+  void patchRow_WithStaleRevision_ReturnsConflictAndPreservesCells() throws Exception {
+    var user = user("dataset-conflict-owner@vinfast.vn");
+    var workspace = workspace(user);
+    var projectId = createProject(user, workspace.getId(), "Dataset Conflict Project");
+    var datasetId = createDataset(user, projectId, "Conflict Dataset");
+    var draftId = draftVersionId(datasetId);
+    var rowId = addRow(user, draftId, Map.of("question", "Q1", "expected", "A1"));
+
+    patchRow(user, rowId, Map.of("question", "Q2", "expected", "A2"), 0);
+
+    mockMvc
+        .perform(
+            patch("/api/v1/dataset-rows/" + rowId)
+                .with(bearer(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of(
+                            "cells",
+                            Map.of("question", "Q3", "expected", "A3"),
+                            "expectedRevision",
+                            0))))
+        .andExpect(status().isConflict());
+
+    var stored = datasetRowRepository.findById(rowId).orElseThrow();
+    assertThat(stored.getRevision()).isEqualTo(1);
+    assertThat(stored.getCellsJson()).containsEntry("question", "Q2");
   }
 
   @Test
@@ -261,14 +291,19 @@ class Phase4DatasetIntegrationTest extends PostgresIntegrationTestBase {
   }
 
   private void patchRow(
-      vn.vinfast.vfqc.api.user.entity.AppUser user, long rowId, Map<String, Object> cells)
+      vn.vinfast.vfqc.api.user.entity.AppUser user,
+      long rowId,
+      Map<String, Object> cells,
+      int expectedRevision)
       throws Exception {
     mockMvc
         .perform(
             patch("/api/v1/dataset-rows/" + rowId)
                 .with(bearer(user))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Map.of("cells", cells))))
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("cells", cells, "expectedRevision", expectedRevision))))
         .andExpect(status().isOk());
   }
 

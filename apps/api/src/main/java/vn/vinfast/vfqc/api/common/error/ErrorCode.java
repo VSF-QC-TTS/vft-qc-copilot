@@ -46,6 +46,10 @@ public enum ErrorCode {
       "error.dataset.draftAlreadyExists"),
   DATASET_VERSION_NOT_EDITABLE(
       HttpStatus.CONFLICT, "Dataset version is not editable", "error.dataset.versionNotEditable"),
+  DATASET_ROW_REVISION_CONFLICT(
+      HttpStatus.CONFLICT,
+      "Dataset row revision conflict",
+      "error.dataset.rowRevisionConflict"),
   DATASET_REQUIRED_COLUMN_MISSING(
       HttpStatus.BAD_REQUEST,
       "Required dataset column is missing",
