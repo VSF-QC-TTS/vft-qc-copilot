@@ -59,7 +59,7 @@ export function EvaluatorRuleBuilder({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Rules</h2>
+          <h2 className="text-lg font-semibold">Rules kiểm tra</h2>
           <p className="text-sm text-muted-foreground">
             Rule-based Evaluator không hỗ trợ custom JavaScript.
           </p>
@@ -79,11 +79,11 @@ export function EvaluatorRuleBuilder({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[70px]">#</TableHead>
-              <TableHead>Field source</TableHead>
-              <TableHead>Operator</TableHead>
-              <TableHead>Expected</TableHead>
-              <TableHead>Weight</TableHead>
-              <TableHead>Required</TableHead>
+              <TableHead>Nguồn dữ liệu</TableHead>
+              <TableHead>Toán tử</TableHead>
+              <TableHead>Giá trị kỳ vọng</TableHead>
+              <TableHead>Trọng số</TableHead>
+              <TableHead>Bắt buộc</TableHead>
               <TableHead className="w-[90px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -215,7 +215,7 @@ export function EvaluatorRuleBuilder({
       </div>
 
       <div className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
-        <Label>Rule summary</Label>
+        <Label>Tóm tắt rules</Label>
         <ul className="mt-2 list-disc space-y-1 pl-4">
           {rules.map((rule, index) => (
             <li key={`${rule.fieldSource}-summary-${String(index)}`}>
@@ -255,11 +255,11 @@ function parseExpectedKind(value: string): ExpectedValueKind {
 }
 
 function expectedKindLabel(kind: ExpectedValueKind) {
-  if (kind === 'datasetVariable') return 'Dataset variable';
-  if (kind === 'number') return 'Number';
+  if (kind === 'datasetVariable') return 'Biến dataset';
+  if (kind === 'number') return 'Số';
   if (kind === 'boolean') return 'Boolean';
   if (kind === 'json') return 'JSON';
-  return 'Literal';
+  return 'Chuỗi';
 }
 
 function operatorText(operator: EvaluatorOperator) {

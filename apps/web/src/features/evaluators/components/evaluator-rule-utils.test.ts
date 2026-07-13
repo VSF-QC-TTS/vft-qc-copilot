@@ -4,6 +4,7 @@ import {
   buildCreateEvaluatorRequest,
   buildCreateVersionRequest,
   buildRuleRequest,
+  emptyLlmJudgeDraft,
   expectedValueRequired,
   fieldSourceOptions,
   ruleBasedConfig,
@@ -124,6 +125,73 @@ describe('evaluator rule utils', () => {
       ],
     });
     expect(buildCreateVersionRequest(rules).config).toBe(ruleBasedConfig);
+  });
+
+  it('builds an LLM_JUDGE request without rule rows', () => {
+    const llmJudge = {
+      ...emptyLlmJudgeDraft(),
+      rubric: 'Grade factual correctness.',
+      inputTemplate: 'Actual: {{actual}}',
+      defaultJudgeProviderId: '11111111-1111-4111-8111-111111111111',
+      defaultJudgeModel: 'gpt-4.1-mini',
+    };
+
+    expect(buildCreateEvaluatorRequest(' Rubric ', [], 'LLM_JUDGE', llmJudge)).toEqual({
+      name: 'Rubric',
+      type: 'LLM_JUDGE',
+      config: {
+        llmJudge: {
+          rubric: 'Grade factual correctness.',
+          scoreScale: { min: 0, max: 1 },
+          threshold: 0.7,
+          passCondition: 'SCORE_AT_LEAST_THRESHOLD',
+          inputTemplate: 'Actual: {{actual}}',
+          outputSchema: 'VFQC_JUDGE_V1',
+          defaultJudgeProviderId: '11111111-1111-4111-8111-111111111111',
+          defaultJudgeModel: 'gpt-4.1-mini',
+        },
+      },
+      rules: [],
+    });
+  });
+
+  it('builds a MIXED request with rule aggregation and judge config', () => {
+    const rules = [
+      {
+        fieldSource: 'response.statusCode',
+        operator: 'NUMERIC_EQUALS' as const,
+        expectedKind: 'number' as const,
+        expectedRaw: '200',
+        weight: '1',
+        required: true,
+      },
+    ];
+    const llmJudge = {
+      ...emptyLlmJudgeDraft(),
+      threshold: '0.8',
+      ruleThreshold: '0.6',
+    };
+
+    expect(buildCreateVersionRequest(rules, 'MIXED', llmJudge)).toMatchObject({
+      config: {
+        ruleBased: {
+          aggregation: 'ALL_REQUIRED_AND_WEIGHTED_THRESHOLD',
+          passCondition: { type: 'SCORE_AT_LEAST_THRESHOLD', threshold: 0.6 },
+        },
+        llmJudge: {
+          threshold: 0.8,
+          passCondition: 'SCORE_AT_LEAST_THRESHOLD',
+          outputSchema: 'VFQC_JUDGE_V1',
+        },
+      },
+      rules: [
+        {
+          fieldSource: 'response.statusCode',
+          operator: 'NUMERIC_EQUALS',
+          expectedValue: { type: 'number', value: 200 },
+        },
+      ],
+    });
   });
 
   it('converts version response into editable draft without mutating the version', () => {

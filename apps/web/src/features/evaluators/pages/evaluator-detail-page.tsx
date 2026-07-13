@@ -14,13 +14,17 @@ import {
 } from '@/shared/components/ui/table';
 import { PermissionGuard } from '@/shared/components/permission-guard';
 import { notifyError, notifySuccess, notifyWarning } from '@/shared/lib/notifications';
+import { EvaluatorLlmJudgeEditor } from '@/features/evaluators/components/evaluator-llm-judge-editor';
 import { EvaluatorRuleBuilder } from '@/features/evaluators/components/evaluator-rule-builder';
 import {
   buildCreateVersionRequest,
   buildValidateEvaluatorRequest,
   fieldSourceOptions,
+  llmJudgeDraftFromVersion,
+  llmJudgeSummary,
   ruleDraftsFromVersion,
   ruleSummary,
+  type LlmJudgeDraft,
   type RuleDraft,
 } from '@/features/evaluators/components/evaluator-rule-utils';
 import {
@@ -36,9 +40,13 @@ import {
   createEvaluatorVersionRequestSchema,
   updateEvaluatorRequestSchema,
 } from '@/features/evaluators/types/evaluator';
+import { useWorkspaceProviders } from '@/features/providers/hooks/use-providers';
 import type { WorkspaceContextType } from '@/app/layouts/workspace-context-layout';
 import type { ProjectResponse } from '@/features/projects/types/project';
-import type { EvaluatorVersionResponse } from '@/features/evaluators/types/evaluator';
+import type {
+  EvaluatorType,
+  EvaluatorVersionResponse,
+} from '@/features/evaluators/types/evaluator';
 
 interface ProjectContextType extends WorkspaceContextType {
   project: ProjectResponse;
@@ -55,6 +63,7 @@ export function EvaluatorDetailPage() {
   const versionsQuery = useEvaluatorVersions(evaluatorId);
   const fieldSourcesQuery = useEvaluatorFieldSources(project.id);
   const operatorsQuery = useEvaluatorOperators();
+  const providersQuery = useWorkspaceProviders(workspace.id);
   const updateMutation = useUpdateEvaluator(project.id);
   const createVersionMutation = useCreateEvaluatorVersion(evaluatorId);
   const validateMutation = useValidateEvaluator(project.id);
@@ -66,6 +75,7 @@ export function EvaluatorDetailPage() {
   );
   const [name, setName] = useState('');
   const [draftRules, setDraftRules] = useState<RuleDraft[]>([]);
+  const [llmJudge, setLlmJudge] = useState<LlmJudgeDraft>(llmJudgeDraftFromVersionFallback());
 
   useEffect(() => {
     if (evaluatorQuery.data) {
@@ -76,6 +86,7 @@ export function EvaluatorDetailPage() {
   useEffect(() => {
     if (selectedVersion) {
       setDraftRules(ruleDraftsFromVersion(selectedVersion));
+      setLlmJudge(llmJudgeDraftFromVersion(selectedVersion));
     }
   }, [selectedVersion]);
 
@@ -101,8 +112,17 @@ export function EvaluatorDetailPage() {
     );
   }
 
+  const evaluatorType = selectedVersion?.type ?? evaluatorQuery.data.type;
+  const usesRules = evaluatorType !== 'LLM_JUDGE';
+  const usesLlmJudge = evaluatorType !== 'RULE_BASED';
+  const activeProviders = (providersQuery.data ?? []).filter(
+    (provider) => provider.status === 'ACTIVE',
+  );
   const isPending =
-    updateMutation.isPending || createVersionMutation.isPending || validateMutation.isPending;
+    updateMutation.isPending ||
+    createVersionMutation.isPending ||
+    validateMutation.isPending ||
+    providersQuery.isLoading;
 
   const navigateToVersion = async (targetVersionId: string) => {
     await navigate(
@@ -122,7 +142,9 @@ export function EvaluatorDetailPage() {
 
   const handleValidate = async () => {
     try {
-      await validateMutation.mutateAsync(buildValidateEvaluatorRequest(draftRules));
+      await validateMutation.mutateAsync(
+        buildValidateEvaluatorRequest(draftRules, evaluatorType, llmJudge),
+      );
       notifySuccess('Version mới hợp lệ');
     } catch {
       notifyWarning('Version mới chưa hợp lệ. Vui lòng kiểm tra rules.');
@@ -132,9 +154,11 @@ export function EvaluatorDetailPage() {
   const handleCreateVersion = async () => {
     try {
       const request = createEvaluatorVersionRequestSchema.parse(
-        buildCreateVersionRequest(draftRules),
+        buildCreateVersionRequest(draftRules, evaluatorType, llmJudge),
       );
-      await validateMutation.mutateAsync(buildValidateEvaluatorRequest(draftRules));
+      await validateMutation.mutateAsync(
+        buildValidateEvaluatorRequest(draftRules, evaluatorType, llmJudge),
+      );
       const version = await createVersionMutation.mutateAsync(request);
       notifySuccess('Đã tạo Evaluator version mới');
       await navigateToVersion(version.id);
@@ -150,7 +174,7 @@ export function EvaluatorDetailPage() {
           <p className="text-sm text-muted-foreground">{project.name}</p>
           <h1 className="text-2xl font-semibold tracking-tight">{evaluatorQuery.data.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Rule-based Evaluator · existing versions are read-only.
+            {evaluatorTypeLabel(evaluatorType)} · version đã tạo là read-only.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -171,10 +195,10 @@ export function EvaluatorDetailPage() {
                 </p>
               </div>
               <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
-                Read-only
+                Chỉ đọc
               </span>
             </div>
-            {selectedVersion ? <RuleReadOnlyTable version={selectedVersion} /> : null}
+            {selectedVersion ? <VersionReadOnlyView version={selectedVersion} /> : null}
           </section>
 
           <PermissionGuard capability="EDIT" workspaceRole={workspace.currentUserRole}>
@@ -183,22 +207,35 @@ export function EvaluatorDetailPage() {
                 <div className="mb-4">
                   <h2 className="text-lg font-semibold">Tạo version mới</h2>
                   <p className="text-sm text-muted-foreground">
-                    Chỉnh rules bên dưới sẽ tạo EvaluatorVersion mới, không sửa version hiện tại.
+                    Chỉnh config bên dưới sẽ tạo EvaluatorVersion mới, không sửa version hiện tại.
                   </p>
                 </div>
-                <EvaluatorRuleBuilder
-                  rules={draftRules}
-                  fieldSources={fieldSources}
-                  operators={operatorsQuery.data ?? []}
-                  disabled={
-                    !canEdit ||
-                    isPending ||
-                    fieldSourcesQuery.isLoading ||
-                    operatorsQuery.isLoading ||
-                    fieldSources.length === 0
-                  }
-                  onChange={setDraftRules}
-                />
+                {usesRules ? (
+                  <EvaluatorRuleBuilder
+                    rules={draftRules}
+                    fieldSources={fieldSources}
+                    operators={operatorsQuery.data ?? []}
+                    disabled={
+                      !canEdit ||
+                      isPending ||
+                      fieldSourcesQuery.isLoading ||
+                      operatorsQuery.isLoading ||
+                      fieldSources.length === 0
+                    }
+                    onChange={setDraftRules}
+                  />
+                ) : null}
+                {usesLlmJudge ? (
+                  <div className={usesRules ? 'mt-4' : undefined}>
+                    <EvaluatorLlmJudgeEditor
+                      draft={llmJudge}
+                      providers={activeProviders}
+                      disabled={!canEdit || isPending}
+                      showRuleThreshold={evaluatorType === 'MIXED'}
+                      onChange={setLlmJudge}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-4 flex justify-end gap-2">
                   <Button
                     type="button"
@@ -206,7 +243,7 @@ export function EvaluatorDetailPage() {
                     disabled={!canEdit || isPending}
                     onClick={() => void handleValidate()}
                   >
-                    Validate
+                    Kiểm tra
                   </Button>
                   <Button
                     type="button"
@@ -264,7 +301,7 @@ export function EvaluatorDetailPage() {
                   >
                     <div className="font-medium">Version {version.version}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {version.rules.length} rules ·{' '}
+                      {version.rules.length} rule · {evaluatorTypeLabel(version.type)} ·{' '}
                       {new Date(version.createdAt).toLocaleString('vi-VN')}
                     </div>
                   </Link>
@@ -278,6 +315,20 @@ export function EvaluatorDetailPage() {
   );
 }
 
+function VersionReadOnlyView({ version }: { version: EvaluatorVersionResponse }) {
+  return (
+    <div className="space-y-4">
+      {version.type !== 'RULE_BASED' ? (
+        <div className="rounded-md border bg-muted/40 p-4 text-sm">
+          <div className="font-medium">Cấu hình LLM Judge</div>
+          <p className="mt-1 text-muted-foreground">{llmJudgeSummary(version.config)}</p>
+        </div>
+      ) : null}
+      {version.type !== 'LLM_JUDGE' ? <RuleReadOnlyTable version={version} /> : null}
+    </div>
+  );
+}
+
 function RuleReadOnlyTable({ version }: { version: EvaluatorVersionResponse }) {
   return (
     <div className="overflow-x-auto rounded-md border">
@@ -285,10 +336,10 @@ function RuleReadOnlyTable({ version }: { version: EvaluatorVersionResponse }) {
         <TableHeader>
           <TableRow>
             <TableHead className="w-[70px]">#</TableHead>
-            <TableHead>Rule summary</TableHead>
-            <TableHead>Operator</TableHead>
-            <TableHead>Required</TableHead>
-            <TableHead>Weight</TableHead>
+            <TableHead>Tóm tắt rule</TableHead>
+            <TableHead>Toán tử</TableHead>
+            <TableHead>Bắt buộc</TableHead>
+            <TableHead>Trọng số</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -310,4 +361,23 @@ function RuleReadOnlyTable({ version }: { version: EvaluatorVersionResponse }) {
       </Table>
     </div>
   );
+}
+
+function evaluatorTypeLabel(type: EvaluatorType) {
+  if (type === 'LLM_JUDGE') return 'LLM Judge';
+  if (type === 'MIXED') return 'Mixed Evaluator';
+  return 'Rule-based Evaluator';
+}
+
+function llmJudgeDraftFromVersionFallback(): LlmJudgeDraft {
+  return {
+    rubric: '',
+    inputTemplate: '',
+    threshold: '0.7',
+    scoreMin: '0',
+    scoreMax: '1',
+    ruleThreshold: '0.7',
+    defaultJudgeProviderId: '',
+    defaultJudgeModel: '',
+  };
 }
