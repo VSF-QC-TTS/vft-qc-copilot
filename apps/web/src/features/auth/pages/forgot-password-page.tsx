@@ -8,9 +8,7 @@ export function ForgotPasswordPage() {
         <div className="mb-6 flex flex-col items-center space-y-4 text-center">
           <Logo className="h-8 justify-center" />
           <div className="space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Quên mật khẩu
-            </h1>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">Quên mật khẩu</h1>
           </div>
         </div>
         <ForgotPasswordForm />

@@ -45,7 +45,9 @@ export function ForgotPasswordForm({ className }: ForgotPasswordFormProps) {
         });
       } else {
         // Generic error
-        setError('root', { message: error instanceof Error ? error.message : 'Yêu cầu đặt lại mật khẩu thất bại' });
+        setError('root', {
+          message: error instanceof Error ? error.message : 'Yêu cầu đặt lại mật khẩu thất bại',
+        });
       }
     }
   };
@@ -55,7 +57,8 @@ export function ForgotPasswordForm({ className }: ForgotPasswordFormProps) {
       <div className={cn('flex flex-col items-center justify-center gap-4 text-center', className)}>
         <h3 className="text-lg font-medium text-foreground">Yêu cầu đã được gửi</h3>
         <p className="text-sm text-muted-foreground">
-          Nếu email này được liên kết với một tài khoản, bạn sẽ nhận được một đường dẫn đặt lại mật khẩu.
+          Nếu email này được liên kết với một tài khoản, bạn sẽ nhận được một đường dẫn đặt lại mật
+          khẩu.
         </p>
         <Button asChild className="mt-4 w-full">
           <Link to="/login">Trở về trang Đăng nhập</Link>
@@ -82,7 +85,7 @@ export function ForgotPasswordForm({ className }: ForgotPasswordFormProps) {
           Nhập địa chỉ email của bạn, chúng tôi sẽ gửi một đường dẫn để đặt lại mật khẩu.
         </p>
         <div className="space-y-2">
-          <Label htmlFor="email" className={errors.email ? "text-danger-fg" : ""}>
+          <Label htmlFor="email" className={errors.email ? 'text-danger-fg' : ''}>
             Email
           </Label>
           <Input
@@ -96,11 +99,7 @@ export function ForgotPasswordForm({ className }: ForgotPasswordFormProps) {
           />
           {errors.email && <p className="text-sm text-danger-fg">{errors.email.message}</p>}
         </div>
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="mt-2 w-full"
-        >
+        <Button type="submit" disabled={isSubmitting} className="mt-2 w-full">
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -111,7 +110,7 @@ export function ForgotPasswordForm({ className }: ForgotPasswordFormProps) {
           )}
         </Button>
       </form>
-      
+
       <div className="text-center text-sm">
         <Link to="/login" className="font-medium text-primary hover:underline">
           Trở lại Đăng nhập

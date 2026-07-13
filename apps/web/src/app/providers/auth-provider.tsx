@@ -27,14 +27,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setAuthenticationFailureHandler(() => {
       queryClient.clear(); // Clear all queries on auth failure
     });
-    
+
     // Initialize CSRF
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
     const csrfManager = createCsrfTokenManager({ baseUrl: apiBaseUrl });
-    csrfManager.getToken().then(() => setCsrfInitialized(true)).catch(() => {
-      // Even if CSRF fails initially, we allow the app to render, API client will retry
-      setCsrfInitialized(true);
-    });
+    csrfManager
+      .getToken()
+      .then(() => setCsrfInitialized(true))
+      .catch(() => {
+        // Even if CSRF fails initially, we allow the app to render, API client will retry
+        setCsrfInitialized(true);
+      });
   }, [queryClient]);
 
   const { data, isLoading: isQueryLoading, isFetching } = useCurrentUserQuery(csrfInitialized);

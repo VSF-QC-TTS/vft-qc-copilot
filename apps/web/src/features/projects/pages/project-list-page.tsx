@@ -1,10 +1,19 @@
-import { Link, useOutletContext, useParams } from 'react-router';
+import { Link, useOutletContext } from 'react-router';
 import { WorkspaceContextType } from '@/app/layouts/workspace-context-layout';
 import { useWorkspaceProjects } from '@/features/workspaces/hooks/use-workspaces';
 import { Plus, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { useState } from 'react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
+
+const projectSkeletonKeys = [
+  'project-skeleton-1',
+  'project-skeleton-2',
+  'project-skeleton-3',
+  'project-skeleton-4',
+  'project-skeleton-5',
+  'project-skeleton-6',
+];
 
 export function ProjectListPage() {
   const { workspace } = useOutletContext<WorkspaceContextType>();
@@ -15,8 +24,8 @@ export function ProjectListPage() {
     return (
       <div className="mx-auto w-full max-w-5xl py-12 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-xl" />
+          {projectSkeletonKeys.map((key) => (
+            <Skeleton key={key} className="h-32 w-full rounded-xl" />
           ))}
         </div>
       </div>
@@ -37,11 +46,15 @@ export function ProjectListPage() {
     <div className="mx-auto w-full max-w-5xl py-12 px-4 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col items-start justify-between sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-[#111111]" style={{ fontFamily: "'Lyon Text', 'Newsreader', 'Playfair Display', serif" }}>
+          <h1
+            className="text-3xl font-semibold tracking-tight text-[#111111]"
+            style={{ fontFamily: "'Lyon Text', 'Newsreader', 'Playfair Display', serif" }}
+          >
             Projects
           </h1>
           <p className="mt-1 text-sm text-[#787774]">
-            Quản lý các project trong workspace <span className="font-medium text-[#111111]">{workspace.name}</span>.
+            Quản lý các project trong workspace{' '}
+            <span className="font-medium text-[#111111]">{workspace.name}</span>.
           </p>
         </div>
         <div className="mt-4 flex items-center gap-4 sm:mt-0">
@@ -51,7 +64,9 @@ export function ProjectListPage() {
               onClick={() => setView('grid')}
               className={cn(
                 'flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors',
-                view === 'grid' ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] text-[#111111]' : 'text-[#787774] hover:text-[#111111]'
+                view === 'grid'
+                  ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] text-[#111111]'
+                  : 'text-[#787774] hover:text-[#111111]',
               )}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -61,15 +76,15 @@ export function ProjectListPage() {
               onClick={() => setView('list')}
               className={cn(
                 'flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors',
-                view === 'list' ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] text-[#111111]' : 'text-[#787774] hover:text-[#111111]'
+                view === 'list'
+                  ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] text-[#111111]'
+                  : 'text-[#787774] hover:text-[#111111]',
               )}
             >
               <List className="h-4 w-4" />
             </button>
           </div>
-          <button
-            className="flex h-9 items-center justify-center rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-transform hover:bg-[#333333] active:scale-[0.98]"
-          >
+          <button className="flex h-9 items-center justify-center rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-transform hover:bg-[#333333] active:scale-[0.98]">
             <Plus className="mr-2 h-4 w-4" />
             Tạo Project
           </button>
@@ -99,7 +114,9 @@ export function ProjectListPage() {
                 </p>
               </div>
               <div className="mt-6 flex items-center justify-between text-xs text-[#787774]">
-                <span>Cập nhật {new Date(project.updatedAt || project.createdAt).toLocaleDateString()}</span>
+                <span>
+                  Cập nhật {new Date(project.updatedAt || project.createdAt).toLocaleDateString()}
+                </span>
                 <span className="rounded-full bg-[#F7F6F3] px-2 py-0.5 border border-[#EAEAEA]">
                   Hoạt động
                 </span>

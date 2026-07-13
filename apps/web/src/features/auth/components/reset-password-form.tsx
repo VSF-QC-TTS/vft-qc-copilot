@@ -51,7 +51,9 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
           }
         });
       } else {
-        setError('root', { message: error instanceof Error ? error.message : 'Đặt lại mật khẩu thất bại' });
+        setError('root', {
+          message: error instanceof Error ? error.message : 'Đặt lại mật khẩu thất bại',
+        });
       }
     }
   };
@@ -99,7 +101,7 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
           </div>
         )}
         <div className="space-y-2">
-          <Label htmlFor="password" className={errors.password ? "text-danger-fg" : ""}>
+          <Label htmlFor="password" className={errors.password ? 'text-danger-fg' : ''}>
             Mật khẩu mới
           </Label>
           <PasswordInput
@@ -108,12 +110,17 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
             placeholder="••••••••"
             autoComplete="new-password"
             disabled={isSubmitting}
-            className={errors.password ? 'border-danger-border focus-visible:ring-danger-border' : ''}
+            className={
+              errors.password ? 'border-danger-border focus-visible:ring-danger-border' : ''
+            }
           />
           {errors.password && <p className="text-sm text-danger-fg">{errors.password.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className={errors.confirmPassword ? "text-danger-fg" : ""}>
+          <Label
+            htmlFor="confirmPassword"
+            className={errors.confirmPassword ? 'text-danger-fg' : ''}
+          >
             Xác nhận mật khẩu mới
           </Label>
           <PasswordInput
@@ -122,18 +129,18 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
             placeholder="••••••••"
             autoComplete="new-password"
             disabled={isSubmitting}
-            className={errors.confirmPassword ? 'border-danger-border focus-visible:ring-danger-border' : ''}
+            className={
+              errors.confirmPassword ? 'border-danger-border focus-visible:ring-danger-border' : ''
+            }
           />
-          {errors.confirmPassword && <p className="text-sm text-danger-fg">{errors.confirmPassword.message}</p>}
+          {errors.confirmPassword && (
+            <p className="text-sm text-danger-fg">{errors.confirmPassword.message}</p>
+          )}
         </div>
         {/* Hidden token field for React Hook Form validation */}
         <input type="hidden" {...register('token')} />
-        
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="mt-2 w-full"
-        >
+
+        <Button type="submit" disabled={isSubmitting} className="mt-2 w-full">
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

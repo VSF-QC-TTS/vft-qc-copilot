@@ -1,8 +1,14 @@
 import { Link, useOutletContext } from 'react-router';
 import { WorkspaceContextType } from '@/app/layouts/workspace-context-layout';
 import { useWorkspaceProjects } from '@/features/workspaces/hooks/use-workspaces';
-import { Loader2, Plus, ArrowRight } from 'lucide-react';
+import { Plus, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
+
+const recentProjectSkeletonKeys = [
+  'recent-project-skeleton-1',
+  'recent-project-skeleton-2',
+  'recent-project-skeleton-3',
+];
 
 export function WorkspaceOverviewPage() {
   const { workspace } = useOutletContext<WorkspaceContextType>();
@@ -24,11 +30,17 @@ export function WorkspaceOverviewPage() {
               </span>
             )}
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-[#111111]" style={{ fontFamily: "'Lyon Text', 'Newsreader', 'Playfair Display', serif" }}>
+          <h1
+            className="text-4xl font-semibold tracking-tight text-[#111111]"
+            style={{ fontFamily: "'Lyon Text', 'Newsreader', 'Playfair Display', serif" }}
+          >
             {workspace.name}
           </h1>
           <p className="text-base text-[#787774]">
-            ID: <kbd className="rounded border border-[#EAEAEA] bg-[#F7F6F3] px-1 font-mono text-xs">{workspace.id}</kbd>
+            ID:{' '}
+            <kbd className="rounded border border-[#EAEAEA] bg-[#F7F6F3] px-1 font-mono text-xs">
+              {workspace.id}
+            </kbd>
           </p>
         </div>
         <div className="mt-4 flex gap-3 sm:mt-0">
@@ -38,9 +50,7 @@ export function WorkspaceOverviewPage() {
           >
             Tất cả Project
           </Link>
-          <button
-            className="flex h-9 items-center justify-center rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-transform hover:bg-[#333333] active:scale-[0.98]"
-          >
+          <button className="flex h-9 items-center justify-center rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-transform hover:bg-[#333333] active:scale-[0.98]">
             <Plus className="mr-2 h-4 w-4" />
             Tạo Project
           </button>
@@ -49,11 +59,11 @@ export function WorkspaceOverviewPage() {
 
       <div className="mt-16">
         <h2 className="mb-6 text-xl font-medium tracking-tight text-[#111111]">Project gần đây</h2>
-        
+
         {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full rounded-lg" />
+            {recentProjectSkeletonKeys.map((key) => (
+              <Skeleton key={key} className="h-32 w-full rounded-lg" />
             ))}
           </div>
         ) : error ? (

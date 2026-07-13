@@ -6,12 +6,15 @@ import { useNavigate, useParams } from 'react-router';
 
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
-// Fallback simple dropdown if shadcn dropdown is not ready. 
+// Fallback simple dropdown if shadcn dropdown is not ready.
 // We will use standard select-like UI but styled minimally.
-export function WorkspaceSwitcher({ className, isCollapsed, ...props }: ComponentProps<'button'> & { isCollapsed?: boolean }) {
+export function WorkspaceSwitcher({
+  className,
+  isCollapsed,
+}: ComponentProps<'button'> & { isCollapsed?: boolean }) {
   const { data: workspaceCollection, isLoading } = useWorkspaces();
   const workspaces = workspaceCollection?.items || [];
-  
+
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
 
@@ -20,9 +23,11 @@ export function WorkspaceSwitcher({ className, isCollapsed, ...props }: Componen
   // Note: Following minimalist-ui rules: flat architecture, subtle hovers.
   // We use a clean select element overlayed, or just a simple button if we had a popover.
   // For MVP, a minimalist select is accessible and flat.
-  
+
   if (isLoading) {
-    return <Skeleton className={cn("h-9 w-full rounded-md", className)} />;
+    return (
+      <Skeleton aria-label="Chuyển Workspace" className={cn('h-9 w-full rounded-md', className)} />
+    );
   }
 
   return (
@@ -31,7 +36,7 @@ export function WorkspaceSwitcher({ className, isCollapsed, ...props }: Componen
         type="button"
         className={cn(
           'flex h-9 w-full items-center rounded border border-[#EAEAEA] bg-[#F9F9F8] px-2 text-sm font-medium transition-transform duration-200 hover:scale-[0.98] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-          isCollapsed ? 'justify-center' : 'justify-between gap-2'
+          isCollapsed ? 'justify-center' : 'justify-between gap-2',
         )}
         aria-label="Chuyển Workspace"
       >
@@ -47,7 +52,7 @@ export function WorkspaceSwitcher({ className, isCollapsed, ...props }: Componen
           <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-[#787774]" />
         )}
       </button>
-      
+
       {/* 
         Native select overlaid to handle switching natively and accessibly without 
         complex dropdown dependencies, styled to be invisible.
@@ -62,7 +67,9 @@ export function WorkspaceSwitcher({ className, isCollapsed, ...props }: Componen
         }}
         aria-label="Chọn Workspace"
       >
-        <option value="" disabled>Chọn Workspace</option>
+        <option value="" disabled>
+          Chọn Workspace
+        </option>
         {workspaces.map((w) => (
           <option key={w.id} value={w.id}>
             {w.name}

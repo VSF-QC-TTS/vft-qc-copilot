@@ -63,7 +63,8 @@ export function RegisterForm({ className }: RegisterFormProps) {
       <div className={cn('flex flex-col items-center justify-center gap-4 text-center', className)}>
         <h3 className="text-lg font-medium text-foreground">Đăng ký thành công</h3>
         <p className="text-sm text-muted-foreground">
-          Một email xác nhận đã được gửi đến địa chỉ email của bạn. Vui lòng kiểm tra hộp thư để kích hoạt tài khoản.
+          Một email xác nhận đã được gửi đến địa chỉ email của bạn. Vui lòng kiểm tra hộp thư để
+          kích hoạt tài khoản.
         </p>
         <Button asChild className="mt-4 w-full">
           <Link to="/login">Trở về trang Đăng nhập</Link>
@@ -87,7 +88,7 @@ export function RegisterForm({ className }: RegisterFormProps) {
           </div>
         )}
         <div className="space-y-2">
-          <Label htmlFor="email" className={errors.email ? "text-danger-fg" : ""}>
+          <Label htmlFor="email" className={errors.email ? 'text-danger-fg' : ''}>
             Email
           </Label>
           <Input
@@ -102,7 +103,7 @@ export function RegisterForm({ className }: RegisterFormProps) {
           {errors.email && <p className="text-sm text-danger-fg">{errors.email.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="displayName" className={errors.displayName ? "text-danger-fg" : ""}>
+          <Label htmlFor="displayName" className={errors.displayName ? 'text-danger-fg' : ''}>
             Tên hiển thị
           </Label>
           <Input
@@ -112,12 +113,16 @@ export function RegisterForm({ className }: RegisterFormProps) {
             placeholder="Nguyen Van A"
             autoComplete="name"
             disabled={isSubmitting}
-            className={errors.displayName ? 'border-danger-border focus-visible:ring-danger-border' : ''}
+            className={
+              errors.displayName ? 'border-danger-border focus-visible:ring-danger-border' : ''
+            }
           />
-          {errors.displayName && <p className="text-sm text-danger-fg">{errors.displayName.message}</p>}
+          {errors.displayName && (
+            <p className="text-sm text-danger-fg">{errors.displayName.message}</p>
+          )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password" className={errors.password ? "text-danger-fg" : ""}>
+          <Label htmlFor="password" className={errors.password ? 'text-danger-fg' : ''}>
             Mật khẩu
           </Label>
           <PasswordInput
@@ -126,12 +131,17 @@ export function RegisterForm({ className }: RegisterFormProps) {
             placeholder="••••••••"
             autoComplete="new-password"
             disabled={isSubmitting}
-            className={errors.password ? 'border-danger-border focus-visible:ring-danger-border' : ''}
+            className={
+              errors.password ? 'border-danger-border focus-visible:ring-danger-border' : ''
+            }
           />
           {errors.password && <p className="text-sm text-danger-fg">{errors.password.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className={errors.confirmPassword ? "text-danger-fg" : ""}>
+          <Label
+            htmlFor="confirmPassword"
+            className={errors.confirmPassword ? 'text-danger-fg' : ''}
+          >
             Xác nhận mật khẩu
           </Label>
           <PasswordInput
@@ -140,15 +150,15 @@ export function RegisterForm({ className }: RegisterFormProps) {
             placeholder="••••••••"
             autoComplete="new-password"
             disabled={isSubmitting}
-            className={errors.confirmPassword ? 'border-danger-border focus-visible:ring-danger-border' : ''}
+            className={
+              errors.confirmPassword ? 'border-danger-border focus-visible:ring-danger-border' : ''
+            }
           />
-          {errors.confirmPassword && <p className="text-sm text-danger-fg">{errors.confirmPassword.message}</p>}
+          {errors.confirmPassword && (
+            <p className="text-sm text-danger-fg">{errors.confirmPassword.message}</p>
+          )}
         </div>
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="mt-2 w-full"
-        >
+        <Button type="submit" disabled={isSubmitting} className="mt-2 w-full">
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -159,7 +169,7 @@ export function RegisterForm({ className }: RegisterFormProps) {
           )}
         </Button>
       </form>
-      
+
       <div className="text-center text-sm">
         Đã có tài khoản?{' '}
         <Link to="/login" className="font-medium text-primary hover:underline">

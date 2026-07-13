@@ -38,7 +38,7 @@ export function VerifyEmailPage() {
             setErrorMessage(error instanceof Error ? error.message : 'Xác nhận email thất bại');
           }
         },
-      }
+      },
     );
   }, [token, verifyEmailMutation]);
 
@@ -47,9 +47,7 @@ export function VerifyEmailPage() {
       <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 sm:p-8">
         <div className="mb-6 flex flex-col items-center space-y-4 text-center">
           <Logo className="h-8 justify-center" />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            Xác nhận Email
-          </h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Xác nhận Email</h1>
         </div>
 
         <div className="flex flex-col items-center justify-center gap-4 text-center">
@@ -77,9 +75,7 @@ export function VerifyEmailPage() {
           {status === 'error' && (
             <>
               <XCircle className="h-12 w-12 text-danger-fg" />
-              <p className="text-sm text-danger-fg">
-                {errorMessage}
-              </p>
+              <p className="text-sm text-danger-fg">{errorMessage}</p>
               <Button asChild className="mt-4 w-full">
                 <Link to="/login">Trở về trang Đăng nhập</Link>
               </Button>

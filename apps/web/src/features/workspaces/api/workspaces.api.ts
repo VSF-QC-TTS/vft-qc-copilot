@@ -18,7 +18,7 @@ export async function getWorkspace(workspaceId: string, signal?: AbortSignal) {
     workspaceResponseSchema,
     {
       ...(signal && { signal }),
-    }
+    },
   );
   return response.data;
 }
@@ -29,7 +29,7 @@ export async function getWorkspaceProjects(workspaceId: string, signal?: AbortSi
     projectCollectionSchema,
     {
       ...(signal && { signal }),
-    }
+    },
   );
   return response.data;
 }

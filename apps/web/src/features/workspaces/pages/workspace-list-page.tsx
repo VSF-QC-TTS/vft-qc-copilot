@@ -3,6 +3,15 @@ import { Plus, Building2, User } from 'lucide-react';
 import { Link } from 'react-router';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
+const workspaceSkeletonKeys = [
+  'workspace-skeleton-1',
+  'workspace-skeleton-2',
+  'workspace-skeleton-3',
+  'workspace-skeleton-4',
+  'workspace-skeleton-5',
+  'workspace-skeleton-6',
+];
+
 export function WorkspaceListPage() {
   const { data: workspaceCollection, isLoading, error } = useWorkspaces();
 
@@ -24,8 +33,8 @@ export function WorkspaceListPage() {
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-lg" />
+          {workspaceSkeletonKeys.map((key) => (
+            <Skeleton key={key} className="h-32 w-full rounded-lg" />
           ))}
         </div>
       ) : error ? (

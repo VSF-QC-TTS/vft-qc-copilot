@@ -11,9 +11,7 @@ export function RegisterPage() {
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Đăng ký tài khoản
             </h1>
-            <p className="text-sm text-foreground-muted">
-              Tạo tài khoản VinFast QC Copilot mới
-            </p>
+            <p className="text-sm text-foreground-muted">Tạo tài khoản VinFast QC Copilot mới</p>
           </div>
         </div>
         <RegisterForm />

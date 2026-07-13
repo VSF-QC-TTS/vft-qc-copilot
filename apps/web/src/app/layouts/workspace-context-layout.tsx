@@ -1,5 +1,4 @@
 import { Outlet, useParams } from 'react-router';
-import { Loader2 } from 'lucide-react';
 import { useWorkspace } from '@/features/workspaces/hooks/use-workspaces';
 import { NotFoundPage } from '@/app/router/pages/not-found-page';
 

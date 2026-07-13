@@ -68,4 +68,3 @@ export async function resetPassword(data: ResetPasswordRequest) {
     auth: 'none',
   });
 }
-

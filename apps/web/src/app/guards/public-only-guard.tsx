@@ -2,11 +2,15 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { z } from 'zod';
 import { useAuth } from '@/app/providers/auth-provider';
 
-const locationStateSchema = z.object({
-  from: z.object({
-    pathname: z.string(),
-  }).optional(),
-}).catch({ from: undefined });
+const locationStateSchema = z
+  .object({
+    from: z
+      .object({
+        pathname: z.string(),
+      })
+      .optional(),
+  })
+  .catch({ from: undefined });
 
 export function PublicOnlyGuard() {
   const { isAuthenticated, isLoading } = useAuth();

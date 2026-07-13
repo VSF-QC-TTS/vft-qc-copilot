@@ -11,9 +11,7 @@ export function ResetPasswordPage() {
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Đặt lại mật khẩu
             </h1>
-            <p className="text-sm text-foreground-muted">
-              Nhập mật khẩu mới cho tài khoản của bạn
-            </p>
+            <p className="text-sm text-foreground-muted">Nhập mật khẩu mới cho tài khoản của bạn</p>
           </div>
         </div>
         <ResetPasswordForm />

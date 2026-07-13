@@ -46,7 +46,9 @@ export function LoginForm({ className }: LoginFormProps) {
           }
         });
       } else {
-        setError('root', { message: error instanceof Error ? error.message : 'Đăng nhập thất bại' });
+        setError('root', {
+          message: error instanceof Error ? error.message : 'Đăng nhập thất bại',
+        });
       }
     }
   };
@@ -66,7 +68,7 @@ export function LoginForm({ className }: LoginFormProps) {
           </div>
         )}
         <div className="space-y-2">
-          <Label htmlFor="email" className={errors.email ? "text-danger-fg" : ""}>
+          <Label htmlFor="email" className={errors.email ? 'text-danger-fg' : ''}>
             Email
           </Label>
           <Input
@@ -82,7 +84,7 @@ export function LoginForm({ className }: LoginFormProps) {
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="password" className={errors.password ? "text-danger-fg" : ""}>
+            <Label htmlFor="password" className={errors.password ? 'text-danger-fg' : ''}>
               Mật khẩu
             </Label>
             <Link
@@ -98,15 +100,13 @@ export function LoginForm({ className }: LoginFormProps) {
             placeholder="••••••••"
             autoComplete="current-password"
             disabled={isSubmitting}
-            className={errors.password ? 'border-danger-border focus-visible:ring-danger-border' : ''}
+            className={
+              errors.password ? 'border-danger-border focus-visible:ring-danger-border' : ''
+            }
           />
           {errors.password && <p className="text-sm text-danger-fg">{errors.password.message}</p>}
         </div>
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="mt-2 w-full"
-        >
+        <Button type="submit" disabled={isSubmitting} className="mt-2 w-full">
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -117,7 +117,7 @@ export function LoginForm({ className }: LoginFormProps) {
           )}
         </Button>
       </form>
-      
+
       <div className="text-center text-sm">
         Chưa có tài khoản?{' '}
         <Link to="/register" className="font-medium text-primary hover:underline">

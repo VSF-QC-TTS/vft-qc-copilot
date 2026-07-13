@@ -45,11 +45,11 @@ export function createApiRuntime({
     fetch: fetchImplementation,
   });
 
-  return { 
-    apiClient, 
-    tokenStore, 
+  return {
+    apiClient,
+    tokenStore,
     setAuthenticationFailureHandler: (handler) => {
       authenticationFailureHandler = handler;
-    } 
+    },
   };
 }
