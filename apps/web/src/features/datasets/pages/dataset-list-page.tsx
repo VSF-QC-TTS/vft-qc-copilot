@@ -47,12 +47,19 @@ export function DatasetListPage() {
         </div>
         <PermissionGuard capability="EDIT" workspaceRole={workspace.currentUserRole}>
           {(isAllowed) => (
-            <Button asChild disabled={!isAllowed}>
-              <Link to={`/workspaces/${workspace.id}/projects/${project.id}/datasets/new`}>
-                <Plus className="mr-2 h-4 w-4" />
-                Tạo dataset
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" disabled={!isAllowed}>
+                <Link to={`/workspaces/${workspace.id}/projects/${project.id}/datasets/import`}>
+                  Import Excel
+                </Link>
+              </Button>
+              <Button asChild disabled={!isAllowed}>
+                <Link to={`/workspaces/${workspace.id}/projects/${project.id}/datasets/new`}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Tạo dataset
+                </Link>
+              </Button>
+            </div>
           )}
         </PermissionGuard>
       </div>

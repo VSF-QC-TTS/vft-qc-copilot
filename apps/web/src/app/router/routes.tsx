@@ -32,6 +32,7 @@ import { ChatbotTargetDetailPage } from '@/features/chatbot-targets/pages/chatbo
 import { DatasetListPage } from '@/features/datasets/pages/dataset-list-page';
 import { DatasetCreatePage } from '@/features/datasets/pages/dataset-create-page';
 import { DatasetDetailPage } from '@/features/datasets/pages/dataset-detail-page';
+import { DatasetImportPage } from '@/features/datasets/pages/dataset-import-page';
 
 export const appRoutes: RouteObject[] = [
   {
@@ -130,6 +131,10 @@ export const appRoutes: RouteObject[] = [
                   {
                     path: 'datasets/new',
                     element: <DatasetCreatePage />,
+                  },
+                  {
+                    path: 'datasets/import',
+                    element: <DatasetImportPage />,
                   },
                   {
                     path: 'datasets/:datasetId',

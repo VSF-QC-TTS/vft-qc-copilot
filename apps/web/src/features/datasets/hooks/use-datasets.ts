@@ -1,19 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addDatasetRow,
+  confirmDatasetImportJob,
   createDataset,
+  createDatasetImportJob,
   createDatasetDraft,
   deleteDataset,
   discardDatasetVersion,
   getDataset,
+  getDatasetImportJob,
   getDatasetRows,
   getDatasetVersions,
   getProjectDatasetSchema,
   getProjectDatasets,
   patchDatasetRow,
   publishDatasetVersion,
+  type CreateDatasetImportJobRequest,
 } from '@/features/datasets/api/datasets.api';
 import type {
+  ConfirmDatasetImportJobRequest,
   CreateDatasetRequest,
   CreateDatasetRowRequest,
   PatchDatasetRowCellsRequest,
@@ -26,6 +31,7 @@ export const datasetKeys = {
   detail: (datasetId: string) => [...datasetKeys.all, 'detail', datasetId] as const,
   versions: (datasetId: string) => [...datasetKeys.detail(datasetId), 'versions'] as const,
   rows: (versionId: string) => [...datasetKeys.all, 'version', versionId, 'rows'] as const,
+  importJob: (importJobId: string) => [...datasetKeys.all, 'import-job', importJobId] as const,
 };
 
 export function useProjectDatasetSchema(projectId: string) {
@@ -140,6 +146,40 @@ export function useDiscardDatasetVersion(datasetId: string) {
       void queryClient.invalidateQueries({ queryKey: datasetKeys.versions(datasetId) });
       void queryClient.invalidateQueries({ queryKey: datasetKeys.detail(datasetId) });
       void queryClient.invalidateQueries({ queryKey: datasetKeys.rows(versionId) });
+    },
+  });
+}
+
+export function useDatasetImportJob(importJobId: string) {
+  return useQuery({
+    queryKey: datasetKeys.importJob(importJobId),
+    queryFn: ({ signal }) => getDatasetImportJob(importJobId, signal),
+    enabled: Boolean(importJobId),
+  });
+}
+
+export function useCreateDatasetImportJob(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateDatasetImportJobRequest) => createDatasetImportJob(projectId, data),
+    onSuccess: (job) => {
+      void queryClient.setQueryData(datasetKeys.importJob(job.id), job);
+    },
+  });
+}
+
+export function useConfirmDatasetImportJob(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      importJobId,
+      data,
+    }: {
+      importJobId: string;
+      data: ConfirmDatasetImportJobRequest;
+    }) => confirmDatasetImportJob(importJobId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: datasetKeys.project(projectId) });
     },
   });
 }
