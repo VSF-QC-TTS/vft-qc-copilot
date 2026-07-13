@@ -11,6 +11,7 @@ import {
   preferredVersion,
   versionStatusLabel,
 } from '@/features/datasets/components/dataset-version-utils';
+import { ExportJobPanel } from '@/features/exports/components/export-job-panel';
 import {
   useAddDatasetRow,
   useCreateDatasetDraft,
@@ -267,6 +268,12 @@ export function DatasetDetailPage() {
               })}
             </div>
           </section>
+
+          <ExportJobPanel
+            title="Export Dataset"
+            description="Tạo file XLSX cho Dataset version đang chọn. VIEWER cũng có thể tạo Export."
+            source={{ sourceType: 'dataset-version', sourceId: selectedVersion?.id }}
+          />
 
           <section className="rounded-lg border bg-surface p-5">
             <h2 className="text-sm font-semibold">Schema đang dùng</h2>

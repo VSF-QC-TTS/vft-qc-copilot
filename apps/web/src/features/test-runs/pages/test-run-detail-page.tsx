@@ -35,6 +35,7 @@ import {
   toReviewRequest,
   type ReviewFormState,
 } from '@/features/test-runs/components/test-case-result-review-utils';
+import { ExportJobPanel } from '@/features/exports/components/export-job-panel';
 import { TestRunComparisonMatrix } from '@/features/test-runs/components/test-run-comparison-matrix';
 import {
   jsonPreview,
@@ -350,6 +351,12 @@ function OverviewTab({ testRun }: { testRun: TestRunDetailResponse }) {
             <MetaRow label="Schema version" value={String(testRun.datasetSchemaVersion)} />
           </dl>
         </section>
+
+        <ExportJobPanel
+          title="Export TestRun"
+          description="Tạo file XLSX cho result của TestRun. Mặc định dùng FINAL để bao gồm QC override."
+          source={{ sourceType: 'test-run', sourceId: testRun.id }}
+        />
       </aside>
     </div>
   );
