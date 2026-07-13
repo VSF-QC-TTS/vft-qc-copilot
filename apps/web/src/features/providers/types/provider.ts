@@ -41,6 +41,11 @@ export type ProviderResponse = z.infer<typeof providerResponseSchema>;
 
 export const providerCollectionSchema = z.object({
   items: z.array(providerResponseSchema),
+  page: z.object({
+    limit: z.number(),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  }),
 });
 export type ProviderCollectionResponse = z.infer<typeof providerCollectionSchema>;
 
@@ -98,5 +103,10 @@ export type ProviderTestLogResponse = z.infer<typeof providerTestLogResponseSche
 
 export const providerTestLogCollectionSchema = z.object({
   items: z.array(providerTestLogResponseSchema),
+  page: z.object({
+    limit: z.number(),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  }),
 });
 export type ProviderTestLogCollectionResponse = z.infer<typeof providerTestLogCollectionSchema>;

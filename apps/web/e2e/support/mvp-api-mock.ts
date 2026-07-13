@@ -200,7 +200,7 @@ async function handleApiRoute(route: Route, state: MvpMockState): Promise<void> 
   }
 
   if (path === `/api/v1/workspaces/${WORKSPACE_ID}/llm-providers` && method === 'GET') {
-    await json(route, { items: [provider()] });
+    await json(route, collection([provider()]));
     return;
   }
 
@@ -211,7 +211,7 @@ async function handleApiRoute(route: Route, state: MvpMockState): Promise<void> 
   }
 
   if (path === `/api/v1/llm-providers/${PROVIDER_ID}/test-logs` && method === 'GET') {
-    await json(route, { items: [] });
+    await json(route, collection([]));
     return;
   }
 

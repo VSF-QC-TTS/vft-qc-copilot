@@ -263,6 +263,28 @@ export function ProjectOverviewPage() {
               </dl>
             </section>
 
+            <section className="rounded-lg border border-border bg-surface p-5">
+              <h2 className="text-sm font-semibold text-foreground">Setup Workspace</h2>
+              <p className="mt-1 text-sm text-foreground-secondary">
+                Cấu hình Secret và LLM Provider dùng chung trước khi chạy LLM Judge hoặc Mixed
+                Evaluator.
+              </p>
+              <div className="mt-4 flex flex-col gap-2">
+                <Link
+                  to={`/workspaces/${workspace.id}/settings/secrets`}
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover"
+                >
+                  Workspace Secret
+                </Link>
+                <Link
+                  to={`/workspaces/${workspace.id}/settings/providers`}
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover"
+                >
+                  Workspace Provider
+                </Link>
+              </div>
+            </section>
+
             {setupStatus.blockers.length > 0 && (
               <section className="rounded-lg border border-warning-soft bg-warning-soft p-5">
                 <div className="mb-3 flex items-center gap-2">

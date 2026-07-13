@@ -52,7 +52,7 @@ Evidence:
 
 ## Batch 3 — Secrets + Providers setup flow
 
-Status: pending
+Status: completed
 
 Acceptance:
 
@@ -60,6 +60,18 @@ Acceptance:
 - Provider test works only with ACTIVE secrets.
 - No raw secret is shown, logged, cached in URL, or exported.
 - Error and empty states are stable inline where persistent context matters.
+
+Evidence:
+
+- Provider collection and test-log schemas now include backend `page` metadata.
+- Provider test contract verifies frontend sends only model/prompt, not secret material.
+- Project overview links directly to Workspace Secret and Workspace Provider setup.
+- E2E provider mocks now return `CollectionResponse` shape.
+- `rtk npm run typecheck` in `apps/web`
+- `rtk npm run lint` in `apps/web`
+- `rtk npm run format:check` in `apps/web`
+- Targeted provider API test: `rtk npm run test -- src/features/providers/api/providers.api.test.ts`
+- `rtk npm run build` in `apps/web`
 
 ## Batch 4 — Dataset import, rows, pagination
 
