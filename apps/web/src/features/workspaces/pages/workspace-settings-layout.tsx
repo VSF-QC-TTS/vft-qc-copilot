@@ -8,6 +8,8 @@ export function WorkspaceSettingsLayout() {
   const navItems = [
     { name: 'Cài đặt chung', href: `/workspaces/${workspace.id}/settings/general` },
     { name: 'Thành viên', href: `/workspaces/${workspace.id}/settings/members` },
+    { name: 'Secrets', href: `/workspaces/${workspace.id}/settings/secrets` },
+    { name: 'Providers', href: `/workspaces/${workspace.id}/settings/providers` },
   ];
 
   return (

@@ -3,7 +3,10 @@ import { Link, Outlet, useLocation } from 'react-router';
 export function PersonalSettingsLayout() {
   const location = useLocation();
 
-  const navItems = [{ name: 'Secrets', href: `/settings/secrets` }];
+  const navItems = [
+    { name: 'Secrets', href: `/settings/secrets` },
+    { name: 'Providers', href: `/settings/providers` },
+  ];
 
   return (
     <div className="flex flex-col space-y-6">

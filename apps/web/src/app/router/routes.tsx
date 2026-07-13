@@ -20,6 +20,8 @@ import { WorkspaceSettingsMembersPage } from '@/features/workspaces/pages/worksp
 import { WorkspaceSecretsPage } from '@/features/secrets/pages/workspace-secrets-page';
 import { PersonalSettingsLayout } from '@/features/secrets/pages/personal-settings-layout';
 import { PersonalSecretsPage } from '@/features/secrets/pages/personal-secrets-page';
+import { PersonalProvidersPage } from '@/features/providers/pages/personal-providers-page';
+import { WorkspaceProvidersPage } from '@/features/providers/pages/workspace-providers-page';
 
 import { ProjectListPage } from '@/features/projects/pages/project-list-page';
 import { ProjectOverviewPage } from '@/features/projects/pages/project-overview-page';
@@ -73,6 +75,10 @@ export const appRoutes: RouteObject[] = [
                 path: 'secrets',
                 element: <PersonalSecretsPage />,
               },
+              {
+                path: 'providers',
+                element: <PersonalProvidersPage />,
+              },
             ],
           },
           {
@@ -120,6 +126,10 @@ export const appRoutes: RouteObject[] = [
                   {
                     path: 'secrets',
                     element: <WorkspaceSecretsPage />,
+                  },
+                  {
+                    path: 'providers',
+                    element: <WorkspaceProvidersPage />,
                   },
                 ],
               },

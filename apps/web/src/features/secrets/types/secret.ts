@@ -7,7 +7,7 @@ export const secretStatusSchema = z.enum(['ACTIVE', 'DISABLED']);
 export type SecretStatus = z.infer<typeof secretStatusSchema>;
 
 const userSummarySchema = z.object({
-  id: z.string(),
+  id: z.string().uuid(),
   email: z.string(),
   name: z.string(),
   avatarUrl: z.string().nullable().optional(),
@@ -26,6 +26,17 @@ export const secretResponseSchema = z.object({
   updatedAt: z.string(),
 });
 export type SecretResponse = z.infer<typeof secretResponseSchema>;
+
+export const secretSummarySchema = z.object({
+  id: z.string().uuid(),
+  scope: secretScopeSchema,
+  ownerUserId: z.string().uuid(),
+  ownerUser: userSummarySchema,
+  workspaceId: z.string().uuid().nullable().optional(),
+  name: z.string(),
+  status: secretStatusSchema,
+});
+export type SecretSummaryResponse = z.infer<typeof secretSummarySchema>;
 
 export const secretCollectionSchema = z.object({
   items: z.array(secretResponseSchema),
