@@ -17,6 +17,9 @@ import { WorkspaceContextLayout } from '@/app/layouts/workspace-context-layout';
 import { WorkspaceSettingsLayout } from '@/features/workspaces/pages/workspace-settings-layout';
 import { WorkspaceSettingsGeneralPage } from '@/features/workspaces/pages/workspace-settings-general-page';
 import { WorkspaceSettingsMembersPage } from '@/features/workspaces/pages/workspace-settings-members-page';
+import { WorkspaceSecretsPage } from '@/features/secrets/pages/workspace-secrets-page';
+import { PersonalSettingsLayout } from '@/features/secrets/pages/personal-settings-layout';
+import { PersonalSecretsPage } from '@/features/secrets/pages/personal-secrets-page';
 
 import { ProjectListPage } from '@/features/projects/pages/project-list-page';
 import { ProjectOverviewPage } from '@/features/projects/pages/project-overview-page';
@@ -59,6 +62,20 @@ export const appRoutes: RouteObject[] = [
             element: <HomePage />,
           },
           {
+            path: '/settings',
+            element: <PersonalSettingsLayout />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="secrets" replace />,
+              },
+              {
+                path: 'secrets',
+                element: <PersonalSecretsPage />,
+              },
+            ],
+          },
+          {
             path: '/workspaces',
             element: <WorkspaceListPage />,
           },
@@ -99,6 +116,10 @@ export const appRoutes: RouteObject[] = [
                   {
                     path: 'members',
                     element: <WorkspaceSettingsMembersPage />,
+                  },
+                  {
+                    path: 'secrets',
+                    element: <WorkspaceSecretsPage />,
                   },
                 ],
               },
