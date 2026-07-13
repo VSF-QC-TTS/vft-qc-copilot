@@ -15,6 +15,7 @@ type RealtimeState = 'idle' | TestRunSseConnectionState;
 export interface TestRunSseState {
   connectionState: RealtimeState;
   lastSequenceNo: number;
+  isOffline: boolean;
   stopReason?: TestRunSseStopReason;
 }
 
@@ -35,6 +36,7 @@ export function useTestRunSse({
   const [connectionState, setConnectionState] = useState<RealtimeState>('idle');
   const [lastSequenceNo, setLastSequenceNo] = useState(0);
   const [stopReason, setStopReason] = useState<TestRunSseStopReason | undefined>();
+  const [isOffline, setIsOffline] = useState(() => isBrowserOffline());
 
   const bridge = useMemo(() => {
     if (!testRunId || !projectId) {
@@ -117,6 +119,27 @@ export function useTestRunSse({
   }, [bridge, enabled]);
 
   useEffect(() => {
+    function handleOnline(): void {
+      setIsOffline(false);
+      if (enabled && bridge) {
+        bridge.invalidateSnapshot();
+      }
+    }
+
+    function handleOffline(): void {
+      setIsOffline(true);
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    setIsOffline(isBrowserOffline());
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [bridge, enabled]);
+
+  useEffect(() => {
     const disconnected =
       enabled && (connectionState === 'reconnecting' || connectionState === 'error');
     if (!disconnected) {
@@ -131,15 +154,20 @@ export function useTestRunSse({
     return () => window.clearInterval(interval);
   }, [connectionState, enabled, queryClient, testRunId]);
 
-  return { connectionState, lastSequenceNo, ...(stopReason ? { stopReason } : {}) };
+  return { connectionState, lastSequenceNo, isOffline, ...(stopReason ? { stopReason } : {}) };
 }
 
 export function testRunSseConnectionLabel(
   state: RealtimeState,
   stopReason?: TestRunSseStopReason,
+  isOffline = false,
 ): string {
   if (stopReason === 'terminal') {
     return 'Realtime đã đóng';
+  }
+
+  if (isOffline) {
+    return 'Offline · dùng polling dự phòng';
   }
 
   switch (state) {
@@ -160,4 +188,8 @@ export function testRunSseConnectionLabel(
       return exhaustive;
     }
   }
+}
+
+function isBrowserOffline(): boolean {
+  return typeof navigator !== 'undefined' && !navigator.onLine;
 }

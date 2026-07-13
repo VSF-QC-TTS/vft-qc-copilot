@@ -344,7 +344,7 @@ class Phase9RunnerIntegrationTest extends PostgresIntegrationTestBase {
                                         "aggregation",
                                         "ALL_PASS",
                                         "passCondition",
-                                        Map.of("type", "ALL_RULE_PASS"))),
+                                        Map.of("type", "ALL_RULES_PASS"))),
                                 "rules",
                                 List.of(
                                     Map.of(

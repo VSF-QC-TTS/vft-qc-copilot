@@ -7,6 +7,9 @@ describe('TestRun SSE hook helpers', () => {
     expect(testRunSseConnectionLabel('open')).toBe('Realtime hoạt động');
     expect(testRunSseConnectionLabel('reconnecting')).toBe('Đang kết nối lại realtime');
     expect(testRunSseConnectionLabel('error')).toBe('Realtime tạm ngắt');
+    expect(testRunSseConnectionLabel('error', undefined, true)).toBe(
+      'Offline · dùng polling dự phòng',
+    );
     expect(testRunSseConnectionLabel('closed', 'terminal')).toBe('Realtime đã đóng');
   });
 });

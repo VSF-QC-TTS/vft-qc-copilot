@@ -46,7 +46,6 @@ public class RunnerRedisEventConsumerImpl implements RunnerRedisEventConsumer {
   private final Map<String, Integer> failedAttempts = new ConcurrentHashMap<>();
 
   @Override
-  @SuppressWarnings("unchecked")
   public int consumeOnce() {
     ensureGroup();
     StreamOperations<String, String, String> streams = redisTemplate.opsForStream();
@@ -105,18 +104,18 @@ public class RunnerRedisEventConsumerImpl implements RunnerRedisEventConsumer {
 
   private void ensureGroup() {
     try {
-      redisTemplate.execute(
-          (RedisCallback<Void>)
-              connection -> {
-                connection.execute(
-                    "XGROUP",
-                    bytes("CREATE"),
-                    bytes(RunnerRedisStreams.EVENTS),
-                    bytes(CONSUMER_GROUP),
-                    bytes("0-0"),
-                    bytes("MKSTREAM"));
-                return null;
-              });
+      RedisCallback<Void> createGroup =
+          connection -> {
+            connection.execute(
+                "XGROUP",
+                bytes("CREATE"),
+                bytes(RunnerRedisStreams.EVENTS),
+                bytes(CONSUMER_GROUP),
+                bytes("0-0"),
+                bytes("MKSTREAM"));
+            return null;
+          };
+      redisTemplate.execute(createGroup);
     } catch (RedisSystemException exception) {
       if (!hasCauseMessage(exception, "BUSYGROUP")) {
         throw exception;

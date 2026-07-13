@@ -38,6 +38,11 @@ import {
 import { ExportJobPanel } from '@/features/exports/components/export-job-panel';
 import { TestRunComparisonMatrix } from '@/features/test-runs/components/test-run-comparison-matrix';
 import {
+  detailTabFromSearchParams,
+  testRunDetailTabs,
+  type DetailTab,
+} from '@/features/test-runs/components/test-run-detail-tabs';
+import {
   jsonPreview,
   latencyText,
   machineFinalChanged,
@@ -73,17 +78,6 @@ interface ProjectContextType extends WorkspaceContextType {
   project: ProjectResponse;
 }
 
-type DetailTab = 'overview' | 'targets' | 'evaluators' | 'snapshots' | 'results' | 'matrix';
-
-const tabs: { value: DetailTab; label: string }[] = [
-  { value: 'overview', label: 'Tổng quan' },
-  { value: 'targets', label: 'Targets' },
-  { value: 'evaluators', label: 'Evaluators' },
-  { value: 'snapshots', label: 'Snapshots' },
-  { value: 'results', label: 'Machine / Final' },
-  { value: 'matrix', label: 'Comparison matrix' },
-];
-
 const summaryMetricItems = [
   { key: 'totalTestcases', label: 'Tổng testcase' },
   { key: 'completedTestcases', label: 'Đã chạy' },
@@ -101,7 +95,6 @@ export function TestRunDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const testRunQuery = useTestRun(testRunId);
   const cancelMutation = useCancelTestRun(project.id);
-  const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const testRun = testRunQuery.data;
   const realtime = useTestRunSse({
     testRunId,
@@ -140,6 +133,15 @@ export function TestRunDetailPage() {
   const selectedResultId = parseResultId(searchParams.get('resultId'));
   const matrixMode = parseResultMode(searchParams.get('matrixMode'));
   const matrixPage = parseResultPage(searchParams.get('matrixPage'));
+  const activeTab = detailTabFromSearchParams(searchParams);
+
+  const updateDetailTab = (tab: DetailTab) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('tab', tab);
+      return next;
+    });
+  };
 
   const updateResultParams = (patch: {
     mode?: ResultMode;
@@ -159,6 +161,7 @@ export function TestRunDetailPage() {
       } else if (patch.resultId !== undefined) {
         next.set('resultId', String(patch.resultId));
       }
+      next.set('tab', 'results');
       return next;
     });
   };
@@ -172,6 +175,7 @@ export function TestRunDetailPage() {
       if (patch.page !== undefined) {
         next.set('matrixPage', String(patch.page));
       }
+      next.set('tab', 'matrix');
       return next;
     });
   };
@@ -200,9 +204,15 @@ export function TestRunDetailPage() {
               label={
                 realtimeClosed
                   ? 'Realtime đã đóng'
-                  : testRunSseConnectionLabel(realtime.connectionState, realtime.stopReason)
+                  : testRunSseConnectionLabel(
+                      realtime.connectionState,
+                      realtime.stopReason,
+                      realtime.isOffline,
+                    )
               }
-              state={realtimeClosed ? 'closed' : realtime.connectionState}
+              state={
+                realtimeClosed ? 'closed' : realtime.isOffline ? 'error' : realtime.connectionState
+              }
             />
           </div>
           <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
@@ -241,6 +251,12 @@ export function TestRunDetailPage() {
         </div>
       ) : null}
 
+      {!realtimeClosed && realtime.isOffline ? (
+        <div className="mb-6 rounded-lg border border-warning-soft bg-warning-soft p-4 text-sm text-warning">
+          Mạng đang offline. Màn hình giữ dữ liệu hiện có và sẽ refetch khi kết nối trở lại.
+        </div>
+      ) : null}
+
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <SummaryCard label="Run type" value={runTypeLabel(testRun.runType)} />
         <SummaryCard label="Progress" value={`${String(progressPercent)}%`} />
@@ -264,7 +280,7 @@ export function TestRunDetailPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2 border-b">
-        {tabs.map((tab) => (
+        {testRunDetailTabs.map((tab) => (
           <button
             key={tab.value}
             type="button"
@@ -274,7 +290,7 @@ export function TestRunDetailPage() {
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
             ].join(' ')}
-            onClick={() => setActiveTab(tab.value)}
+            onClick={() => updateDetailTab(tab.value)}
           >
             {tab.label}
           </button>
@@ -306,7 +322,6 @@ export function TestRunDetailPage() {
           onPageChange={(page) => updateMatrixParams({ page })}
           onOpenResult={(resultId, mode) => {
             updateResultParams({ mode, resultId });
-            setActiveTab('results');
           }}
         />
       ) : null}

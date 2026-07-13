@@ -120,7 +120,7 @@ Evidence:
 
 ## Batch 6 — TestRun, SSE, runner, Redis recovery
 
-Status: pending
+Status: completed
 
 Acceptance:
 
@@ -128,6 +128,16 @@ Acceptance:
 - SSE reconnect/fallback polling is visible and avoids duplicate UI state.
 - Runner command/event flow is verified for retries, DLQ, heartbeat, cancellation, and idempotency.
 - Offline/network errors degrade without corrupting UI state.
+
+Evidence:
+
+- TestRun detail derives active tab from `tab`, result, and matrix URL params.
+- Matrix result navigation now writes `tab=results` with result params.
+- SSE hook exposes browser offline state, invalidates snapshots when coming back online, and shows fallback copy.
+- Runner Phase9 fixture now matches backend evaluator contract `ALL_RULES_PASS`.
+- Runner Redis worker/unit and Phase9 integration tests verify retry, DLQ, idempotent events, sanitized payloads, cancel command, and runner auth boundary.
+- Frontend tests cover tab deep-link inference and offline realtime label.
+- Existing SSE transport tests cover reconnect, replay cursor, duplicate suppression, sequence gaps, heartbeat, auth refresh, and max reconnect behavior.
 
 ## Batch 7 — UX/UI professionalization
 
