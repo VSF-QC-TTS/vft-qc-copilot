@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   cancelTestRun,
   createTestRun,
@@ -7,11 +7,13 @@ import {
   getTestRun,
   getTestRunResults,
   preflightTestRun,
+  upsertTestCaseResultReview,
 } from '@/features/test-runs/api/test-runs.api';
 import type {
   CreateTestRunRequest,
   ResultMode,
   RunPreflightRequest,
+  UpsertTestCaseResultReviewRequest,
 } from '@/features/test-runs/types/test-run';
 
 export const testRunKeys = {
@@ -23,6 +25,7 @@ export const testRunKeys = {
     [...testRunKeys.results(testRunId), mode, page, size] as const,
   resultDetail: (resultId: number, mode: ResultMode) =>
     [...testRunKeys.all, 'result-detail', resultId, mode] as const,
+  matrix: (testRunId: string) => [...testRunKeys.all, 'matrix', testRunId] as const,
 };
 
 export function useProjectTestRuns(projectId: string) {
@@ -89,4 +92,31 @@ export function useCancelTestRun(projectId: string) {
       void queryClient.setQueryData(testRunKeys.detail(testRun.id), testRun);
     },
   });
+}
+
+export function useReviewTestCaseResult(testRunId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      resultId,
+      data,
+    }: {
+      resultId: number;
+      data: UpsertTestCaseResultReviewRequest;
+    }) => upsertTestCaseResultReview(resultId, data),
+    onSuccess: (_review, { resultId }) => {
+      invalidateReviewedTestCaseResult(queryClient, testRunId, resultId);
+    },
+  });
+}
+
+export function invalidateReviewedTestCaseResult(
+  queryClient: QueryClient,
+  testRunId: string,
+  resultId: number,
+): void {
+  void queryClient.invalidateQueries({ queryKey: testRunKeys.results(testRunId) });
+  void queryClient.invalidateQueries({ queryKey: testRunKeys.resultDetail(resultId, 'MACHINE') });
+  void queryClient.invalidateQueries({ queryKey: testRunKeys.resultDetail(resultId, 'FINAL') });
+  void queryClient.invalidateQueries({ queryKey: testRunKeys.matrix(testRunId) });
 }

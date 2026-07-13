@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getTestCaseResult, getTestRunResults } from '@/features/test-runs/api/test-runs.api';
+import {
+  getTestCaseResult,
+  getTestRunResults,
+  upsertTestCaseResultReview,
+} from '@/features/test-runs/api/test-runs.api';
 import { testRunResultPageResponseSchema } from '@/features/test-runs/types/test-run';
 
 const requestJsonMock = vi.hoisted(() =>
@@ -62,6 +66,44 @@ describe('test runs results API', () => {
 
     expect(valid.success).toBe(true);
     expect(invalid.success).toBe(false);
+  });
+
+  it('saves a QC review without mutating machine result fields on the frontend', async () => {
+    const review = {
+      id: 77,
+      testCaseResultId: 9122,
+      reviewerId: '33333333-3333-4333-8333-333333333333',
+      reviewStatus: 'OVERRIDDEN',
+      overrideStatus: 'PASSED',
+      overrideScore: 0.95,
+      note: 'Backend returns sanitized note',
+      createdAt: '2026-07-02T10:00:12+07:00',
+      updatedAt: '2026-07-02T10:00:12+07:00',
+    };
+    requestJsonMock.mockResolvedValueOnce({ data: review });
+
+    await expect(
+      upsertTestCaseResultReview(9122, {
+        reviewStatus: 'OVERRIDDEN',
+        overrideStatus: 'PASSED',
+        overrideScore: 0.95,
+        note: 'Backend should sanitize this note',
+      }),
+    ).resolves.toEqual(review);
+
+    expect(requestJsonMock).toHaveBeenCalledWith(
+      '/api/v1/test-case-results/9122/review',
+      expect.any(Object),
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          reviewStatus: 'OVERRIDDEN',
+          overrideStatus: 'PASSED',
+          overrideScore: 0.95,
+          note: 'Backend should sanitize this note',
+        }),
+      },
+    );
   });
 });
 

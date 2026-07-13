@@ -2,12 +2,14 @@ import { apiClient } from '@/shared/api/api';
 import {
   runPreflightResponseSchema,
   testCaseResultDetailResponseSchema,
+  testCaseResultReviewResponseSchema,
   testRunCollectionSchema,
   testRunDetailResponseSchema,
   testRunResultPageResponseSchema,
   type CreateTestRunRequest,
   type ResultMode,
   type RunPreflightRequest,
+  type UpsertTestCaseResultReviewRequest,
 } from '@/features/test-runs/types/test-run';
 
 export async function preflightTestRun(projectId: string, data: RunPreflightRequest) {
@@ -88,6 +90,21 @@ export async function getTestCaseResult(resultId: number, mode: ResultMode, sign
     `/api/v1/test-case-results/${String(resultId)}?${searchParams.toString()}`,
     testCaseResultDetailResponseSchema,
     { ...(signal ? { signal } : {}) },
+  );
+  return response.data;
+}
+
+export async function upsertTestCaseResultReview(
+  resultId: number,
+  data: UpsertTestCaseResultReviewRequest,
+) {
+  const response = await apiClient.requestJson(
+    `/api/v1/test-case-results/${String(resultId)}/review`,
+    testCaseResultReviewResponseSchema,
+    {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    },
   );
   return response.data;
 }

@@ -33,6 +33,16 @@ export type TestCaseResultStatus = z.infer<typeof testCaseResultStatusSchema>;
 export const reviewStatusSchema = z.enum(['APPROVED', 'REJECTED', 'NEEDS_FIX', 'OVERRIDDEN']);
 export type ReviewStatus = z.infer<typeof reviewStatusSchema>;
 
+export const upsertTestCaseResultReviewRequestSchema = z.object({
+  reviewStatus: reviewStatusSchema,
+  overrideStatus: testCaseResultStatusSchema.optional(),
+  overrideScore: z.number().min(0).optional(),
+  note: z.string().max(4000).optional(),
+});
+export type UpsertTestCaseResultReviewRequest = z.infer<
+  typeof upsertTestCaseResultReviewRequestSchema
+>;
+
 export const runTargetRequestSchema = z.discriminatedUnion('targetType', [
   z.object({
     targetType: z.literal('CHATBOT_TARGET'),

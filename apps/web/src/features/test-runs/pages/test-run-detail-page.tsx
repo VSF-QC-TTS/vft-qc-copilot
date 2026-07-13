@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router';
 import { AlertTriangle, CheckCircle2, CirclePause, Clock3, XCircle } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import {
   Table,
@@ -11,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/components/ui/table';
+import { Textarea } from '@/shared/components/ui/textarea';
 import { PermissionGuard } from '@/shared/components/permission-guard';
 import { notifyError, notifySuccess } from '@/shared/lib/notifications';
 import {
@@ -23,6 +26,15 @@ import {
   testRunStatusLabel,
   testRunStatusTone,
 } from '@/features/test-runs/components/test-run-detail-utils';
+import {
+  OVERRIDE_STATUS_OPTIONS,
+  REVIEW_STATUS_OPTIONS,
+  parseOverrideStatusOption,
+  parseReviewStatusOption,
+  reviewFormError,
+  toReviewRequest,
+  type ReviewFormState,
+} from '@/features/test-runs/components/test-case-result-review-utils';
 import {
   jsonPreview,
   latencyText,
@@ -38,6 +50,7 @@ import {
 } from '@/features/test-runs/components/test-run-results-utils';
 import {
   useCancelTestRun,
+  useReviewTestCaseResult,
   useTestCaseResult,
   useTestRun,
   useTestRunResults,
@@ -260,6 +273,7 @@ export function TestRunDetailPage() {
           mode={resultMode}
           page={resultPage}
           selectedResultId={selectedResultId}
+          workspaceRole={workspace.currentUserRole}
           onModeChange={(mode) => updateResultParams({ mode, page: 0, resultId: null })}
           onPageChange={(page) => updateResultParams({ page, resultId: null })}
           onSelectResult={(resultId) => updateResultParams({ resultId })}
@@ -404,6 +418,7 @@ function ResultsEntryTab({
   mode,
   page,
   selectedResultId,
+  workspaceRole,
   onModeChange,
   onPageChange,
   onSelectResult,
@@ -412,6 +427,7 @@ function ResultsEntryTab({
   mode: ResultMode;
   page: number;
   selectedResultId: number | undefined;
+  workspaceRole: ProjectContextType['workspace']['currentUserRole'];
   onModeChange: (mode: ResultMode) => void;
   onPageChange: (page: number) => void;
   onSelectResult: (resultId: number) => void;
@@ -553,6 +569,7 @@ function ResultsEntryTab({
         isLoading={detailQuery.isLoading}
         isError={detailQuery.isError}
         mode={mode}
+        workspaceRole={workspaceRole}
       />
     </div>
   );
@@ -580,13 +597,39 @@ function ResultDetailPanel({
   isLoading,
   isError,
   mode,
+  workspaceRole,
 }: {
   resultId: number | undefined;
   result: TestCaseResultDetailResponse | undefined;
   isLoading: boolean;
   isError: boolean;
   mode: ResultMode;
+  workspaceRole: ProjectContextType['workspace']['currentUserRole'];
 }) {
+  const reviewMutation = useReviewTestCaseResult(result?.testRunId ?? '');
+  const [reviewForm, setReviewForm] = useState<ReviewFormState>(emptyReviewForm());
+  const formError = reviewFormError(reviewForm);
+
+  useEffect(() => {
+    setReviewForm(reviewFormFromResult(result));
+  }, [result]);
+
+  const handleSaveReview = async () => {
+    if (!result || formError) {
+      return;
+    }
+
+    try {
+      await reviewMutation.mutateAsync({
+        resultId: result.id,
+        data: toReviewRequest(reviewForm),
+      });
+      notifySuccess('Đã lưu QC review');
+    } catch {
+      notifyError('Không thể lưu QC review');
+    }
+  };
+
   if (resultId === undefined) {
     return (
       <aside className="rounded-lg border bg-surface p-5 text-sm text-muted-foreground">
@@ -638,6 +681,126 @@ function ResultDetailPanel({
         </section>
       ) : null}
 
+      <section className="rounded-lg border bg-background p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold">QC review</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review chỉ thay đổi FINAL; machine result vẫn được giữ nguyên.
+            </p>
+          </div>
+          {result.review ? (
+            <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
+              {reviewedText(result)}
+            </span>
+          ) : null}
+        </div>
+
+        <PermissionGuard capability="EDIT" workspaceRole={workspaceRole}>
+          {(canReview) => (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="review-status">Trạng thái review</Label>
+                  <select
+                    id="review-status"
+                    className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={reviewForm.reviewStatus}
+                    disabled={!canReview || reviewMutation.isPending}
+                    onChange={(event) => {
+                      const reviewStatus = parseReviewStatusOption(event.target.value);
+                      if (reviewStatus) {
+                        setReviewForm((current) => ({ ...current, reviewStatus }));
+                      }
+                    }}
+                  >
+                    {REVIEW_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="override-status">Override status</Label>
+                  <select
+                    id="override-status"
+                    className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={reviewForm.overrideStatus}
+                    disabled={!canReview || reviewMutation.isPending}
+                    onChange={(event) => {
+                      const overrideStatus = parseOverrideStatusOption(event.target.value);
+                      if (overrideStatus) {
+                        setReviewForm((current) => ({ ...current, overrideStatus }));
+                      }
+                    }}
+                  >
+                    <option value="NONE">Không override</option>
+                    {OVERRIDE_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="override-score">Override score</Label>
+                <Input
+                  id="override-score"
+                  inputMode="decimal"
+                  placeholder="Ví dụ: 0.95"
+                  value={reviewForm.overrideScore}
+                  disabled={!canReview || reviewMutation.isPending}
+                  onChange={(event) =>
+                    setReviewForm((current) => ({
+                      ...current,
+                      overrideScore: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="review-note">Ghi chú</Label>
+                <Textarea
+                  id="review-note"
+                  placeholder="Ghi chú lý do review hoặc override"
+                  value={reviewForm.note}
+                  disabled={!canReview || reviewMutation.isPending}
+                  onChange={(event) =>
+                    setReviewForm((current) => ({ ...current, note: event.target.value }))
+                  }
+                />
+              </div>
+
+              {formError ? <p className="text-sm text-danger">{formError}</p> : null}
+
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Backend sanitize ghi chú trước khi lưu.
+                </p>
+                <Button
+                  type="button"
+                  disabled={!canReview || reviewMutation.isPending || Boolean(formError)}
+                  onClick={() => void handleSaveReview()}
+                >
+                  Lưu review
+                </Button>
+              </div>
+
+              {!canReview ? (
+                <p className="rounded-lg border bg-muted p-3 text-sm text-muted-foreground">
+                  VIEWER chỉ được xem result, không được lưu QC review.
+                </p>
+              ) : null}
+            </div>
+          )}
+        </PermissionGuard>
+      </section>
+
       <JsonBlock title="Request" value={result.request} />
       <JsonBlock title="Response" value={result.response} />
       <JsonBlock title="Extracted output" value={result.extractedOutput} />
@@ -671,6 +834,29 @@ function ResultStatusBadge({ status }: { status: TestCaseResultDetailResponse['m
     .join(' ');
 
   return <span className={className}>{resultStatusLabel(status)}</span>;
+}
+
+function emptyReviewForm(): ReviewFormState {
+  return {
+    reviewStatus: 'APPROVED',
+    overrideStatus: 'NONE',
+    overrideScore: '',
+    note: '',
+  };
+}
+
+function reviewFormFromResult(result: TestCaseResultDetailResponse | undefined): ReviewFormState {
+  if (!result?.review) {
+    return emptyReviewForm();
+  }
+
+  return {
+    reviewStatus: result.review.reviewStatus,
+    overrideStatus: result.review.overrideStatus ?? 'NONE',
+    overrideScore:
+      typeof result.review.overrideScore === 'number' ? String(result.review.overrideScore) : '',
+    note: result.review.note ?? '',
+  };
 }
 
 function StatusBadge({ status }: { status: TestRunDetailResponse['status'] }) {
