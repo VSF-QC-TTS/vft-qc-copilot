@@ -111,19 +111,20 @@ created_at TIMESTAMPTZ NOT NULL
 updated_at TIMESTAMPTZ NOT NULL
 ```
 
-Supported run types:
+Supported run types in the current Java backend:
 
 ```text
-SINGLE
+SINGLE_TARGET
 COMPARISON
 ```
 
-Supported statuses:
+Supported statuses in the current Java backend:
 
 ```text
-PENDING
+CREATED
+QUEUED
 RUNNING
-CANCELLING
+CANCEL_REQUESTED
 CANCELLED
 COMPLETED
 FAILED
@@ -132,9 +133,9 @@ FAILED
 Rules:
 
 ```text
-1. TestRun is created in PENDING state.
-2. Runner changes PENDING to RUNNING through RUN_STARTED event.
-3. Backend changes RUNNING to CANCELLING when cancel is requested.
+1. TestRun is inserted as CREATED and immediately queued by RunnerCommandService as QUEUED.
+2. Runner changes QUEUED to RUNNING through RUN_STARTED event.
+3. Backend changes RUNNING to CANCEL_REQUESTED when cancel is requested.
 4. Terminal statuses are COMPLETED, FAILED and CANCELLED.
 5. Terminal TestRun must not transition back to RUNNING.
 6. TestRun must store sanitized compact snapshots and hashes.
@@ -426,7 +427,7 @@ Endpoint naming note:
 
 | Action | Required permission |
 | ------ | ------------------- |
-| Run preflight | Project RUN_TEST: OWNER / ADMIN / MEMBER |
+| Run preflight | Project VIEW: OWNER / ADMIN / MEMBER / VIEWER |
 | Create TestRun | Project RUN_TEST: OWNER / ADMIN / MEMBER |
 | List TestRuns | Project VIEW |
 | View TestRun detail | Project VIEW |
@@ -615,6 +616,80 @@ Rules:
 1. BLOCKER warnings prevent run creation.
 2. WARNING warnings require user awareness but may still allow run creation.
 3. INFO warnings are non-blocking hints.
+```
+
+---
+
+## 8. Current Java Backend Request Shape
+
+The current Java backend DTOs are the source of truth for frontend Slice 14.
+
+Use this shape for preflight:
+
+```json
+{
+  "datasetId": "647f2d7c-7f06-4cc5-bd85-f0f1cf53f1e8",
+  "targets": [
+    {
+      "targetType": "CHATBOT_TARGET",
+      "chatbotTargetId": "88ab33e0-c4c7-4b15-86f1-605455c02e73",
+      "name": "Internal Chatbot"
+    },
+    {
+      "targetType": "LLM_BASELINE",
+      "providerId": "3d6bb241-2416-4b8e-bc92-975ce1477e33",
+      "model": "gpt-4.1-mini",
+      "name": "GPT-4.1 mini baseline"
+    }
+  ],
+  "evaluators": [
+    {
+      "evaluatorVersionId": "e36ae48f-86d7-42cc-9461-c4265e7aa6d6"
+    }
+  ],
+  "options": {
+    "maxRows": 500,
+    "includePromptfooSnapshot": false
+  }
+}
+```
+
+Use the same shape for create, plus optional `runType`:
+
+```json
+{
+  "datasetId": "647f2d7c-7f06-4cc5-bd85-f0f1cf53f1e8",
+  "runType": "SINGLE_TARGET",
+  "targets": [
+    {
+      "targetType": "CHATBOT_TARGET",
+      "chatbotTargetId": "88ab33e0-c4c7-4b15-86f1-605455c02e73",
+      "name": "Internal Chatbot"
+    }
+  ],
+  "evaluators": [
+    {
+      "evaluatorVersionId": "e36ae48f-86d7-42cc-9461-c4265e7aa6d6"
+    }
+  ],
+  "options": {
+    "maxRows": 500,
+    "includePromptfooSnapshot": false
+  }
+}
+```
+
+Important implementation notes:
+
+```text
+1. Preflight uses project VIEW permission, so VIEWER can preflight.
+2. Create uses project EDIT/RUN permission, so VIEWER cannot create.
+3. datasetId means the Dataset whose current ACTIVE version will be locked.
+4. Frontend must not send datasetVersionId for Slice 14.
+5. Frontend must send evaluators, not evaluatorVersions.
+6. LLM baseline uses providerId, not llmProviderId.
+7. Target display override field is name, not displayName.
+8. Successful create returns 201 and a TestRunDetailResponse whose status is QUEUED after runner command creation.
 ```
 
 ---

@@ -794,6 +794,19 @@ warnings
 create
 ```
 
+### Current backend mapping
+
+```text
+preflight request: datasetId, targets, evaluators, options
+create request: datasetId, runType, targets, evaluators, options
+runType: SINGLE_TARGET or COMPARISON
+target fields: CHATBOT_TARGET uses chatbotTargetId/name; LLM_BASELINE uses providerId/model/name
+evaluator field: evaluatorVersionId
+create success: 201 with TestRunDetailResponse status QUEUED
+preflight permission: VIEW, so VIEWER can preflight
+create permission: EDIT/RUN, so VIEWER cannot create
+```
+
 ### Acceptance criteria
 
 ```text

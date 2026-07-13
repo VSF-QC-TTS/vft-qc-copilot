@@ -36,6 +36,8 @@ import { DatasetImportPage } from '@/features/datasets/pages/dataset-import-page
 import { EvaluatorListPage } from '@/features/evaluators/pages/evaluator-list-page';
 import { EvaluatorCreatePage } from '@/features/evaluators/pages/evaluator-create-page';
 import { EvaluatorDetailPage } from '@/features/evaluators/pages/evaluator-detail-page';
+import { TestRunCreatePage } from '@/features/test-runs/pages/test-run-create-page';
+import { TestRunDetailPage } from '@/features/test-runs/pages/test-run-detail-page';
 
 export const appRoutes: RouteObject[] = [
   {
@@ -162,6 +164,14 @@ export const appRoutes: RouteObject[] = [
                   {
                     path: 'evaluators/:evaluatorId/versions/:versionId',
                     element: <EvaluatorDetailPage />,
+                  },
+                  {
+                    path: 'test-runs/new',
+                    element: <TestRunCreatePage />,
+                  },
+                  {
+                    path: 'test-runs/:testRunId',
+                    element: <TestRunDetailPage />,
                   },
                 ],
               },
