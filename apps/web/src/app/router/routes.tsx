@@ -1,4 +1,4 @@
-import type { RouteObject } from 'react-router';
+import { RouteObject, Navigate } from 'react-router';
 
 import { AppShell } from '@/app/layouts/app-shell';
 import { HomePage } from '@/app/router/pages/home-page';
@@ -14,6 +14,9 @@ import { VerifyEmailPage } from '@/features/auth/pages/verify-email-page';
 import { WorkspaceListPage } from '@/features/workspaces/pages/workspace-list-page';
 import { WorkspaceOverviewPage } from '@/features/workspaces/pages/workspace-overview-page';
 import { WorkspaceContextLayout } from '@/app/layouts/workspace-context-layout';
+import { WorkspaceSettingsLayout } from '@/features/workspaces/pages/workspace-settings-layout';
+import { WorkspaceSettingsGeneralPage } from '@/features/workspaces/pages/workspace-settings-general-page';
+import { WorkspaceSettingsMembersPage } from '@/features/workspaces/pages/workspace-settings-members-page';
 
 import { ProjectListPage } from '@/features/projects/pages/project-list-page';
 import { ProjectOverviewPage } from '@/features/projects/pages/project-overview-page';
@@ -78,6 +81,24 @@ export const appRoutes: RouteObject[] = [
                   {
                     index: true,
                     element: <ProjectOverviewPage />,
+                  },
+                ],
+              },
+              {
+                path: 'settings',
+                element: <WorkspaceSettingsLayout />,
+                children: [
+                  {
+                    index: true,
+                    element: <Navigate to="general" replace />,
+                  },
+                  {
+                    path: 'general',
+                    element: <WorkspaceSettingsGeneralPage />,
+                  },
+                  {
+                    path: 'members',
+                    element: <WorkspaceSettingsMembersPage />,
                   },
                 ],
               },

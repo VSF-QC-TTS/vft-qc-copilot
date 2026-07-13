@@ -64,6 +64,10 @@ export class ApiContractError extends Error {
   }
 }
 
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
 export function createNetworkError(cause: unknown): ApiError {
   return new ApiError({
     status: 0,
