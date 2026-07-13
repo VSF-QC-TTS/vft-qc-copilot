@@ -5,6 +5,7 @@ import { cn } from '@/shared/lib/utils';
 import { NavLink } from 'react-router';
 import { ChevronLeft, ChevronRight, FolderKanban, KeyRound, ServerCog } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '@/app/providers/auth-provider';
 
 interface GlobalSidebarProps {
   className?: string;
@@ -20,6 +21,11 @@ const navItems = [
 
 export function GlobalSidebar({ className, id, onNavigate }: GlobalSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user } = useAuth();
+  const visibleNavItems =
+    user?.systemRole === 'PLATFORM_ADMIN'
+      ? [...navItems, { label: 'Admin Users', href: '/admin/users', icon: ServerCog }]
+      : navItems;
 
   return (
     <aside
@@ -43,7 +49,7 @@ export function GlobalSidebar({ className, id, onNavigate }: GlobalSidebarProps)
       </div>
 
       <nav className="flex-1 space-y-1 px-2 py-4" aria-label="Menu chính">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.href}
             to={item.href}

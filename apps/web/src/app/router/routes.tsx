@@ -5,6 +5,7 @@ import { HomePage } from '@/app/router/pages/home-page';
 import { NotFoundPage } from '@/app/router/pages/not-found-page';
 import { AuthenticatedGuard } from '@/app/guards/authenticated-guard';
 import { PublicOnlyGuard } from '@/app/guards/public-only-guard';
+import { PlatformAdminGuard } from '@/app/guards/platform-admin-guard';
 import { LoginPage } from '@/features/auth/pages/login-page';
 import { RegisterPage } from '@/features/auth/pages/register-page';
 import { ForgotPasswordPage } from '@/features/auth/pages/forgot-password-page';
@@ -38,6 +39,7 @@ import { EvaluatorCreatePage } from '@/features/evaluators/pages/evaluator-creat
 import { EvaluatorDetailPage } from '@/features/evaluators/pages/evaluator-detail-page';
 import { TestRunCreatePage } from '@/features/test-runs/pages/test-run-create-page';
 import { TestRunDetailPage } from '@/features/test-runs/pages/test-run-detail-page';
+import { AdminUsersPage } from '@/features/admin-users/pages/admin-users-page';
 
 export const appRoutes: RouteObject[] = [
   {
@@ -96,6 +98,15 @@ export const appRoutes: RouteObject[] = [
           {
             path: '/workspaces',
             element: <WorkspaceListPage />,
+          },
+          {
+            element: <PlatformAdminGuard />,
+            children: [
+              {
+                path: '/admin/users',
+                element: <AdminUsersPage />,
+              },
+            ],
           },
           {
             path: '/workspaces/:workspaceId',

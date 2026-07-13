@@ -1,13 +1,33 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AppShell } from '@/app/layouts/app-shell';
 import { ThemeProvider } from '@/app/providers/theme-provider';
+import type { CurrentUserResponse } from '@/features/auth/types/auth.types';
+
+const useAuthMock = vi.hoisted(() =>
+  vi.fn<() => { user: CurrentUserResponse | null; isLoading: boolean; isAuthenticated: boolean }>(),
+);
+
+vi.mock('@/app/providers/auth-provider', () => ({
+  useAuth: useAuthMock,
+}));
 
 function renderShell() {
+  useAuthMock.mockReturnValue({
+    user: {
+      id: 'user-1',
+      email: 'user@vinfast.vn',
+      displayName: 'User',
+      systemRole: 'USER',
+      status: 'ACTIVE',
+    },
+    isLoading: false,
+    isAuthenticated: true,
+  });
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
