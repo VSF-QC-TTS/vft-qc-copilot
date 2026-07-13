@@ -16,6 +16,10 @@ import {
   testRunStatusTone,
 } from '@/features/test-runs/components/test-run-detail-utils';
 import { useCancelTestRun, useTestRun } from '@/features/test-runs/hooks/use-test-runs';
+import {
+  testRunSseConnectionLabel,
+  useTestRunSse,
+} from '@/features/test-runs/sse/use-test-run-sse';
 import type { WorkspaceContextType } from '@/app/layouts/workspace-context-layout';
 import type { ProjectResponse } from '@/features/projects/types/project';
 import type { TestRunDetailResponse } from '@/features/test-runs/types/test-run';
@@ -51,6 +55,17 @@ export function TestRunDetailPage() {
   const testRunQuery = useTestRun(testRunId);
   const cancelMutation = useCancelTestRun(project.id);
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
+  const testRun = testRunQuery.data;
+  const realtime = useTestRunSse({
+    testRunId,
+    projectId: project.id,
+    enabled: Boolean(
+      testRunId &&
+      testRun &&
+      testRun.projectId === project.id &&
+      !isTerminalTestRunStatus(testRun.status),
+    ),
+  });
 
   if (testRunQuery.isLoading) {
     return (
@@ -61,7 +76,7 @@ export function TestRunDetailPage() {
     );
   }
 
-  if (testRunQuery.isError || !testRunQuery.data || testRunQuery.data.projectId !== project.id) {
+  if (testRunQuery.isError || !testRun || testRun.projectId !== project.id) {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 py-8 text-destructive sm:px-6 lg:px-8">
         Không thể tải TestRun.
@@ -69,10 +84,10 @@ export function TestRunDetailPage() {
     );
   }
 
-  const testRun = testRunQuery.data;
   const explanation = runFailureExplanation(testRun.status);
   const progressPercent = testRunProgressPercent(testRun);
   const canCancel = canCancelTestRun(testRun.status) && !cancelMutation.isPending;
+  const realtimeClosed = isTerminalTestRunStatus(testRun.status);
 
   const handleCancel = async () => {
     try {
@@ -94,8 +109,19 @@ export function TestRunDetailPage() {
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">TestRun</h1>
             <StatusBadge status={testRun.status} />
+            <RealtimeBadge
+              label={
+                realtimeClosed
+                  ? 'Realtime đã đóng'
+                  : testRunSseConnectionLabel(realtime.connectionState, realtime.stopReason)
+              }
+              state={realtimeClosed ? 'closed' : realtime.connectionState}
+            />
           </div>
-          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{testRun.id}</p>
+          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+            {testRun.id}
+            {realtime.lastSequenceNo > 0 ? ` · SSE #${String(realtime.lastSequenceNo)}` : ''}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
@@ -367,6 +393,26 @@ function StatusBadge({ status }: { status: TestRunDetailResponse['status'] }) {
       {testRunStatusLabel(status)}
     </span>
   );
+}
+
+function RealtimeBadge({
+  label,
+  state,
+}: {
+  label: string;
+  state: ReturnType<typeof useTestRunSse>['connectionState'];
+}) {
+  const className = [
+    'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium',
+    state === 'open' ? 'bg-success-soft text-success' : '',
+    state === 'connecting' || state === 'reconnecting' ? 'bg-accent-soft text-accent' : '',
+    state === 'error' ? 'bg-warning-soft text-warning' : '',
+    state === 'idle' || state === 'closed' ? 'bg-muted text-muted-foreground' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return <span className={className}>{label}</span>;
 }
 
 function SummaryCard({ label, value }: { label: string; value: string }) {

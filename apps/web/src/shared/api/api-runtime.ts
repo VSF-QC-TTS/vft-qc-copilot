@@ -9,6 +9,7 @@ import { createTokenStore } from '@/shared/api/token-store';
 export interface ApiRuntime {
   apiClient: ApiClient;
   tokenStore: TokenStore;
+  refreshAccessToken: () => Promise<string>;
   setAuthenticationFailureHandler: (handler: () => void) => void;
 }
 
@@ -48,6 +49,7 @@ export function createApiRuntime({
   return {
     apiClient,
     tokenStore,
+    refreshAccessToken: () => refresh.refresh(),
     setAuthenticationFailureHandler: (handler) => {
       authenticationFailureHandler = handler;
     },

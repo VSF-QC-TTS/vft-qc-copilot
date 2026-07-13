@@ -15,6 +15,7 @@ export const testRunKeys = {
   all: ['test-runs'] as const,
   project: (projectId: string) => [...testRunKeys.all, 'project', projectId] as const,
   detail: (testRunId: string) => [...testRunKeys.all, 'detail', testRunId] as const,
+  results: (testRunId: string) => [...testRunKeys.all, 'results', testRunId] as const,
 };
 
 export function useProjectTestRuns(projectId: string) {
