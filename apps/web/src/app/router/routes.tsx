@@ -29,6 +29,9 @@ import { ProjectContextLayout } from '@/app/layouts/project-context-layout';
 import { ChatbotTargetListPage } from '@/features/chatbot-targets/pages/chatbot-target-list-page';
 import { ChatbotTargetCreatePage } from '@/features/chatbot-targets/pages/chatbot-target-create-page';
 import { ChatbotTargetDetailPage } from '@/features/chatbot-targets/pages/chatbot-target-detail-page';
+import { DatasetListPage } from '@/features/datasets/pages/dataset-list-page';
+import { DatasetCreatePage } from '@/features/datasets/pages/dataset-create-page';
+import { DatasetDetailPage } from '@/features/datasets/pages/dataset-detail-page';
 
 export const appRoutes: RouteObject[] = [
   {
@@ -119,6 +122,22 @@ export const appRoutes: RouteObject[] = [
                   {
                     path: 'targets/:targetId',
                     element: <ChatbotTargetDetailPage />,
+                  },
+                  {
+                    path: 'datasets',
+                    element: <DatasetListPage />,
+                  },
+                  {
+                    path: 'datasets/new',
+                    element: <DatasetCreatePage />,
+                  },
+                  {
+                    path: 'datasets/:datasetId',
+                    element: <DatasetDetailPage />,
+                  },
+                  {
+                    path: 'datasets/:datasetId/versions/:versionId',
+                    element: <DatasetDetailPage />,
                   },
                 ],
               },

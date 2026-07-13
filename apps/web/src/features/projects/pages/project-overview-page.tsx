@@ -105,6 +105,12 @@ export function ProjectOverviewPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
+              to={`/workspaces/${workspace.id}/projects/${project.id}/datasets`}
+              className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover"
+            >
+              Datasets
+            </Link>
+            <Link
               to={`/workspaces/${workspace.id}/projects/${project.id}/targets`}
               className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover"
             >
