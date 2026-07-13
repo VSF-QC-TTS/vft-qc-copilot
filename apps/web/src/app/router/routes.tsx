@@ -33,6 +33,9 @@ import { DatasetListPage } from '@/features/datasets/pages/dataset-list-page';
 import { DatasetCreatePage } from '@/features/datasets/pages/dataset-create-page';
 import { DatasetDetailPage } from '@/features/datasets/pages/dataset-detail-page';
 import { DatasetImportPage } from '@/features/datasets/pages/dataset-import-page';
+import { EvaluatorListPage } from '@/features/evaluators/pages/evaluator-list-page';
+import { EvaluatorCreatePage } from '@/features/evaluators/pages/evaluator-create-page';
+import { EvaluatorDetailPage } from '@/features/evaluators/pages/evaluator-detail-page';
 
 export const appRoutes: RouteObject[] = [
   {
@@ -143,6 +146,22 @@ export const appRoutes: RouteObject[] = [
                   {
                     path: 'datasets/:datasetId/versions/:versionId',
                     element: <DatasetDetailPage />,
+                  },
+                  {
+                    path: 'evaluators',
+                    element: <EvaluatorListPage />,
+                  },
+                  {
+                    path: 'evaluators/new',
+                    element: <EvaluatorCreatePage />,
+                  },
+                  {
+                    path: 'evaluators/:evaluatorId',
+                    element: <EvaluatorDetailPage />,
+                  },
+                  {
+                    path: 'evaluators/:evaluatorId/versions/:versionId',
+                    element: <EvaluatorDetailPage />,
                   },
                 ],
               },

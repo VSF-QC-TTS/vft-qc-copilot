@@ -116,6 +116,12 @@ export function ProjectOverviewPage() {
             >
               Chatbot targets
             </Link>
+            <Link
+              to={`/workspaces/${workspace.id}/projects/${project.id}/evaluators`}
+              className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover"
+            >
+              Evaluators
+            </Link>
           </div>
           {project.description && (
             <p className="max-w-3xl text-sm leading-6 text-foreground-secondary">
