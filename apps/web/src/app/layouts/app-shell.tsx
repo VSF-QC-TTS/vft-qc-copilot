@@ -23,6 +23,12 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen w-full bg-background">
+      <a
+        href="#main-content"
+        className="sr-only z-[60] rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:outline-2 focus:outline-offset-2 focus:outline-focus-ring"
+      >
+        Bỏ qua đến nội dung chính
+      </a>
       <GlobalSidebar className="hidden lg:flex" />
       {isMobileNavigationOpen && (
         <dialog
@@ -49,7 +55,7 @@ export function AppShell() {
           isMenuOpen={isMobileNavigationOpen}
           onMenuClick={() => setIsMobileNavigationOpen(true)}
         />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
       </div>

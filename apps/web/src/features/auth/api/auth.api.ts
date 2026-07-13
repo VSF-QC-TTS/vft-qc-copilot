@@ -3,6 +3,7 @@ import {
   authMessageResponseSchema,
   currentUserResponseSchema,
   loginResponseSchema,
+  registerResponseSchema,
 } from '@/features/auth/schemas/auth.schemas';
 import type {
   ForgotPasswordRequest,
@@ -11,7 +12,6 @@ import type {
   ResetPasswordRequest,
   VerifyEmailRequest,
 } from '@/features/auth/types/auth.types';
-import { z } from 'zod';
 
 export async function login(data: LoginRequest) {
   return apiClient.requestJson('/api/v1/auth/login', loginResponseSchema, {
@@ -33,8 +33,7 @@ export async function logout() {
 }
 
 export async function register(data: RegisterRequest) {
-  // Return void or object, we don't care much for register response schema right now as we just need to know it succeeded
-  return apiClient.requestJson('/api/v1/auth/register', z.any(), {
+  return apiClient.requestJson('/api/v1/auth/register', registerResponseSchema, {
     method: 'POST',
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },

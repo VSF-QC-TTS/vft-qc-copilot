@@ -46,10 +46,14 @@ describe('AppShell', () => {
   it('renders sidebar, header and main content area', () => {
     renderShell();
 
+    expect(screen.getByRole('link', { name: 'Bỏ qua đến nội dung chính' })).toHaveAttribute(
+      'href',
+      '#main-content',
+    );
     expect(screen.getByLabelText('Navigation chính')).toBeInTheDocument();
     expect(screen.getAllByLabelText('Chuyển Workspace').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Đăng xuất')[0]).toBeInTheDocument();
-    expect(screen.getByRole('main')).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
   });
 
   it('opens and closes tablet navigation', async () => {

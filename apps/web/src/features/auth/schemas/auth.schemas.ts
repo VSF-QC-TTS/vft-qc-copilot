@@ -44,6 +44,13 @@ export const registerRequestSchema = z.object({
     .max(128, 'Mật khẩu phải từ 8 đến 128 ký tự'),
 });
 
+export const registerResponseSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  status: z.string(),
+  message: z.string(),
+});
+
 export const registerFormSchema = registerRequestSchema
   .extend({
     confirmPassword: z.string().min(1, 'Vui lòng xác nhận mật khẩu'),

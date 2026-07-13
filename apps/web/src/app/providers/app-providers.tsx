@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { AuthProvider } from '@/app/providers/auth-provider';
+import { shouldRetryQuery } from '@/app/providers/query-policy';
 import { ThemeProvider } from '@/app/providers/theme-provider';
 
 interface AppProvidersProps {
@@ -15,7 +16,7 @@ export function AppProviders({ children }: AppProvidersProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            retry: false,
+            retry: shouldRetryQuery,
             refetchOnWindowFocus: false,
           },
         },

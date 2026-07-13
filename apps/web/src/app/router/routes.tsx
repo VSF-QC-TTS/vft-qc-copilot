@@ -3,6 +3,7 @@ import { RouteObject, Navigate } from 'react-router';
 import { AppShell } from '@/app/layouts/app-shell';
 import { HomePage } from '@/app/router/pages/home-page';
 import { NotFoundPage } from '@/app/router/pages/not-found-page';
+import { RouteErrorPage } from '@/app/router/pages/route-error-page';
 import { AuthenticatedGuard } from '@/app/guards/authenticated-guard';
 import { PublicOnlyGuard } from '@/app/guards/public-only-guard';
 import { PlatformAdminGuard } from '@/app/guards/platform-admin-guard';
@@ -44,6 +45,7 @@ import { AdminUsersPage } from '@/features/admin-users/pages/admin-users-page';
 export const appRoutes: RouteObject[] = [
   {
     element: <PublicOnlyGuard />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         path: '/login',
@@ -69,6 +71,7 @@ export const appRoutes: RouteObject[] = [
   },
   {
     element: <AuthenticatedGuard />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         element: <AppShell />,

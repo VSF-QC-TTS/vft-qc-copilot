@@ -3,6 +3,7 @@ import {
   currentUserResponseSchema,
   loginRequestSchema,
   loginResponseSchema,
+  registerResponseSchema,
   registerRequestSchema,
   registerFormSchema,
   verifyEmailRequestSchema,
@@ -16,6 +17,7 @@ export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 export type CurrentUserResponse = z.infer<typeof currentUserResponseSchema>;
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
+export type RegisterResponse = z.infer<typeof registerResponseSchema>;
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
 export type VerifyEmailRequest = z.infer<typeof verifyEmailRequestSchema>;
 export type ForgotPasswordRequest = z.infer<typeof forgotPasswordRequestSchema>;
