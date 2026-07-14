@@ -161,6 +161,23 @@ services:
       - vfqc-internal
       - vfqc-egress
 
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "127.0.0.1:${VFQC_WEB_PORT:-3000}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - vfqc-internal
+
 volumes:
   postgres-data:
   redis-data:
