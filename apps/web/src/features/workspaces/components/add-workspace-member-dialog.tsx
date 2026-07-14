@@ -84,7 +84,7 @@ export function AddWorkspaceMemberDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="backdrop:bg-black/50 p-6 rounded-lg shadow-lg bg-background w-full max-w-md border"
+      className="w-full max-w-md rounded-lg border bg-background p-6 backdrop:bg-overlay"
     >
       <div className="flex flex-col space-y-4">
         <div className="flex flex-col space-y-1.5">

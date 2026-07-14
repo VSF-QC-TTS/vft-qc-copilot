@@ -23,7 +23,7 @@ export function ProjectListPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-5xl py-12 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {projectSkeletonKeys.map((key) => (
             <Skeleton key={key} className="h-32 w-full rounded-xl" />
@@ -36,7 +36,7 @@ export function ProjectListPage() {
   if (error) {
     return (
       <div className="flex min-h-[400px] w-full flex-col items-center justify-center text-center">
-        <p className="text-[#9F2F2D]">Đã có lỗi xảy ra khi tải danh sách Project.</p>
+        <p className="text-danger">Đã có lỗi xảy ra khi tải danh sách Project.</p>
       </div>
     );
   }
@@ -44,45 +44,42 @@ export function ProjectListPage() {
   const projects = projectCollection?.items ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-5xl py-12 px-4 sm:px-6 lg:px-8">
-      <div className="mb-8 flex flex-col items-start justify-between sm:flex-row sm:items-center">
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1
-            className="text-3xl font-semibold tracking-tight text-[#111111]"
-            style={{ fontFamily: "'Lyon Text', 'Newsreader', 'Playfair Display', serif" }}
-          >
-            Projects
-          </h1>
-          <p className="mt-1 text-sm text-[#787774]">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Projects</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Quản lý các project trong workspace{' '}
-            <span className="font-medium text-[#111111]">{workspace.name}</span>.
+            <span className="font-medium text-foreground">{workspace.name}</span>.
           </p>
         </div>
-        <div className="mt-4 flex items-center gap-4 sm:mt-0">
-          <div className="flex items-center rounded-md border border-[#EAEAEA] bg-[#F9F9F8] p-0.5">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center rounded-md border border-border bg-surface-subtle p-0.5">
             <button
               type="button"
+              aria-label="Xem dạng lưới"
               onClick={() => setView('grid')}
               className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors',
+                'flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring',
                 view === 'grid'
-                  ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] text-[#111111]'
-                  : 'text-[#787774] hover:text-[#111111]',
+                  ? 'bg-surface text-foreground'
+                  : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
               )}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className="h-4 w-4" aria-hidden="true" />
             </button>
             <button
               type="button"
+              aria-label="Xem dạng danh sách"
               onClick={() => setView('list')}
               className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors',
+                'flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring',
                 view === 'list'
-                  ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] text-[#111111]'
-                  : 'text-[#787774] hover:text-[#111111]',
+                  ? 'bg-surface text-foreground'
+                  : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
               )}
             >
-              <List className="h-4 w-4" />
+              <List className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
           <CreateProjectDialog
@@ -90,9 +87,9 @@ export function ProjectListPage() {
             trigger={
               <button
                 type="button"
-                className="flex h-9 items-center justify-center rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-transform hover:bg-[#333333] active:scale-[0.98]"
+                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                 Tạo Project
               </button>
             }
@@ -101,14 +98,14 @@ export function ProjectListPage() {
       </div>
 
       {projects.length === 0 ? (
-        <div className="flex min-h-[300px] flex-col items-center justify-center rounded-xl border border-[#EAEAEA] bg-[#FBFBFA] p-8 text-center">
-          <p className="text-[#787774]">Chưa có project nào.</p>
+        <div className="flex min-h-[300px] flex-col items-center justify-center rounded-lg border border-border bg-surface-subtle p-8 text-center">
+          <p className="text-muted-foreground">Chưa có Project nào.</p>
           <CreateProjectDialog
             workspace={workspace}
             trigger={
               <button
                 type="button"
-                className="mt-4 flex h-9 items-center justify-center rounded-md border border-[#EAEAEA] bg-white px-4 text-sm font-medium text-[#111111] transition-transform hover:bg-[#F9F9F8] active:scale-[0.98]"
+                className="mt-4 inline-flex h-9 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 Tạo Project đầu tiên
               </button>
@@ -121,20 +118,20 @@ export function ProjectListPage() {
             <Link
               key={project.id}
               to={`/workspaces/${workspace.id}/projects/${project.id}`}
-              className="group flex flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group flex flex-col justify-between rounded-lg border border-border bg-surface p-6 transition-colors duration-150 hover:border-border-strong hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               style={{ animationDelay: `calc(${index} * 40ms)` }}
             >
               <div>
-                <h3 className="text-lg font-medium text-[#111111]">{project.name}</h3>
-                <p className="mt-2 line-clamp-2 text-sm text-[#787774]">
+                <h3 className="text-lg font-medium text-foreground">{project.name}</h3>
+                <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                   {project.description || 'Không có mô tả.'}
                 </p>
               </div>
-              <div className="mt-6 flex items-center justify-between text-xs text-[#787774]">
+              <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
                 <span>
                   Cập nhật {new Date(project.updatedAt || project.createdAt).toLocaleDateString()}
                 </span>
-                <span className="rounded-full bg-[#F7F6F3] px-2 py-0.5 border border-[#EAEAEA]">
+                <span className="rounded-full border border-neutral-border bg-neutral-bg px-2 py-0.5 text-neutral-fg">
                   Hoạt động
                 </span>
               </div>
@@ -142,36 +139,36 @@ export function ProjectListPage() {
           ))}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+        <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-[#EAEAEA] bg-[#F7F6F3]">
+            <thead className="border-b border-border bg-muted">
               <tr>
-                <th className="px-6 py-3 font-medium text-[#787774]">Tên Project</th>
-                <th className="px-6 py-3 font-medium text-[#787774]">Mô tả</th>
-                <th className="px-6 py-3 font-medium text-[#787774]">Trạng thái</th>
-                <th className="px-6 py-3 text-right font-medium text-[#787774]">Cập nhật</th>
+                <th className="px-6 py-3 font-medium text-muted-foreground">Tên Project</th>
+                <th className="px-6 py-3 font-medium text-muted-foreground">Mô tả</th>
+                <th className="px-6 py-3 font-medium text-muted-foreground">Trạng thái</th>
+                <th className="px-6 py-3 text-right font-medium text-muted-foreground">Cập nhật</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EAEAEA]">
+            <tbody className="divide-y divide-border">
               {projects.map((project) => (
-                <tr key={project.id} className="transition-colors hover:bg-[#FBFBFA]">
+                <tr key={project.id} className="transition-colors hover:bg-surface-hover">
                   <td className="px-6 py-4">
                     <Link
                       to={`/workspaces/${workspace.id}/projects/${project.id}`}
-                      className="font-medium text-[#111111] hover:underline"
+                      className="font-medium text-foreground hover:underline"
                     >
                       {project.name}
                     </Link>
                   </td>
-                  <td className="px-6 py-4 text-[#787774] max-w-[300px] truncate">
+                  <td className="max-w-[300px] truncate px-6 py-4 text-muted-foreground">
                     {project.description || '-'}
                   </td>
                   <td className="px-6 py-4">
-                    <span className="inline-flex items-center rounded-full bg-[#EDF3EC] px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-[#346538]">
+                    <span className="inline-flex items-center rounded-full border border-success-border bg-success-bg px-2.5 py-0.5 text-xs font-medium text-success-fg">
                       Hoạt động
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right text-[#787774]">
+                  <td className="px-6 py-4 text-right text-muted-foreground">
                     {new Date(project.updatedAt || project.createdAt).toLocaleDateString()}
                   </td>
                 </tr>

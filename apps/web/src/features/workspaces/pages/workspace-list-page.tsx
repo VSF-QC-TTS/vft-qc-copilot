@@ -19,20 +19,21 @@ export function WorkspaceListPage() {
   const workspaces = workspaceCollection?.items || [];
 
   return (
-    <div className="mx-auto max-w-[1200px] p-8">
-      {/* Header */}
-      <div className="mb-12 flex items-center justify-between">
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#111111]">Workspace</h1>
-          <p className="mt-1 text-sm text-[#787774]">Quản lý không gian làm việc của bạn</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Workspace</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Chọn Workspace để mở Project, thiết lập Secret và Provider.
+          </p>
         </div>
         <CreateWorkspaceDialog
           trigger={
             <button
               type="button"
-              className="flex h-9 items-center gap-2 rounded-md bg-[#111111] px-4 text-sm font-medium text-white transition-colors hover:bg-[#2C2C2C]"
+              className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Tạo Workspace
             </button>
           }
@@ -47,18 +48,18 @@ export function WorkspaceListPage() {
         </div>
       ) : error ? (
         <div className="flex min-h-[400px] w-full flex-col items-center justify-center text-center">
-          <p className="text-[#9F2F2D]">Đã có lỗi xảy ra khi tải Workspace.</p>
+          <p className="text-danger">Đã có lỗi xảy ra khi tải Workspace.</p>
         </div>
       ) : workspaces.length === 0 ? (
-        <div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-[#EAEAEA] bg-[#FBFBFA] p-8 text-center">
-          <p className="text-[#787774]">Chưa có Workspace nào.</p>
+        <div className="flex min-h-[240px] flex-col items-center justify-center rounded-lg border border-border bg-surface-subtle p-8 text-center">
+          <p className="text-muted-foreground">Chưa có Workspace nào.</p>
           <CreateWorkspaceDialog
             trigger={
               <button
                 type="button"
-                className="mt-4 flex h-9 items-center gap-2 rounded-md border border-[#EAEAEA] bg-white px-4 text-sm font-medium text-[#111111] transition-colors hover:bg-[#F9F9F8]"
+                className="mt-4 inline-flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" aria-hidden="true" />
                 Tạo Workspace đầu tiên
               </button>
             }
@@ -70,24 +71,24 @@ export function WorkspaceListPage() {
             <Link
               key={workspace.id}
               to={`/workspaces/${workspace.id}`}
-              className="group flex flex-col justify-between rounded-xl border border-[#EAEAEA] bg-white p-6 transition-all duration-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group flex flex-col justify-between rounded-lg border border-border bg-surface p-6 transition-colors duration-150 hover:border-border-strong hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               style={{ animationDelay: `calc(${index} * 80ms)` }}
             >
               <div className="flex items-start justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#EAEAEA] bg-[#F7F6F3]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted">
                   {workspace.type === 'TEAM' ? (
-                    <Building2 className="h-5 w-5 text-[#111111]" />
+                    <Building2 className="h-5 w-5 text-foreground" aria-hidden="true" />
                   ) : (
-                    <User className="h-5 w-5 text-[#111111]" />
+                    <User className="h-5 w-5 text-foreground" aria-hidden="true" />
                   )}
                 </div>
-                <div className="flex items-center rounded-full bg-[#E1F3FE] px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-[#1F6C9F]">
+                <div className="flex items-center rounded-full border border-info-border bg-info-bg px-2.5 py-0.5 text-xs font-medium text-info-fg">
                   {workspace.type}
                 </div>
               </div>
               <div className="mt-8">
-                <h3 className="text-lg font-medium text-[#111111]">{workspace.name}</h3>
-                <p className="mt-1 text-sm text-[#787774]">
+                <h3 className="text-lg font-medium text-foreground">{workspace.name}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Vai trò: {workspace.currentUserRole ?? 'Quản trị viên hệ thống'}
                 </p>
               </div>

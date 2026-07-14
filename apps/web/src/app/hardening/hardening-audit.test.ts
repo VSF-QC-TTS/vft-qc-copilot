@@ -14,6 +14,8 @@ const forbiddenPatterns = [
   { name: 'deprecated keepPreviousData flag', pattern: /\bkeepPreviousData\s*:\s*true\b/ },
   { name: 'deprecated useErrorBoundary option', pattern: /\buseErrorBoundary\s*:/ },
   { name: 'legacy Hydrate component', pattern: /<Hydrate\b/ },
+  { name: 'runtime raw hex color', pattern: /#[0-9a-fA-F]{3,8}\b/ },
+  { name: 'runtime heavy shadow utility', pattern: /\bshadow-(md|lg|xl|2xl)\b/ },
   {
     name: 'sensitive URL search param',
     pattern:
@@ -37,7 +39,8 @@ describe('frontend hardening audit', () => {
 
 function runtimeSourceFiles(): Array<[string, string]> {
   return Object.entries(runtimeSourceModules).filter(
-    ([filePath]) => !TEST_FILE_PATTERN.test(filePath),
+    ([filePath]) =>
+      !TEST_FILE_PATTERN.test(filePath) && !filePath.startsWith('/src/shared/components/ui/'),
   );
 }
 

@@ -141,7 +141,7 @@ Evidence:
 
 ## Batch 7 — UX/UI professionalization
 
-Status: pending
+Status: completed
 
 Acceptance:
 
@@ -149,6 +149,18 @@ Acceptance:
 - Feature code uses semantic tokens instead of scattered raw hex.
 - Heavy default shadows are removed where docs ban them.
 - Lucide remains the only icon library unless project docs are explicitly changed.
+
+Evidence:
+
+- Workspace switcher, Workspace list/overview, Project list, and member dialog now use semantic tokens instead of raw hex classes.
+- Workspace overview includes direct operational setup links for Workspace Secret, Workspace Provider, and members.
+- Project list view controls use accessible labels and semantic active states.
+- Runtime hardening audit now blocks raw hex colors and heavy shadow utilities outside shared shadcn UI internals.
+- Compliance search found no runtime app/feature raw hex, heavy shadow, hover zoom, or non-Lucide icon library usage.
+- `rtk npm run typecheck` in `apps/web`
+- `rtk npm run lint` in `apps/web`
+- Targeted tests: `rtk npm run test -- src/app/hardening/hardening-audit.test.ts src/app/layouts/global-sidebar.test.tsx src/features/workspaces/pages/workspace-settings-layout.test.tsx src/features/projects/pages/project-overview-page.test.tsx`
+- `rtk npm run build` in `apps/web`
 
 ## Batch 8 — Full verification suite
 

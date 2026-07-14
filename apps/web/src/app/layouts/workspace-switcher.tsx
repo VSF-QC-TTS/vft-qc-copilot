@@ -6,8 +6,6 @@ import { useNavigate, useParams } from 'react-router';
 
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
-// Fallback simple dropdown if shadcn dropdown is not ready.
-// We will use standard select-like UI but styled minimally.
 export function WorkspaceSwitcher({
   className,
   isCollapsed,
@@ -20,10 +18,6 @@ export function WorkspaceSwitcher({
 
   const currentWorkspace = workspaces.find((w) => w.id === workspaceId);
 
-  // Note: Following minimalist-ui rules: flat architecture, subtle hovers.
-  // We use a clean select element overlayed, or just a simple button if we had a popover.
-  // For MVP, a minimalist select is accessible and flat.
-
   if (isLoading) {
     return (
       <Skeleton aria-label="Chuyển Workspace" className={cn('h-9 w-full rounded-md', className)} />
@@ -35,21 +29,21 @@ export function WorkspaceSwitcher({
       <button
         type="button"
         className={cn(
-          'flex h-9 w-full items-center rounded border border-[#EAEAEA] bg-[#F9F9F8] px-2 text-sm font-medium transition-transform duration-200 hover:scale-[0.98] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+          'flex h-9 w-full items-center rounded-md border border-border bg-surface-subtle px-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-surface-hover active:bg-surface-pressed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring',
           isCollapsed ? 'justify-center' : 'justify-between gap-2',
         )}
         aria-label="Chuyển Workspace"
       >
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="h-5 w-5 shrink-0 rounded-sm bg-[#EAEAEA]" />
+          <div className="h-5 w-5 shrink-0 rounded-sm bg-muted" />
           {!isCollapsed && (
-            <span className="truncate max-w-[120px] text-[#111111]">
+            <span className="max-w-[120px] truncate text-foreground">
               {currentWorkspace ? currentWorkspace.name : 'Chọn Workspace'}
             </span>
           )}
         </div>
         {!isCollapsed && (
-          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-[#787774]" />
+          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
       </button>
 
